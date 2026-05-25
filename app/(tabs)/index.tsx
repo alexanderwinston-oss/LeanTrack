@@ -13,8 +13,6 @@ import { useStore } from '@/lib/store';
 import { getStreakDays } from '@/lib/db';
 import { MealType } from '@/lib/types';
 
-const TODAY = new Date().toISOString().split('T')[0];
-
 const MEAL_LABELS: Record<MealType, string> = {
   petit_dejeuner: '🥣 Petit-déjeuner',
   dejeuner: '🍽️ Déjeuner',
@@ -33,14 +31,16 @@ export default function Dashboard() {
 
   useFocusEffect(
     useCallback(() => {
-      refreshDailyData(TODAY);
+      const today = new Date().toISOString().split('T')[0];
+      refreshDailyData(today);
       getStreakDays().then(setStreak);
     }, [])
   );
 
   async function onRefresh() {
     setRefreshing(true);
-    await refreshDailyData(TODAY);
+    const today = new Date().toISOString().split('T')[0];
+    await refreshDailyData(today);
     setRefreshing(false);
   }
 
@@ -55,7 +55,7 @@ export default function Dashboard() {
     <View style={styles.safe}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={[styles.content, { paddingBottom: 110 }]}
+        contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.accent} />}
       >
         {/* Header */}
@@ -115,7 +115,7 @@ export default function Dashboard() {
               <TouchableOpacity
                 key={ml}
                 style={styles.waterBtn}
-                onPress={() => addWaterToStore(TODAY, ml)}
+                onPress={() => addWaterToStore(new Date().toISOString().split('T')[0], ml)}
               >
                 <Text style={styles.waterBtnText}>+{ml}ml</Text>
               </TouchableOpacity>
@@ -156,6 +156,7 @@ export default function Dashboard() {
             <Text style={styles.actionLabel}>Ma projection</Text>
           </Pressable>
         </View>
+        <View style={{ height: 80 }} />
       </ScrollView>
     </View>
   );

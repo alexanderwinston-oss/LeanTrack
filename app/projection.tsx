@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { VictoryAxis, VictoryChart, VictoryLine, VictoryTheme } from 'victory-native';
-import { router } from 'expo-router';
-import { format } from 'date-fns';
+import React, { useRef, useState } from 'react';
+import {
+  Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+} from 'react-native';
+import { VictoryAxis, VictoryChart, VictoryLine } from 'victory-native';
+import { router, useFocusEffect } from 'expo-router';
+import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
@@ -10,25 +12,69 @@ import { getProfile, getWeightHistory } from '@/lib/db';
 import { calcProjection } from '@/lib/nutrition';
 import { UserProfile, WeightEntry } from '@/lib/types';
 
-const { width } = Dimensions.get('window');
+const shownMilestonesThisSession = new Set<number>();
+
+const getCelebrationContent = (percent: number) => {
+  if (percent >= 100) return { emoji: '🏆', text: 'Objectif atteint !' };
+  if (percent >= 75) return { emoji: '🔥', text: '75% de l\'objectif atteint !' };
+  if (percent >= 50) return { emoji: '⭐', text: 'Mi-chemin franchi !' };
+  return { emoji: '💪', text: '25% de l\'objectif atteint !' };
+};
 
 export default function Projection() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [weightHistory, setWeightHistory] = useState<WeightEntry[]>([]);
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationPercent, setCelebrationPercent] = useState(0);
+  const scaleAnim = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    (async () => {
-      const [p, hist] = await Promise.all([getProfile(), getWeightHistory(90)]);
-      setProfile(p);
-      setWeightHistory([...hist].reverse());
-    })();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [])
+  );
+
+  async function loadData() {
+    const [p, hist] = await Promise.all([getProfile(), getWeightHistory(90)]);
+    if (!p) return;
+    setProfile(p);
+    const history = [...hist].reverse();
+    setWeightHistory(history);
+
+    if (history.length > 0) {
+      const latestWeight = history[history.length - 1].weight;
+      const totalToLose = p.weight_current - p.weight_target;
+      const lost = p.weight_current - latestWeight;
+      const percent = totalToLose > 0
+        ? Math.min(Math.round((lost / totalToLose) * 100), 100)
+        : 0;
+      setProgressPercent(percent);
+
+      for (const m of [25, 50, 75, 100]) {
+        if (percent >= m && !shownMilestonesThisSession.has(m)) {
+          shownMilestonesThisSession.add(m);
+          setCelebrationPercent(m);
+          setShowCelebration(true);
+          scaleAnim.setValue(0);
+          Animated.spring(scaleAnim, { toValue: 1, friction: 5, useNativeDriver: true }).start();
+          break;
+        }
+      }
+    }
+  }
+
+  function closeCelebration() {
+    Animated.spring(scaleAnim, { toValue: 0, friction: 5, useNativeDriver: true }).start(() => {
+      setShowCelebration(false);
+    });
+  }
 
   if (!profile) {
     return (
       <View style={styles.container}>
         <View style={styles.empty}>
-          <Text style={styles.emptyText}>Profil non configuré</Text>
+          <Text style={styles.emptyText}>Chargement...</Text>
         </View>
       </View>
     );
@@ -42,29 +88,19 @@ export default function Projection() {
     profile.target_date
   );
 
-  const realPoints = weightHistory.map((e) => ({ x: new Date(e.date), y: e.weight }));
-  const projPoints = projectionPoints.map((e) => ({ x: new Date(e.date), y: e.weight }));
+  const historyData = weightHistory.map(e => ({ x: new Date(e.date), y: e.weight }));
+  const projectionData = projectionPoints.map(p => ({ x: new Date(p.date), y: p.weight }));
 
-  const lastReal = weightHistory.length > 0 ? weightHistory[weightHistory.length - 1] : null;
-  const displayWeight = lastReal ? lastReal.weight : profile.weight_current;
+  const latestWeight = weightHistory.length > 0
+    ? weightHistory[weightHistory.length - 1].weight
+    : profile.weight_current;
 
-  const allWeights = [
-    ...projPoints.map((p) => p.y),
-    ...realPoints.map((p) => p.y),
-    profile.weight_target,
-  ];
-  const minW = Math.min(...allWeights) - 2;
-  const maxW = Math.max(...allWeights) + 2;
+  const ecartRestant = Math.abs(latestWeight - profile.weight_target).toFixed(1);
+  const estimatedDateStr = projectionPoints.length > 0
+    ? format(parseISO(projectionPoints[projectionPoints.length - 1].date), 'dd MMMM yyyy', { locale: fr })
+    : '—';
 
-  const weightDiff = profile.weight_current - profile.weight_target;
-  const weeklyChange = Math.abs(profile.tdee - profile.calorie_target) * 7 / 7700;
-  const weeksToGoal = weeklyChange > 0 ? Math.abs(weightDiff) / weeklyChange : 0;
-  const estimatedDate = new Date();
-  estimatedDate.setDate(estimatedDate.getDate() + Math.round(weeksToGoal * 7));
-
-  const projTickDates = projPoints
-    .filter((_, i) => i % Math.max(1, Math.floor(projPoints.length / 4)) === 0)
-    .map((p) => p.x);
+  const celebContent = getCelebrationContent(celebrationPercent);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -75,138 +111,80 @@ export default function Projection() {
         <Text style={styles.title}>📊 Ma projection</Text>
       </View>
 
-      {/* Stats cards */}
-      <View style={styles.statsGrid}>
-        <Card style={styles.statCard}>
-          <Text style={styles.statNum}>{displayWeight} kg</Text>
-          <Text style={styles.statLabel}>{lastReal ? 'Dernier pesé' : 'Poids actuel'}</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={[styles.statNum, { color: Colors.accent }]}>{profile.weight_target} kg</Text>
-          <Text style={styles.statLabel}>Objectif</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={[styles.statNum, { color: weightDiff > 0 ? Colors.danger : Colors.accent }]}>
-            {weightDiff > 0 ? '-' : '+'}{Math.abs(weightDiff).toFixed(1)} kg
-          </Text>
-          <Text style={styles.statLabel}>Écart</Text>
-        </Card>
-        <Card style={styles.statCard}>
-          <Text style={[styles.statNum, { color: Colors.warning }]}>
-            {weeksToGoal < 1 ? '< 1 sem.' : `${Math.round(weeksToGoal)} sem.`}
-          </Text>
-          <Text style={styles.statLabel}>Durée estimée</Text>
-        </Card>
-      </View>
-
-      {/* Chart */}
-      <Card style={styles.chartCard}>
-        <Text style={styles.chartTitle}>Courbe de progression</Text>
-
-        <View style={styles.legend}>
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: Colors.accent }]} />
-            <Text style={styles.legendText}>Projection</Text>
-          </View>
-          {realPoints.length > 0 && (
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: Colors.proteinColor }]} />
-              <Text style={styles.legendText}>Réel</Text>
-            </View>
-          )}
-          <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: Colors.warning }]} />
-            <Text style={styles.legendText}>Objectif</Text>
-          </View>
-        </View>
-
-        {weightHistory.length === 0 && (
-          <View style={styles.noDataHint}>
-            <Text style={styles.noDataText}>
-              Saisis ton poids quotidiennement dans Profil pour voir ta courbe réelle
-            </Text>
-          </View>
-        )}
-
-        {projPoints.length > 1 && (
+      {projectionData.length > 0 && (
+        <Card style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Courbe de progression</Text>
           <VictoryChart
-            width={width - 72}
-            height={240}
-            theme={VictoryTheme.material}
+            width={Dimensions.get('window').width - 32}
+            height={220}
             scale={{ x: 'time' }}
-            domain={{ y: [minW, maxW] }}
-            padding={{ top: 16, bottom: 40, left: 48, right: 16 }}
           >
             <VictoryAxis
-              tickValues={projTickDates}
-              tickFormat={(t: number) => {
-                try { return format(new Date(t), 'dd MMM', { locale: fr }); } catch { return ''; }
-              }}
-              style={{
-                axis: { stroke: Colors.bgElevated },
-                tickLabels: { fill: Colors.textMuted, fontSize: 9 },
-                grid: { stroke: 'transparent' },
-              }}
+              tickCount={4}
+              tickFormat={d => format(new Date(d), 'dd MMM', { locale: fr })}
+              style={{ tickLabels: { fontSize: 9, fill: '#94a3b8' } }}
             />
             <VictoryAxis
               dependentAxis
-              tickFormat={(t: number) => `${t}kg`}
-              style={{
-                axis: { stroke: Colors.bgElevated },
-                tickLabels: { fill: Colors.textMuted, fontSize: 9 },
-                grid: { stroke: Colors.bgElevated, strokeDasharray: '4,4' },
-              }}
+              style={{ tickLabels: { fontSize: 9, fill: '#94a3b8' } }}
             />
             <VictoryLine
-              data={projPoints.map((p) => ({ x: p.x, y: profile.weight_target }))}
-              style={{ data: { stroke: Colors.warning, strokeWidth: 1.5, strokeDasharray: '6,4', opacity: 0.7 } }}
+              data={projectionData}
+              style={{ data: { stroke: '#475569', strokeDasharray: '5,5', strokeWidth: 1.5 } }}
             />
-            <VictoryLine
-              data={projPoints}
-              style={{ data: { stroke: Colors.accent, strokeWidth: 2, strokeDasharray: '4,4' } }}
-            />
-            {realPoints.length > 1 && (
+            {historyData.length > 0 && (
               <VictoryLine
-                data={realPoints}
-                style={{ data: { stroke: Colors.proteinColor, strokeWidth: 2.5 } }}
+                data={historyData}
+                style={{ data: { stroke: '#10b981', strokeWidth: 2.5 } }}
               />
             )}
           </VictoryChart>
-        )}
-      </Card>
+        </Card>
+      )}
 
-      {/* Date estimée */}
-      <Card style={styles.dateCard}>
-        <Text style={styles.dateEmoji}>🎯</Text>
-        <View>
-          <Text style={styles.dateTitle}>Date estimée d'atteinte de l'objectif</Text>
-          <Text style={styles.dateValue}>
-            {format(estimatedDate, 'd MMMM yyyy', { locale: fr })}
-          </Text>
+      {/* Stat cards — 2-column grid */}
+      <View style={styles.statsGrid}>
+        <Card style={styles.statCard}>
+          <Text style={styles.statLabel}>Poids actuel</Text>
+          <Text style={styles.statNum}>{latestWeight} kg</Text>
+        </Card>
+        <Card style={styles.statCard}>
+          <Text style={styles.statLabel}>Objectif</Text>
+          <Text style={[styles.statNum, { color: Colors.accent }]}>{profile.weight_target} kg</Text>
+        </Card>
+        <Card style={styles.statCard}>
+          <Text style={styles.statLabel}>Écart restant</Text>
+          <Text style={[styles.statNum, { color: Colors.warning }]}>{ecartRestant} kg</Text>
+        </Card>
+        <Card style={styles.statCard}>
+          <Text style={styles.statLabel}>Date estimée</Text>
+          <Text style={[styles.statNum, { fontSize: 13, color: Colors.accent }]}>{estimatedDateStr}</Text>
+        </Card>
+      </View>
+
+      {/* Progress */}
+      <Card style={styles.progressCard}>
+        <Text style={styles.progressLabel}>Progression</Text>
+        <Text style={styles.progressNum}>{progressPercent}%</Text>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${progressPercent}%` as any }]} />
         </View>
       </Card>
 
-      {/* Calorie info */}
-      <Card style={styles.caloCard}>
-        <View style={styles.caloRow}>
-          <View style={styles.caloItem}>
-            <Text style={styles.caloNum}>{profile.tdee}</Text>
-            <Text style={styles.caloLabel}>TDEE (kcal/j)</Text>
-          </View>
-          <Text style={styles.caloArrow}>→</Text>
-          <View style={styles.caloItem}>
-            <Text style={[styles.caloNum, { color: Colors.accent }]}>{profile.calorie_target}</Text>
-            <Text style={styles.caloLabel}>Objectif (kcal/j)</Text>
-          </View>
-          <Text style={styles.caloArrow}>≈</Text>
-          <View style={styles.caloItem}>
-            <Text style={[styles.caloNum, { color: Colors.warning }]}>
-              {weeklyChange > 0 ? (weeklyChange * 1000).toFixed(0) : '0'}g
-            </Text>
-            <Text style={styles.caloLabel}>Perte/semaine</Text>
-          </View>
+      <View style={{ height: 40 }} />
+
+      {/* Celebration modal */}
+      <Modal visible={showCelebration} transparent animationType="none">
+        <View style={styles.overlay}>
+          <Animated.View style={[styles.celebCard, { transform: [{ scale: scaleAnim }] }]}>
+            <Text style={styles.celebEmoji}>{celebContent.emoji}</Text>
+            <Text style={styles.celebText}>{celebContent.text}</Text>
+            <Pressable style={styles.celebBtn} onPress={closeCelebration}>
+              <Text style={styles.celebBtnText}>Super !</Text>
+            </Pressable>
+          </Animated.View>
         </View>
-      </Card>
+      </Modal>
     </ScrollView>
   );
 }
@@ -219,33 +197,28 @@ const styles = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '700', color: Colors.textPrimary },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontSize: 18, color: Colors.textSecondary },
-  noDataHint: {
-    backgroundColor: Colors.bgSurface,
-    borderRadius: Colors.radius,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: 12,
-    alignItems: 'center',
-  },
-  noDataText: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center', lineHeight: 19 },
+  chartCard: { gap: 8, paddingHorizontal: 0, overflow: 'hidden' },
+  chartTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, paddingHorizontal: 16 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  statCard: { flex: 1, minWidth: '44%', alignItems: 'center', gap: 4 },
-  statNum: { fontSize: 20, fontWeight: '700', color: Colors.textPrimary },
-  statLabel: { fontSize: 12, color: Colors.textSecondary, textAlign: 'center' },
-  chartCard: { gap: 12 },
-  chartTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
-  legend: { flexDirection: 'row', gap: 16, flexWrap: 'wrap' },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { fontSize: 12, color: Colors.textSecondary },
-  dateCard: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  dateEmoji: { fontSize: 30 },
-  dateTitle: { fontSize: 13, color: Colors.textSecondary, marginBottom: 2 },
-  dateValue: { fontSize: 18, fontWeight: '700', color: Colors.accent },
-  caloCard: {},
-  caloRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
-  caloItem: { alignItems: 'center', gap: 2 },
-  caloNum: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
-  caloLabel: { fontSize: 11, color: Colors.textSecondary, textAlign: 'center' },
-  caloArrow: { fontSize: 18, color: Colors.textMuted },
+  statCard: { flex: 1, minWidth: '44%', gap: 4 },
+  statLabel: { fontSize: 11, color: Colors.textSecondary },
+  statNum: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
+  progressCard: { gap: 10 },
+  progressLabel: { fontSize: 14, color: Colors.textSecondary, fontWeight: '500' },
+  progressNum: { fontSize: 40, fontWeight: '800', color: Colors.accent },
+  progressTrack: { height: 10, backgroundColor: Colors.bgElevated, borderRadius: 5, overflow: 'hidden' },
+  progressFill: { height: '100%', backgroundColor: Colors.accent, borderRadius: 5 },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center' },
+  celebCard: {
+    backgroundColor: Colors.bgSurface, borderRadius: Colors.radius,
+    padding: 32, alignItems: 'center', gap: 16,
+    borderWidth: 1, borderColor: Colors.accent, width: '80%',
+  },
+  celebEmoji: { fontSize: 56 },
+  celebText: { fontSize: 20, fontWeight: '700', color: Colors.textPrimary, textAlign: 'center' },
+  celebBtn: {
+    backgroundColor: Colors.accent, borderRadius: Colors.radiusPill,
+    paddingHorizontal: 24, paddingVertical: 12,
+  },
+  celebBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 });

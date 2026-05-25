@@ -93,7 +93,7 @@ export default function Plan() {
       );
       await saveMealPlan(JSON.stringify(newPlan));
       setPlan(newPlan);
-    } catch (err) {
+    } catch (err: any) {
       Alert.alert(
         'Génération indisponible',
         'Le plan alimentaire n\'a pas pu être généré. Vérifie ta connexion et réessaie.',
@@ -198,6 +198,7 @@ export default function Plan() {
               <Button label="🔄 Régénérer le plan" onPress={generate} variant="secondary" />
             )}
           </View>
+          <View style={{ height: 80 }} />
         </ScrollView>
       </View>
     </View>

@@ -110,7 +110,7 @@ export default function Profil() {
 
   return (
     <View style={styles.safe}>
-      <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: 110 }]}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>⚙️ Mon profil</Text>
         </View>
@@ -190,6 +190,8 @@ export default function Profil() {
             variant="ghost"
           />
         </View>
+
+        <View style={{ height: 80 }} />
 
         {/* Weight modal */}
         <Modal visible={weightModal} transparent animationType="fade">

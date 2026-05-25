@@ -1,43 +1,63 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import Constants from 'expo-constants';
 import { FoodAnalysisResult, MealPlan } from './types';
 
-const genAI = new GoogleGenerativeAI(
-  Constants.expoConfig?.extra?.geminiApiKey ?? ''
-);
+const API_KEY = Constants.expoConfig?.extra?.geminiApiKey ?? '';
+const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const TIMEOUT_MS = 30000;
 
-const visionModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
-const textModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
-
-async function callWithRetry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
-  for (let i = 0; i < retries; i++) {
-    try {
-      return await fn();
-    } catch (err: any) {
-      const is429 =
-        err?.message?.includes('429') ||
-        err?.status === 429 ||
-        err?.message?.includes('quota');
-      if (is429 && i < retries - 1) {
-        await new Promise(res => setTimeout(res, (i + 1) * 4000));
-        continue;
-      }
-      throw err;
-    }
+async function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
   }
-  throw new Error('Max retries reached');
+}
+
+async function callGemini(body: object): Promise<any> {
+  if (!API_KEY) throw new Error('Clé API manquante dans app.json');
+
+  const response = await fetchWithTimeout(`${BASE_URL}?key=${API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(`[${response.status}] ${data?.error?.message ?? 'Erreur API'}`);
+  }
+
+  return data;
+}
+
+function safeParseJSON<T>(text: string, fallback: T): T {
+  try {
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function extractText(data: any): string {
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '{}';
 }
 
 export async function analyzeFoodPhoto(base64Image: string): Promise<FoodAnalysisResult> {
-  return callWithRetry(async () => {
-    const imagePart = {
-      inlineData: {
-        data: base64Image,
-        mimeType: 'image/jpeg' as const,
-      },
-    };
-
-    const prompt = `Analyse cette photo de repas. Retourne UNIQUEMENT un JSON valide sans markdown ni explication :
+  const data = await callGemini({
+    contents: [{
+      parts: [
+        {
+          inline_data: {
+            mime_type: 'image/jpeg',
+            data: base64Image,
+          },
+        },
+        {
+          text: `Analyse cette photo de repas. Retourne UNIQUEMENT un JSON valide sans markdown ni explication :
 {
   "aliment_principal": "string",
   "aliments_detectes": ["string"],
@@ -46,15 +66,25 @@ export async function analyzeFoodPhoto(base64Image: string): Promise<FoodAnalysi
   "proteines_g": number,
   "glucides_g": number,
   "lipides_g": number,
-  "confiance": "haute",
+  "confiance": "haute" | "moyenne" | "faible",
   "remarques": "string"
 }
-Base-toi sur les portions standard françaises.`;
+Base-toi sur les portions standard françaises. Sois précis sur les macros.`,
+        },
+      ],
+    }],
+  });
 
-    const result = await visionModel.generateContent([prompt, imagePart]);
-    const text = result.response.text();
-    const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean) as FoodAnalysisResult;
+  return safeParseJSON<FoodAnalysisResult>(extractText(data), {
+    aliment_principal: 'Non identifié',
+    aliments_detectes: [],
+    quantite_estimee_g: 100,
+    calories_estimees: 0,
+    proteines_g: 0,
+    glucides_g: 0,
+    lipides_g: 0,
+    confiance: 'faible',
+    remarques: 'Analyse échouée — ajoute manuellement',
   });
 }
 
@@ -65,8 +95,10 @@ export async function generateMealPlan(
   fat_g: number,
   goal: string
 ): Promise<MealPlan> {
-  return callWithRetry(async () => {
-    const prompt = `Génère un plan alimentaire 7 jours pour :
+  const data = await callGemini({
+    contents: [{
+      parts: [{
+        text: `Génère un plan alimentaire 7 jours pour :
 - Objectif : ${goal} — ${calorieTarget} kcal/jour
 - Protéines : ${protein_g}g | Glucides : ${carbs_g}g | Lipides : ${fat_g}g
 - Cuisine française, aliments courants en supermarché, repas simples < 30 min
@@ -79,7 +111,7 @@ Retourne UNIQUEMENT ce JSON sans markdown :
       "total_calories": number,
       "repas": [
         {
-          "type": "petit_dejeuner",
+          "type": "petit_dejeuner" | "dejeuner" | "diner" | "collation",
           "nom": "string",
           "description": "string",
           "calories": number,
@@ -91,13 +123,10 @@ Retourne UNIQUEMENT ce JSON sans markdown :
       ]
     }
   ]
-}`;
-
-    const result = await textModel.generateContent(prompt);
-    const text = result.response.text();
-    const clean = text.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(clean) as MealPlan;
-    parsed.generated_at = new Date().toISOString();
-    return parsed;
+}`,
+      }],
+    }],
   });
+
+  return safeParseJSON<MealPlan>(extractText(data), { plan: [] });
 }

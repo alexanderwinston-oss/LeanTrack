@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useFocusEffect } from 'expo-router';
@@ -9,7 +9,6 @@ import { Card } from '@/components/ui/Card';
 import { useStore } from '@/lib/store';
 import { deleteWaterEntry, getWaterLogsForDate } from '@/lib/db';
 
-const TODAY = new Date().toISOString().split('T')[0];
 const RING_SIZE = 220;
 const STROKE = 16;
 const RADIUS = (RING_SIZE - STROKE) / 2;
@@ -32,8 +31,9 @@ export default function Eau() {
   const celebScale = useRef(new Animated.Value(1)).current;
 
   useFocusEffect(
-    useCallback(() => {
-      refreshLogs();
+    React.useCallback(() => {
+      const today = new Date().toISOString().split('T')[0];
+      loadWaterData(today);
     }, [])
   );
 
@@ -46,20 +46,25 @@ export default function Eau() {
     }
   }, [goalReached]);
 
-  async function refreshLogs() {
-    const newLogs = await getWaterLogsForDate(TODAY);
+  async function loadWaterData(today: string) {
+    await refreshDailyData(today);
+    const newLogs = await getWaterLogsForDate(today);
     setLogs(newLogs);
   }
 
   async function addWater(ml: number) {
-    await addWaterToStore(TODAY, ml);
-    await refreshLogs();
+    const today = new Date().toISOString().split('T')[0];
+    await addWaterToStore(today, ml);
+    const newLogs = await getWaterLogsForDate(today);
+    setLogs(newLogs);
   }
 
   async function handleDeleteEntry(id: number) {
+    const today = new Date().toISOString().split('T')[0];
     await deleteWaterEntry(id);
-    await refreshDailyData(TODAY);
-    await refreshLogs();
+    await refreshDailyData(today);
+    const newLogs = await getWaterLogsForDate(today);
+    setLogs(newLogs);
   }
 
   const percent = Math.round(ratio * 100);
@@ -67,7 +72,7 @@ export default function Eau() {
 
   return (
     <View style={styles.safe}>
-      <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: 110 }]}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>💧 Hydratation</Text>
           <Text style={styles.date}>{format(new Date(), 'd MMMM', { locale: fr })}</Text>
@@ -148,6 +153,7 @@ export default function Eau() {
             ))}
           </View>
         )}
+        <View style={{ height: 80 }} />
       </ScrollView>
     </View>
   );

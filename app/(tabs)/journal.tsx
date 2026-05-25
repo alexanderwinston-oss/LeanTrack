@@ -167,7 +167,7 @@ export default function Journal() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 110 }]}>
+      <ScrollView contentContainerStyle={styles.scroll}>
         {SECTIONS.map(({ type, label, emoji }) => (
           <View key={type} style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -202,6 +202,7 @@ export default function Journal() {
             </TouchableOpacity>
           </View>
         ))}
+        <View style={{ height: 80 }} />
       </ScrollView>
 
       {/* Add food modal */}

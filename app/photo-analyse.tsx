@@ -62,10 +62,10 @@ export default function PhotoAnalyse() {
       const analysis = await analyzeFoodPhoto(b64);
       setResult(analysis);
       setPortion(1);
-    } catch (err) {
+    } catch (err: any) {
       Alert.alert(
         'Analyse indisponible',
-        "L'analyse n'a pas pu aboutir. Vérifie ta connexion et réessaie dans quelques secondes.",
+        "L'analyse n'a pas pu aboutir. Vérifie ta connexion et réessaie.",
         [{ text: 'OK' }]
       );
     } finally {
@@ -120,10 +120,10 @@ export default function PhotoAnalyse() {
         encoding: FileSystem.EncodingType.Base64,
       });
       await analyseWithBase64(base64);
-    } catch (err) {
+    } catch (err: any) {
       Alert.alert(
         'Analyse indisponible',
-        "L'analyse n'a pas pu aboutir. Vérifie ta connexion et réessaie dans quelques secondes.",
+        "L'analyse n'a pas pu aboutir. Vérifie ta connexion et réessaie.",
         [{ text: 'OK' }]
       );
     } finally {
