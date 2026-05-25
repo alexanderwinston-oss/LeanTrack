@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -19,6 +19,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 const QUICK_AMOUNTS = [150, 250, 330, 500, 750];
 
 export default function Eau() {
+  const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
   const waterMl = useStore((s) => s.waterMl);
   const addWaterToStore = useStore((s) => s.addWaterToStore);
@@ -68,7 +69,7 @@ export default function Eau() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 70 }]}>
         <View style={styles.header}>
           <Text style={styles.title}>💧 Hydratation</Text>
           <Text style={styles.date}>{format(new Date(), 'd MMMM', { locale: fr })}</Text>
@@ -157,7 +158,7 @@ export default function Eau() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bgPrimary },
   container: { flex: 1 },
-  content: { padding: 20, paddingTop: 12, gap: 16, paddingBottom: 80 },
+  content: { padding: 20, paddingTop: 12, gap: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   title: { fontSize: 22, fontWeight: '700', color: Colors.textPrimary },
   date: { fontSize: 14, color: Colors.textSecondary },

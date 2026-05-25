@@ -1,27 +1,28 @@
-import React, { useCallback, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { VictoryAxis, VictoryChart, VictoryLine, VictoryTheme } from 'victory-native';
-import { useFocusEffect, router } from 'expo-router';
-import { format, parseISO } from 'date-fns';
+import { router } from 'expo-router';
+import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
-import { useStore } from '@/lib/store';
-import { getWeightHistory } from '@/lib/db';
+import { getProfile, getWeightHistory } from '@/lib/db';
 import { calcProjection } from '@/lib/nutrition';
-import { WeightEntry } from '@/lib/types';
+import { UserProfile, WeightEntry } from '@/lib/types';
 
 const { width } = Dimensions.get('window');
 
 export default function Projection() {
-  const profile = useStore((s) => s.profile);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [weightHistory, setWeightHistory] = useState<WeightEntry[]>([]);
 
-  useFocusEffect(
-    useCallback(() => {
-      getWeightHistory(90).then((data) => setWeightHistory([...data].reverse()));
-    }, [])
-  );
+  useEffect(() => {
+    (async () => {
+      const [p, hist] = await Promise.all([getProfile(), getWeightHistory(90)]);
+      setProfile(p);
+      setWeightHistory([...hist].reverse());
+    })();
+  }, []);
 
   if (!profile) {
     return (
@@ -41,8 +42,11 @@ export default function Projection() {
     profile.target_date
   );
 
-  const realPoints = weightHistory.map((e) => ({ x: e.date, y: e.weight }));
-  const projPoints = projectionPoints.map((e) => ({ x: e.date, y: e.weight }));
+  const realPoints = weightHistory.map((e) => ({ x: new Date(e.date), y: e.weight }));
+  const projPoints = projectionPoints.map((e) => ({ x: new Date(e.date), y: e.weight }));
+
+  const lastReal = weightHistory.length > 0 ? weightHistory[weightHistory.length - 1] : null;
+  const displayWeight = lastReal ? lastReal.weight : profile.weight_current;
 
   const allWeights = [
     ...projPoints.map((p) => p.y),
@@ -58,8 +62,9 @@ export default function Projection() {
   const estimatedDate = new Date();
   estimatedDate.setDate(estimatedDate.getDate() + Math.round(weeksToGoal * 7));
 
-  // Simplify axis labels for space
-  const projTickValues = projPoints.filter((_, i) => i % Math.max(1, Math.floor(projPoints.length / 4)) === 0).map((p) => p.x);
+  const projTickDates = projPoints
+    .filter((_, i) => i % Math.max(1, Math.floor(projPoints.length / 4)) === 0)
+    .map((p) => p.x);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -73,8 +78,8 @@ export default function Projection() {
       {/* Stats cards */}
       <View style={styles.statsGrid}>
         <Card style={styles.statCard}>
-          <Text style={styles.statNum}>{profile.weight_current} kg</Text>
-          <Text style={styles.statLabel}>Poids actuel</Text>
+          <Text style={styles.statNum}>{displayWeight} kg</Text>
+          <Text style={styles.statLabel}>{lastReal ? 'Dernier pesé' : 'Poids actuel'}</Text>
         </Card>
         <Card style={styles.statCard}>
           <Text style={[styles.statNum, { color: Colors.accent }]}>{profile.weight_target} kg</Text>
@@ -115,7 +120,7 @@ export default function Projection() {
           </View>
         </View>
 
-        {realPoints.length === 0 && (
+        {weightHistory.length === 0 && (
           <View style={styles.noDataHint}>
             <Text style={styles.noDataText}>
               Saisis ton poids quotidiennement dans Profil pour voir ta courbe réelle
@@ -128,13 +133,14 @@ export default function Projection() {
             width={width - 72}
             height={240}
             theme={VictoryTheme.material}
+            scale={{ x: 'time' }}
             domain={{ y: [minW, maxW] }}
             padding={{ top: 16, bottom: 40, left: 48, right: 16 }}
           >
             <VictoryAxis
-              tickValues={projTickValues}
-              tickFormat={(t: string) => {
-                try { return format(parseISO(t), 'dd MMM', { locale: fr }); } catch { return ''; }
+              tickValues={projTickDates}
+              tickFormat={(t: number) => {
+                try { return format(new Date(t), 'dd MMM', { locale: fr }); } catch { return ''; }
               }}
               style={{
                 axis: { stroke: Colors.bgElevated },
@@ -151,17 +157,14 @@ export default function Projection() {
                 grid: { stroke: Colors.bgElevated, strokeDasharray: '4,4' },
               }}
             />
-            {/* Target line — always shown */}
             <VictoryLine
               data={projPoints.map((p) => ({ x: p.x, y: profile.weight_target }))}
               style={{ data: { stroke: Colors.warning, strokeWidth: 1.5, strokeDasharray: '6,4', opacity: 0.7 } }}
             />
-            {/* Projection line — always shown */}
             <VictoryLine
               data={projPoints}
               style={{ data: { stroke: Colors.accent, strokeWidth: 2, strokeDasharray: '4,4' } }}
             />
-            {/* Real line — only when data exists */}
             {realPoints.length > 1 && (
               <VictoryLine
                 data={realPoints}

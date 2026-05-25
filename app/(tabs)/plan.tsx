@@ -3,7 +3,7 @@ import {
   ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
@@ -74,6 +74,7 @@ function MealCard({
 }
 
 export default function Plan() {
+  const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
   const [plan, setPlan] = useState<MealPlan | null>(null);
@@ -170,7 +171,7 @@ export default function Plan() {
         ))}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 70 }]}>
         {currentDay && (
           <>
             <View style={styles.daySummary}>
@@ -232,7 +233,7 @@ const styles = StyleSheet.create({
   dayTabActive: { backgroundColor: Colors.accent, borderColor: Colors.accent },
   dayTabText: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary },
   dayTabTextActive: { color: '#fff' },
-  scroll: { padding: 20, gap: 16, paddingBottom: 80 },
+  scroll: { padding: 20, gap: 16 },
   daySummary: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     marginBottom: 4,

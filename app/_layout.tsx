@@ -2,6 +2,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { Stack, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initDB, getProfile } from '@/lib/db';
 import { useStore } from '@/lib/store';
 
@@ -40,7 +41,7 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0f172a' } }}>
         <Stack.Screen name="onboarding" />
@@ -48,6 +49,6 @@ export default function RootLayout() {
         <Stack.Screen name="photo-analyse" options={{ presentation: 'modal' }} />
         <Stack.Screen name="projection" />
       </Stack>
-    </>
+    </SafeAreaProvider>
   );
 }

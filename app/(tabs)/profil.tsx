@@ -3,7 +3,7 @@ import {
   Alert, Modal, ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
@@ -39,6 +39,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function Profil() {
+  const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
   const setProfile = useStore((s) => s.setProfile);
   const [weightModal, setWeightModal] = useState(false);
@@ -111,7 +112,7 @@ export default function Profil() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 70 }]}>
         <View style={styles.header}>
           <Text style={styles.title}>⚙️ Mon profil</Text>
         </View>
@@ -229,7 +230,7 @@ export default function Profil() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bgPrimary },
   container: { flex: 1 },
-  content: { padding: 20, paddingTop: 12, gap: 16, paddingBottom: 80 },
+  content: { padding: 20, paddingTop: 12, gap: 16 },
   header: { marginBottom: 4 },
   title: { fontSize: 22, fontWeight: '700', color: Colors.textPrimary },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 40 },

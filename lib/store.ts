@@ -7,10 +7,12 @@ interface AppState {
   dailyTotals: DailyTotals;
   meals: Meal[];
   waterMl: number;
+  pendingImageBase64: string | null;
   setProfile: (profile: UserProfile) => void;
   refreshDailyData: (date: string) => Promise<void>;
   addMealToStore: (meal: Meal) => Promise<void>;
   addWaterToStore: (date: string, ml: number) => Promise<void>;
+  setPendingImage: (b64: string | null) => void;
 }
 
 const emptyTotals = (date: string): DailyTotals => ({
@@ -22,8 +24,10 @@ export const useStore = create<AppState>((set, get) => ({
   dailyTotals: emptyTotals(new Date().toISOString().split('T')[0]),
   meals: [],
   waterMl: 0,
+  pendingImageBase64: null,
 
   setProfile: (profile) => set({ profile }),
+  setPendingImage: (b64) => set({ pendingImageBase64: b64 }),
 
   refreshDailyData: async (date: string) => {
     const [totals, meals, water] = await Promise.all([

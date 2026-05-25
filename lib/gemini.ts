@@ -18,7 +18,7 @@ function extractJSON(text: string): string {
 
 export async function analyzeFoodPhoto(base64Image: string): Promise<FoodAnalysisResult> {
   const genai = getClient();
-  const model = genai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genai.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1' });
 
   const prompt = `Tu es un expert en nutrition. Analyse cette photo de repas et retourne UNIQUEMENT un JSON valide (sans markdown) avec ces champs exacts :
 {
@@ -65,7 +65,7 @@ export async function generateMealPlan(
   goal: Goal
 ): Promise<MealPlan> {
   const genai = getClient();
-  const model = genai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genai.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1' });
 
   const goalLabel = goal === 'perte' ? 'perte de poids' : goal === 'prise' ? 'prise de masse' : 'maintien du poids';
 

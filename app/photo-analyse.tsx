@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Image, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
@@ -37,11 +37,37 @@ const CONFIDENCE_CONFIG: Record<string, { label: string; color: string }> = {
 
 export default function PhotoAnalyse() {
   const addMealToStore = useStore((s) => s.addMealToStore);
+  const pendingImageBase64 = useStore((s) => s.pendingImageBase64);
+  const setPendingImage = useStore((s) => s.setPendingImage);
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [rawBase64, setRawBase64] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<FoodAnalysisResult | null>(null);
   const [portion, setPortion] = useState(1);
   const [mealType, setMealType] = useState<MealType>('dejeuner');
+
+  useEffect(() => {
+    if (pendingImageBase64) {
+      const b64 = pendingImageBase64;
+      setPendingImage(null);
+      setRawBase64(b64);
+      setImageUri(`data:image/jpeg;base64,${b64}`);
+      analyseWithBase64(b64);
+    }
+  }, []);
+
+  async function analyseWithBase64(b64: string) {
+    setAnalyzing(true);
+    try {
+      const analysis = await analyzeFoodPhoto(b64);
+      setResult(analysis);
+      setPortion(1);
+    } catch (e: any) {
+      Alert.alert('Erreur', e.message || 'Impossible d\'analyser cette photo.');
+    } finally {
+      setAnalyzing(false);
+    }
+  }
 
   async function pickFromGallery() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -56,6 +82,7 @@ export default function PhotoAnalyse() {
     });
     if (!res.canceled && res.assets[0]) {
       setImageUri(res.assets[0].uri);
+      setRawBase64(null);
       setResult(null);
     }
   }
@@ -72,20 +99,23 @@ export default function PhotoAnalyse() {
     });
     if (!res.canceled && res.assets[0]) {
       setImageUri(res.assets[0].uri);
+      setRawBase64(null);
       setResult(null);
     }
   }
 
   async function analyse() {
+    if (rawBase64) {
+      await analyseWithBase64(rawBase64);
+      return;
+    }
     if (!imageUri) return;
     setAnalyzing(true);
     try {
       const base64 = await FileSystem.readAsStringAsync(imageUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      const analysis = await analyzeFoodPhoto(base64);
-      setResult(analysis);
-      setPortion(1);
+      await analyseWithBase64(base64);
     } catch (e: any) {
       Alert.alert('Erreur', e.message || 'Impossible d\'analyser cette photo.');
     } finally {

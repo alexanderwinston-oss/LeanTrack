@@ -3,8 +3,9 @@ import {
   Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect, router } from 'expo-router';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
@@ -25,11 +26,13 @@ const SECTIONS: { type: MealType; label: string; emoji: string }[] = [
 ];
 
 export default function Journal() {
+  const insets = useSafeAreaInsets();
   const meals = useStore((s) => s.meals);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
   const addMealToStore = useStore((s) => s.addMealToStore);
   const dailyTotals = useStore((s) => s.dailyTotals);
 
+  const setPendingImage = useStore((s) => s.setPendingImage);
   const [modalVisible, setModalVisible] = useState(false);
   const [activeMealType, setActiveMealType] = useState<MealType>('dejeuner');
 
@@ -53,6 +56,34 @@ export default function Journal() {
       refreshDailyData(TODAY);
     }, [])
   );
+
+  async function pickFromGalleryAndAnalyse() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission refusée', 'Autorise l\'accès à la galerie pour continuer.');
+      return;
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, base64: true });
+    if (!res.canceled && res.assets[0]?.base64) {
+      setPendingImage(res.assets[0].base64);
+      setModalVisible(false);
+      router.push('/photo-analyse');
+    }
+  }
+
+  async function takePhotoAndAnalyse() {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission refusée', 'Autorise l\'accès à la caméra pour continuer.');
+      return;
+    }
+    const res = await ImagePicker.launchCameraAsync({ quality: 0.8, base64: true });
+    if (!res.canceled && res.assets[0]?.base64) {
+      setPendingImage(res.assets[0].base64);
+      setModalVisible(false);
+      router.push('/photo-analyse');
+    }
+  }
 
   function openAdd(type: MealType) {
     setActiveMealType(type);
@@ -138,7 +169,7 @@ export default function Journal() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 70 }]}>
         {SECTIONS.map(({ type, label, emoji }) => (
           <View key={type} style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -182,6 +213,18 @@ export default function Journal() {
             <Text style={styles.modalTitle}>Ajouter un aliment</Text>
             <TouchableOpacity onPress={() => setModalVisible(false)}>
               <Text style={styles.closeBtn}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Photo shortcuts */}
+          <View style={styles.photoRow}>
+            <TouchableOpacity style={styles.photoModalBtn} onPress={takePhotoAndAnalyse}>
+              <Text style={styles.photoModalBtnEmoji}>📸</Text>
+              <Text style={styles.photoModalBtnText}>Caméra</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.photoModalBtn} onPress={pickFromGalleryAndAnalyse}>
+              <Text style={styles.photoModalBtnEmoji}>🖼️</Text>
+              <Text style={styles.photoModalBtnText}>Galerie</Text>
             </TouchableOpacity>
           </View>
 
@@ -292,7 +335,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.accent,
   },
   totalText: { color: Colors.accent, fontWeight: '700', fontSize: 14 },
-  scroll: { padding: 20, gap: 20, paddingBottom: 80 },
+  scroll: { padding: 20, gap: 20 },
   section: { gap: 8 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
@@ -312,6 +355,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgSurface,
   },
   addBtnText: { color: Colors.accent, fontSize: 14, fontWeight: '600' },
+  photoRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 12 },
+  photoModalBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: Colors.accentSubtle, borderRadius: Colors.radius,
+    borderWidth: 1, borderColor: Colors.accent, padding: 12,
+  },
+  photoModalBtnEmoji: { fontSize: 20 },
+  photoModalBtnText: { fontSize: 14, color: Colors.accent, fontWeight: '600' },
   modal: { flex: 1, backgroundColor: Colors.bgPrimary },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
