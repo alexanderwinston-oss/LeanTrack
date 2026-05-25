@@ -3,7 +3,6 @@ import {
   Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, router } from 'expo-router';
 import { format } from 'date-fns';
@@ -26,7 +25,6 @@ const SECTIONS: { type: MealType; label: string; emoji: string }[] = [
 ];
 
 export default function Journal() {
-  const insets = useSafeAreaInsets();
   const meals = useStore((s) => s.meals);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
   const addMealToStore = useStore((s) => s.addMealToStore);
@@ -160,7 +158,7 @@ export default function Journal() {
   const mealsByType = (type: MealType) => meals.filter((m) => m.meal_type === type);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <View style={styles.safe}>
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Journal du {format(new Date(), 'd MMMM', { locale: fr })}</Text>
@@ -169,7 +167,7 @@ export default function Journal() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 70 }]}>
+      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 110 }]}>
         {SECTIONS.map(({ type, label, emoji }) => (
           <View key={type} style={styles.section}>
             <View style={styles.sectionHeader}>
@@ -316,7 +314,7 @@ export default function Journal() {
         </View>
       </Modal>
     </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -3,7 +3,6 @@ import {
   ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet,
   Text, TouchableOpacity, View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
@@ -11,25 +10,23 @@ import { Button } from '@/components/ui/Button';
 import { useStore } from '@/lib/store';
 import { getMealPlan, saveMealPlan, addMeal } from '@/lib/db';
 import { generateMealPlan } from '@/lib/gemini';
-import { MealPlan, MealPlanItem, MealType } from '@/lib/types';
+import { MealPlan, MealPlanRepas, MealType } from '@/lib/types';
 
 const TODAY = new Date().toISOString().split('T')[0];
 const DAY_LABELS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
-const MEAL_TYPE_MAP: Record<string, MealType> = {
-  petit_dejeuner: 'petit_dejeuner',
-  dejeuner: 'dejeuner',
-  diner: 'diner',
-  collation: 'collation',
+const MEAL_TYPE_LABELS: Record<string, { label: string; emoji: string }> = {
+  petit_dejeuner: { label: 'Petit-déjeuner', emoji: '🥣' },
+  dejeuner: { label: 'Déjeuner', emoji: '🍽️' },
+  diner: { label: 'Dîner', emoji: '🌙' },
+  collation: { label: 'Collation', emoji: '🍎' },
 };
 
 function MealCard({
   meal,
-  mealType,
   onAdd,
 }: {
-  meal: MealPlanItem;
-  mealType: MealType;
+  meal: MealPlanRepas;
   onAdd: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -54,16 +51,13 @@ function MealCard({
 
       {expanded && (
         <View style={styles.mealDetails}>
+          {meal.description ? (
+            <Text style={styles.preparation}>{meal.description}</Text>
+          ) : null}
           <Text style={styles.ingredientsTitle}>Ingrédients :</Text>
           {meal.ingredients.map((ing, i) => (
             <Text key={i} style={styles.ingredient}>• {ing}</Text>
           ))}
-          {meal.preparation && (
-            <>
-              <Text style={styles.ingredientsTitle}>Préparation :</Text>
-              <Text style={styles.preparation}>{meal.preparation}</Text>
-            </>
-          )}
           <TouchableOpacity style={styles.addToJournalBtn} onPress={onAdd}>
             <Text style={styles.addToJournalText}>+ Ajouter au journal</Text>
           </TouchableOpacity>
@@ -74,7 +68,6 @@ function MealCard({
 }
 
 export default function Plan() {
-  const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
   const [plan, setPlan] = useState<MealPlan | null>(null);
@@ -100,17 +93,21 @@ export default function Plan() {
       );
       await saveMealPlan(JSON.stringify(newPlan));
       setPlan(newPlan);
-    } catch (e: any) {
-      Alert.alert('Erreur', e.message || 'Impossible de générer le plan. Réessaie.');
+    } catch (err) {
+      Alert.alert(
+        'Génération indisponible',
+        'Le plan alimentaire n\'a pas pu être généré. Vérifie ta connexion et réessaie.',
+        [{ text: 'OK' }]
+      );
     } finally {
       setGenerating(false);
     }
   }
 
-  async function addToJournal(item: MealPlanItem, mealType: MealType) {
+  async function addToJournal(item: MealPlanRepas) {
     await addMeal({
       date: TODAY,
-      meal_type: mealType,
+      meal_type: (item.type as MealType) || 'dejeuner',
       food_name: item.nom,
       quantity_g: 0,
       calories: item.calories,
@@ -123,90 +120,87 @@ export default function Plan() {
     Alert.alert('✅', 'Repas ajouté au journal !');
   }
 
-  const currentDay = plan?.jours[selectedDay];
+  const currentDay = plan?.plan[selectedDay];
 
   if (!plan) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>📅 Mon plan alimentaire</Text>
-        </View>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyEmoji}>🍽️</Text>
-          <Text style={styles.emptyTitle}>Aucun plan généré</Text>
-          <Text style={styles.emptySubtitle}>
-            Génère un plan alimentaire personnalisé sur 7 jours adapté à tes objectifs
-          </Text>
-          <Button
-            label="Générer mon plan"
-            onPress={generate}
-            loading={generating}
-          />
+      <View style={styles.safe}>
+        <View style={styles.container}>
+          <View style={styles.header}>
+            <Text style={styles.title}>📅 Mon plan alimentaire</Text>
+          </View>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>🍽️</Text>
+            <Text style={styles.emptyTitle}>Aucun plan généré</Text>
+            <Text style={styles.emptySubtitle}>
+              Génère un plan alimentaire personnalisé sur 7 jours adapté à tes objectifs
+            </Text>
+            <Button
+              label="Générer mon plan"
+              onPress={generate}
+              loading={generating}
+            />
+          </View>
         </View>
       </View>
-      </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>📅 Mon plan alimentaire</Text>
-      </View>
-
-      {/* Day tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayTabs} contentContainerStyle={styles.dayTabsContent}>
-        {DAY_LABELS.map((day, i) => (
-          <Pressable
-            key={day}
-            style={[styles.dayTab, selectedDay === i && styles.dayTabActive]}
-            onPress={() => setSelectedDay(i)}
-          >
-            <Text style={[styles.dayTabText, selectedDay === i && styles.dayTabTextActive]}>
-              {day.slice(0, 3)}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-
-      <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 70 }]}>
-        {currentDay && (
-          <>
-            <View style={styles.daySummary}>
-              <Text style={styles.daySummaryTitle}>{currentDay.jour}</Text>
-              <Text style={styles.daySummaryCal}>{currentDay.total_calories} kcal</Text>
-            </View>
-
-            {[
-              { key: 'petit_dejeuner', label: '🥣 Petit-déjeuner', meal: currentDay.petit_dejeuner },
-              { key: 'dejeuner', label: '🍽️ Déjeuner', meal: currentDay.dejeuner },
-              { key: 'diner', label: '🌙 Dîner', meal: currentDay.diner },
-              ...(currentDay.collation ? [{ key: 'collation', label: '🍎 Collation', meal: currentDay.collation }] : []),
-            ].map(({ key, label, meal }) => (
-              <View key={key} style={styles.mealSection}>
-                <Text style={styles.mealSectionTitle}>{label}</Text>
-                <MealCard
-                  meal={meal}
-                  mealType={key as MealType}
-                  onAdd={() => addToJournal(meal, key as MealType)}
-                />
-              </View>
-            ))}
-          </>
-        )}
-
-        <View style={styles.regenRow}>
-          {generating ? (
-            <ActivityIndicator color={Colors.accent} />
-          ) : (
-            <Button label="🔄 Régénérer le plan" onPress={generate} variant="secondary" />
-          )}
+    <View style={styles.safe}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>📅 Mon plan alimentaire</Text>
         </View>
-      </ScrollView>
+
+        {/* Day tabs */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayTabs} contentContainerStyle={styles.dayTabsContent}>
+          {DAY_LABELS.map((day, i) => (
+            <Pressable
+              key={day}
+              style={[styles.dayTab, selectedDay === i && styles.dayTabActive]}
+              onPress={() => setSelectedDay(i)}
+            >
+              <Text style={[styles.dayTabText, selectedDay === i && styles.dayTabTextActive]}>
+                {day.slice(0, 3)}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+
+        <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 110 }]}>
+          {currentDay && (
+            <>
+              <View style={styles.daySummary}>
+                <Text style={styles.daySummaryTitle}>{currentDay.jour}</Text>
+                <Text style={styles.daySummaryCal}>{currentDay.total_calories} kcal</Text>
+              </View>
+
+              {currentDay.repas.map((repas) => {
+                const typeInfo = MEAL_TYPE_LABELS[repas.type] ?? { label: repas.type, emoji: '🍽️' };
+                return (
+                  <View key={repas.type} style={styles.mealSection}>
+                    <Text style={styles.mealSectionTitle}>{typeInfo.emoji} {typeInfo.label}</Text>
+                    <MealCard
+                      meal={repas}
+                      onAdd={() => addToJournal(repas)}
+                    />
+                  </View>
+                );
+              })}
+            </>
+          )}
+
+          <View style={styles.regenRow}>
+            {generating ? (
+              <ActivityIndicator color={Colors.accent} />
+            ) : (
+              <Button label="🔄 Régénérer le plan" onPress={generate} variant="secondary" />
+            )}
+          </View>
+        </ScrollView>
+      </View>
     </View>
-    </SafeAreaView>
   );
 }
 

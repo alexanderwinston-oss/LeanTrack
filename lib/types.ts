@@ -68,29 +68,26 @@ export interface FoodAnalysisResult {
   remarques: string;
 }
 
-export interface MealPlanItem {
+export interface MealPlanRepas {
+  type: string;
   nom: string;
+  description?: string;
   calories: number;
   proteines_g: number;
   glucides_g: number;
   lipides_g: number;
   ingredients: string[];
-  preparation?: string;
 }
 
 export interface MealPlanDay {
   jour: string;
-  petit_dejeuner: MealPlanItem;
-  dejeuner: MealPlanItem;
-  diner: MealPlanItem;
-  collation?: MealPlanItem;
   total_calories: number;
+  repas: MealPlanRepas[];
 }
 
 export interface MealPlan {
-  objectif_calorique: number;
-  jours: MealPlanDay[];
-  generated_at: string;
+  plan: MealPlanDay[];
+  generated_at?: string;
 }
 
 export interface WeightEntry {

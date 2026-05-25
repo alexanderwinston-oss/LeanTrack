@@ -3,7 +3,6 @@ import {
   Alert, Modal, ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
@@ -39,7 +38,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function Profil() {
-  const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
   const setProfile = useStore((s) => s.setProfile);
   const [weightModal, setWeightModal] = useState(false);
@@ -64,12 +62,12 @@ export default function Profil() {
 
   if (!profile) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.safe}>
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>Profil non configuré</Text>
           <Button label="Créer mon profil" onPress={() => router.replace('/onboarding')} />
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -111,8 +109,8 @@ export default function Profil() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 70 }]}>
+    <View style={styles.safe}>
+      <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: 110 }]}>
         <View style={styles.header}>
           <Text style={styles.title}>⚙️ Mon profil</Text>
         </View>
@@ -223,7 +221,7 @@ export default function Profil() {
         achievementId={celebrationId}
         onClose={() => setCelebrationId(null)}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
