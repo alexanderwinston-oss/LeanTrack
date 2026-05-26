@@ -4,6 +4,7 @@ import {
   Text, TouchableOpacity, View,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -68,6 +69,7 @@ function MealCard({
 }
 
 export default function Plan() {
+  const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
   const [plan, setPlan] = useState<MealPlan | null>(null);
@@ -124,7 +126,7 @@ export default function Plan() {
 
   if (!plan) {
     return (
-      <View style={styles.safe}>
+      <View style={[styles.safe, { paddingTop: insets.top }]}>
         <View style={styles.container}>
           <View style={styles.header}>
             <Text style={styles.title}>📅 Mon plan alimentaire</Text>
@@ -147,7 +149,7 @@ export default function Plan() {
   }
 
   return (
-    <View style={styles.safe}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>📅 Mon plan alimentaire</Text>

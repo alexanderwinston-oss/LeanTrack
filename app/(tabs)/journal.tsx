@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
@@ -15,8 +16,6 @@ import { deleteMeal, getMealsForDate } from '@/lib/db';
 import { searchFood } from '@/lib/openfoodfacts';
 import { FoodItem, Meal, MealType } from '@/lib/types';
 
-const TODAY = new Date().toISOString().split('T')[0];
-
 const SECTIONS: { type: MealType; label: string; emoji: string }[] = [
   { type: 'petit_dejeuner', label: 'Petit-déjeuner', emoji: '🥣' },
   { type: 'dejeuner', label: 'Déjeuner', emoji: '🍽️' },
@@ -25,12 +24,13 @@ const SECTIONS: { type: MealType; label: string; emoji: string }[] = [
 ];
 
 export default function Journal() {
+  const insets = useSafeAreaInsets();
   const meals = useStore((s) => s.meals);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
   const addMealToStore = useStore((s) => s.addMealToStore);
   const dailyTotals = useStore((s) => s.dailyTotals);
-
   const setPendingImage = useStore((s) => s.setPendingImage);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [activeMealType, setActiveMealType] = useState<MealType>('dejeuner');
 
@@ -40,6 +40,9 @@ export default function Journal() {
   const [searching, setSearching] = useState(false);
   const [selected, setSelected] = useState<FoodItem | null>(null);
   const [quantity, setQuantity] = useState('100');
+  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   // Manual entry state
   const [manual, setManual] = useState(false);
@@ -51,7 +54,7 @@ export default function Journal() {
 
   useFocusEffect(
     useCallback(() => {
-      refreshDailyData(TODAY);
+      refreshDailyData(new Date().toISOString().split('T')[0]);
     }, [])
   );
 
@@ -90,15 +93,21 @@ export default function Journal() {
     setSelected(null);
     setQuantity('100');
     setManual(false);
+    setPage(1);
+    setHasMore(true);
     setModalVisible(true);
   }
 
   async function doSearch() {
     if (!query.trim()) return;
     setSearching(true);
+    setPage(1);
+    setHasMore(true);
+    setSelected(null);
     try {
-      const r = await searchFood(query);
+      const r = await searchFood(query, 1);
       setResults(r);
+      setHasMore(r.length > 0);
     } catch {
       Alert.alert('Erreur', 'Impossible de rechercher. Vérifie ta connexion.');
     } finally {
@@ -106,11 +115,28 @@ export default function Journal() {
     }
   }
 
+  async function loadMoreResults() {
+    if (loadingMore || !hasMore || !query.trim()) return;
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    try {
+      const r = await searchFood(query, nextPage);
+      setResults((prev) => [...prev, ...r]);
+      setPage(nextPage);
+      setHasMore(r.length > 0);
+    } catch {
+      // silently fail for pagination
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
   async function addFromFood(food: FoodItem) {
+    const today = new Date().toISOString().split('T')[0];
     const q = parseFloat(quantity) || 100;
     const factor = q / 100;
     const meal: Meal = {
-      date: TODAY,
+      date: today,
       meal_type: activeMealType,
       food_name: food.name,
       quantity_g: q,
@@ -126,8 +152,9 @@ export default function Journal() {
 
   async function addManual() {
     if (!manualName.trim()) return;
+    const today = new Date().toISOString().split('T')[0];
     const meal: Meal = {
-      date: TODAY,
+      date: today,
       meal_type: activeMealType,
       food_name: manualName,
       quantity_g: parseFloat(quantity) || 100,
@@ -142,6 +169,7 @@ export default function Journal() {
   }
 
   async function handleDelete(id: number) {
+    const today = new Date().toISOString().split('T')[0];
     Alert.alert('Supprimer', 'Supprimer ce repas ?', [
       { text: 'Annuler', style: 'cancel' },
       {
@@ -149,7 +177,7 @@ export default function Journal() {
         style: 'destructive',
         onPress: async () => {
           await deleteMeal(id);
-          await refreshDailyData(TODAY);
+          await refreshDailyData(today);
         },
       },
     ]);
@@ -157,8 +185,39 @@ export default function Journal() {
 
   const mealsByType = (type: MealType) => meals.filter((m) => m.meal_type === type);
 
+  const searchHeader = (
+    <View>
+      <View style={styles.searchRow}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Rechercher un aliment..."
+          placeholderTextColor={Colors.textMuted}
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={doSearch}
+          returnKeyType="search"
+        />
+        <TouchableOpacity style={styles.searchBtn} onPress={doSearch}>
+          <Text style={styles.searchBtnText}>{searching ? '...' : '🔍'}</Text>
+        </TouchableOpacity>
+      </View>
+      {selected && (
+        <Card style={styles.qtyCard}>
+          <Text style={styles.qtyLabel}>Quantité (g)</Text>
+          <TextInput
+            style={styles.qtyInput}
+            value={quantity}
+            onChangeText={setQuantity}
+            keyboardType="numeric"
+          />
+          <Button label="Ajouter au journal" onPress={() => addFromFood(selected)} />
+        </Card>
+      )}
+    </View>
+  );
+
   return (
-    <View style={styles.safe}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Journal du {format(new Date(), 'd MMMM', { locale: fr })}</Text>
@@ -242,52 +301,32 @@ export default function Journal() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalScroll} keyboardShouldPersistTaps="handled">
-            {!manual ? (
-              <>
-                <View style={styles.searchRow}>
-                  <TextInput
-                    style={styles.searchInput}
-                    placeholder="Rechercher un aliment..."
-                    placeholderTextColor={Colors.textMuted}
-                    value={query}
-                    onChangeText={setQuery}
-                    onSubmitEditing={doSearch}
-                    returnKeyType="search"
-                  />
-                  <TouchableOpacity style={styles.searchBtn} onPress={doSearch}>
-                    <Text style={styles.searchBtnText}>{searching ? '...' : '🔍'}</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {results.map((food, i) => (
-                  <Pressable
-                    key={i}
-                    style={[styles.foodItem, selected === food && styles.foodItemSelected]}
-                    onPress={() => setSelected(food)}
-                  >
-                    <Text style={styles.foodName}>{food.name}</Text>
-                    {food.brand && <Text style={styles.foodBrand}>{food.brand}</Text>}
-                    <Text style={styles.foodMacros}>
-                      {Math.round(food.calories_100g)} kcal · P:{food.protein_100g}g G:{food.carbs_100g}g L:{food.fat_100g}g / 100g
-                    </Text>
-                  </Pressable>
-                ))}
-
-                {selected && (
-                  <Card style={styles.qtyCard}>
-                    <Text style={styles.qtyLabel}>Quantité (g)</Text>
-                    <TextInput
-                      style={styles.qtyInput}
-                      value={quantity}
-                      onChangeText={setQuantity}
-                      keyboardType="numeric"
-                    />
-                    <Button label="Ajouter au journal" onPress={() => addFromFood(selected)} />
-                  </Card>
-                )}
-              </>
-            ) : (
+          {!manual ? (
+            <FlatList
+              style={styles.modalList}
+              contentContainerStyle={styles.modalListContent}
+              keyboardShouldPersistTaps="handled"
+              data={results}
+              keyExtractor={(_, i) => String(i)}
+              ListHeaderComponent={searchHeader}
+              renderItem={({ item: food }) => (
+                <Pressable
+                  style={[styles.foodItem, selected === food && styles.foodItemSelected]}
+                  onPress={() => setSelected(food)}
+                >
+                  <Text style={styles.foodName}>{food.name}</Text>
+                  {food.brand && <Text style={styles.foodBrand}>{food.brand}</Text>}
+                  <Text style={styles.foodMacros}>
+                    {Math.round(food.calories_100g)} kcal · P:{food.protein_100g}g G:{food.carbs_100g}g L:{food.fat_100g}g / 100g
+                  </Text>
+                </Pressable>
+              )}
+              ListFooterComponent={<View style={{ height: 120 }} />}
+              onEndReached={loadMoreResults}
+              onEndReachedThreshold={0.5}
+            />
+          ) : (
+            <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent} keyboardShouldPersistTaps="handled">
               <View style={styles.manualForm}>
                 {[
                   { label: 'Nom de l\'aliment', value: manualName, set: setManualName, kb: 'default' },
@@ -310,8 +349,8 @@ export default function Journal() {
                 ))}
                 <Button label="Ajouter au journal" onPress={addManual} />
               </View>
-            )}
-          </ScrollView>
+            </ScrollView>
+          )}
         </View>
       </Modal>
     </View>
@@ -378,7 +417,8 @@ const styles = StyleSheet.create({
   modeTabActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
   modeTabText: { fontSize: 14, color: Colors.textSecondary, fontWeight: '500' },
   modeTabTextActive: { color: Colors.accent },
-  modalScroll: { flex: 1, padding: 16 },
+  modalList: { flex: 1 },
+  modalListContent: { padding: 16 },
   searchRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   searchInput: {
     flex: 1, backgroundColor: Colors.bgSurface, borderRadius: Colors.radius,
@@ -398,7 +438,7 @@ const styles = StyleSheet.create({
   foodName: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
   foodBrand: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   foodMacros: { fontSize: 12, color: Colors.textMuted, marginTop: 4 },
-  qtyCard: { marginTop: 12, gap: 12 },
+  qtyCard: { marginBottom: 12, gap: 12 },
   qtyLabel: { fontSize: 14, color: Colors.textSecondary, fontWeight: '500' },
   qtyInput: {
     backgroundColor: Colors.bgElevated, borderRadius: Colors.radius,

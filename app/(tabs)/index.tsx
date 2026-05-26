@@ -3,6 +3,7 @@ import {
   Pressable, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
@@ -21,6 +22,7 @@ const MEAL_LABELS: Record<MealType, string> = {
 };
 
 export default function Dashboard() {
+  const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
   const dailyTotals = useStore((s) => s.dailyTotals);
   const meals = useStore((s) => s.meals);
@@ -52,7 +54,7 @@ export default function Dashboard() {
   const showCalorieBanner = calorieRatio >= 0.9 && calorieRatio <= 1.15;
 
   return (
-    <View style={styles.safe}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}

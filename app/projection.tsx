@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import {
   Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
-import { VictoryAxis, VictoryChart, VictoryLine } from 'victory-native';
+import { VictoryAxis, VictoryChart, VictoryLine, VictoryScatter } from 'victory-native';
 import { router, useFocusEffect } from 'expo-router';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -120,9 +120,13 @@ export default function Projection() {
             scale={{ x: 'time' }}
           >
             <VictoryAxis
-              tickCount={4}
-              tickFormat={d => format(new Date(d), 'dd MMM', { locale: fr })}
-              style={{ tickLabels: { fontSize: 9, fill: '#94a3b8' } }}
+              tickValues={
+                historyData.length > 0
+                  ? historyData.map(d => d.x)
+                  : projectionData.filter((_, i) => i % 30 === 0).map(d => d.x)
+              }
+              tickFormat={d => format(new Date(d), 'dd/MM', { locale: fr })}
+              style={{ tickLabels: { fontSize: 9, fill: '#94a3b8', angle: -30 } }}
             />
             <VictoryAxis
               dependentAxis
@@ -133,12 +137,34 @@ export default function Projection() {
               style={{ data: { stroke: '#475569', strokeDasharray: '5,5', strokeWidth: 1.5 } }}
             />
             {historyData.length > 0 && (
-              <VictoryLine
-                data={historyData}
-                style={{ data: { stroke: '#10b981', strokeWidth: 2.5 } }}
-              />
+              <>
+                <VictoryLine
+                  data={historyData}
+                  style={{ data: { stroke: '#10b981', strokeWidth: 2.5 } }}
+                />
+                <VictoryScatter
+                  data={historyData}
+                  size={5}
+                  style={{ data: { fill: '#10b981' } }}
+                />
+              </>
             )}
           </VictoryChart>
+          <View style={styles.legend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendSwatch, { backgroundColor: '#475569' }]} />
+              <Text style={styles.legendLabel}>Projection</Text>
+            </View>
+            {historyData.length > 0 && (
+              <View style={styles.legendItem}>
+                <View style={[styles.legendSwatch, { backgroundColor: '#10b981' }]} />
+                <Text style={styles.legendLabel}>Poids réel</Text>
+              </View>
+            )}
+          </View>
+          {historyData.length === 0 && (
+            <Text style={styles.noDataNote}>Aucune pesée enregistrée — ajoute ton poids dans Profil</Text>
+          )}
         </Card>
       )}
 
@@ -199,6 +225,11 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 18, color: Colors.textSecondary },
   chartCard: { gap: 8, paddingHorizontal: 0, overflow: 'hidden' },
   chartTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, paddingHorizontal: 16 },
+  legend: { flexDirection: 'row', gap: 16, paddingHorizontal: 16, paddingBottom: 8 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendSwatch: { width: 20, height: 3, borderRadius: 2 },
+  legendLabel: { fontSize: 11, color: Colors.textSecondary },
+  noDataNote: { fontSize: 12, color: Colors.textMuted, textAlign: 'center', paddingHorizontal: 16, paddingBottom: 8 },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   statCard: { flex: 1, minWidth: '44%', gap: 4 },
   statLabel: { fontSize: 11, color: Colors.textSecondary },

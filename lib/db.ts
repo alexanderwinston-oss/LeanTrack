@@ -191,6 +191,24 @@ export async function getWeightHistory(days: number): Promise<WeightEntry[]> {
   );
 }
 
+export async function getAllWeightEntries(): Promise<WeightEntry[]> {
+  const db = await getDB();
+  return db.getAllAsync<WeightEntry>(
+    'SELECT date, weight FROM weight_log ORDER BY date DESC'
+  );
+}
+
+export async function updateWeightEntry(date: string, weight: number): Promise<void> {
+  const db = await getDB();
+  await db.runAsync('DELETE FROM weight_log WHERE date = ?', [date]);
+  await db.runAsync('INSERT INTO weight_log (date, weight) VALUES (?, ?)', [date, weight]);
+}
+
+export async function deleteWeightEntry(date: string): Promise<void> {
+  const db = await getDB();
+  await db.runAsync('DELETE FROM weight_log WHERE date = ?', [date]);
+}
+
 export async function saveMealPlan(json: string): Promise<void> {
   const db = await getDB();
   await db.runAsync('DELETE FROM meal_plan');

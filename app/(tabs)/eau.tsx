@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
@@ -17,6 +18,7 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 const QUICK_AMOUNTS = [150, 250, 330, 500, 750];
 
 export default function Eau() {
+  const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
   const waterMl = useStore((s) => s.waterMl);
   const addWaterToStore = useStore((s) => s.addWaterToStore);
@@ -71,7 +73,7 @@ export default function Eau() {
   const strokeDashoffset = CIRCUMFERENCE * (1 - ratio);
 
   return (
-    <View style={styles.safe}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>💧 Hydratation</Text>

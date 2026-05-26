@@ -4,15 +4,18 @@ import {
   TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { AchievementGrid, CelebrationModal } from '@/components/Achievements';
 import { useStore } from '@/lib/store';
-import { checkAndUnlockAchievements, getUnlockedAchievements, logWeight, saveProfile } from '@/lib/db';
+import {
+  checkAndUnlockAchievements, deleteWeightEntry, getAllWeightEntries,
+  getUnlockedAchievements, saveProfile, updateWeightEntry,
+} from '@/lib/db';
 import { cancelAllNotifications, scheduleAllNotifications } from '@/lib/notifications';
-
-const TODAY = new Date().toISOString().split('T')[0];
+import { WeightEntry } from '@/lib/types';
 
 const ACTIVITY_LABELS: Record<string, string> = {
   sedentaire: 'Sédentaire',
@@ -38,17 +41,21 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function Profil() {
+  const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
   const setProfile = useStore((s) => s.setProfile);
   const [weightModal, setWeightModal] = useState(false);
+  const [weightDate, setWeightDate] = useState('');
   const [weightInput, setWeightInput] = useState('');
   const [saving, setSaving] = useState(false);
+  const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
   const [celebrationId, setCelebrationId] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       getUnlockedAchievements().then(setUnlockedIds);
+      loadWeightEntries();
       if (profile) {
         checkAndUnlockAchievements(profile).then((newOnes) => {
           if (newOnes.length > 0) {
@@ -60,9 +67,14 @@ export default function Profil() {
     }, [profile])
   );
 
+  async function loadWeightEntries() {
+    const entries = await getAllWeightEntries();
+    setWeightEntries(entries);
+  }
+
   if (!profile) {
     return (
-      <View style={styles.safe}>
+      <View style={[styles.safe, { paddingTop: insets.top }]}>
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>Profil non configuré</Text>
           <Button label="Créer mon profil" onPress={() => router.replace('/onboarding')} />
@@ -82,26 +94,59 @@ export default function Profil() {
     }
   }
 
+  function openAddWeight() {
+    setWeightDate(new Date().toISOString().split('T')[0]);
+    setWeightInput(String(profile!.weight_current));
+    setWeightModal(true);
+  }
+
+  function openEditWeight(entry: WeightEntry) {
+    setWeightDate(entry.date);
+    setWeightInput(String(entry.weight));
+    setWeightModal(true);
+  }
+
+  async function handleDeleteWeight(date: string) {
+    Alert.alert('Supprimer', `Supprimer l'entrée du ${date} ?`, [
+      { text: 'Annuler', style: 'cancel' },
+      {
+        text: 'Supprimer', style: 'destructive',
+        onPress: async () => {
+          await deleteWeightEntry(date);
+          await loadWeightEntries();
+        },
+      },
+    ]);
+  }
+
   async function saveWeight() {
     const w = parseFloat(weightInput);
     if (!w || w < 20 || w > 500) {
       Alert.alert('Erreur', 'Poids invalide');
       return;
     }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(weightDate)) {
+      Alert.alert('Erreur', 'Date invalide (format AAAA-MM-JJ)');
+      return;
+    }
     setSaving(true);
     try {
-      await logWeight(TODAY, w);
-      const updated = { ...profile, weight_current: w } as NonNullable<typeof profile>;
-      await saveProfile(updated);
-      setProfile(updated);
+      await updateWeightEntry(weightDate, w);
+      const today = new Date().toISOString().split('T')[0];
+      if (weightDate === today) {
+        const updated = { ...profile, weight_current: w } as NonNullable<typeof profile>;
+        await saveProfile(updated);
+        setProfile(updated);
+        const newOnes = await checkAndUnlockAchievements(updated);
+        if (newOnes.length > 0) {
+          setCelebrationId(newOnes[0]);
+          getUnlockedAchievements().then(setUnlockedIds);
+        }
+      }
       setWeightModal(false);
       setWeightInput('');
-      // Check achievements after weight update
-      const newOnes = await checkAndUnlockAchievements(updated);
-      if (newOnes.length > 0) {
-        setCelebrationId(newOnes[0]);
-        getUnlockedAchievements().then(setUnlockedIds);
-      }
+      setWeightDate('');
+      await loadWeightEntries();
       Alert.alert('✅', `Poids enregistré : ${w} kg`);
     } finally {
       setSaving(false);
@@ -109,7 +154,7 @@ export default function Profil() {
   }
 
   return (
-    <View style={styles.safe}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>⚙️ Mon profil</Text>
@@ -154,6 +199,32 @@ export default function Profil() {
           <InfoRow label="Date cible" value={profile.target_date} />
         </Card>
 
+        {/* Weight tracking */}
+        <Card style={styles.weightSection}>
+          <View style={styles.weightSectionHeader}>
+            <Text style={styles.sectionTitle}>📊 Suivi du poids</Text>
+            <TouchableOpacity style={styles.addWeightBtn} onPress={openAddWeight}>
+              <Text style={styles.addWeightBtnText}>+ Ajouter</Text>
+            </TouchableOpacity>
+          </View>
+          {weightEntries.length === 0 ? (
+            <Text style={styles.noEntriesText}>Aucune pesée enregistrée</Text>
+          ) : (
+            weightEntries.slice(0, 10).map((entry) => (
+              <View key={entry.date} style={styles.weightEntryRow}>
+                <Text style={styles.weightEntryDate}>{entry.date}</Text>
+                <Text style={styles.weightEntryValue}>{entry.weight} kg</Text>
+                <TouchableOpacity onPress={() => openEditWeight(entry)} style={styles.weightAction}>
+                  <Text style={styles.weightActionText}>✏️</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDeleteWeight(entry.date)} style={styles.weightAction}>
+                  <Text style={styles.weightActionText}>🗑️</Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
+        </Card>
+
         {/* Achievements */}
         <Card>
           <Text style={styles.sectionTitle}>Mes récompenses</Text>
@@ -180,11 +251,6 @@ export default function Profil() {
         {/* Actions */}
         <View style={styles.actions}>
           <Button
-            label="⚖️ Enregistrer mon poids"
-            onPress={() => { setWeightInput(String(profile.weight_current)); setWeightModal(true); }}
-            variant="secondary"
-          />
-          <Button
             label="✏️ Modifier mon profil"
             onPress={() => router.push('/onboarding')}
             variant="ghost"
@@ -197,16 +263,30 @@ export default function Profil() {
         <Modal visible={weightModal} transparent animationType="fade">
           <View style={styles.overlay}>
             <Card style={styles.weightCard}>
-              <Text style={styles.weightTitle}>⚖️ Mon poids aujourd'hui</Text>
-              <TextInput
-                style={styles.weightInput}
-                value={weightInput}
-                onChangeText={setWeightInput}
-                keyboardType="decimal-pad"
-                placeholder="Poids en kg"
-                placeholderTextColor={Colors.textMuted}
-                autoFocus
-              />
+              <Text style={styles.weightTitle}>⚖️ Enregistrer un poids</Text>
+              <View style={styles.weightFormField}>
+                <Text style={styles.weightFormLabel}>Date (AAAA-MM-JJ)</Text>
+                <TextInput
+                  style={styles.weightInput}
+                  value={weightDate}
+                  onChangeText={setWeightDate}
+                  placeholder="2025-01-15"
+                  placeholderTextColor={Colors.textMuted}
+                  keyboardType="numbers-and-punctuation"
+                />
+              </View>
+              <View style={styles.weightFormField}>
+                <Text style={styles.weightFormLabel}>Poids (kg)</Text>
+                <TextInput
+                  style={styles.weightInput}
+                  value={weightInput}
+                  onChangeText={setWeightInput}
+                  keyboardType="decimal-pad"
+                  placeholder="72.5"
+                  placeholderTextColor={Colors.textMuted}
+                  autoFocus
+                />
+              </View>
               <View style={styles.weightBtns}>
                 <Button label="Annuler" onPress={() => setWeightModal(false)} variant="ghost" />
                 <View style={{ flex: 1 }}>
@@ -257,6 +337,25 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 14, color: Colors.textSecondary },
   infoValue: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
   divider: { height: 1, backgroundColor: Colors.bgElevated },
+  weightSection: { gap: 0 },
+  weightSectionHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,
+  },
+  addWeightBtn: {
+    backgroundColor: Colors.accentSubtle, borderRadius: Colors.radiusPill,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: Colors.accent,
+  },
+  addWeightBtnText: { color: Colors.accent, fontWeight: '600', fontSize: 13 },
+  noEntriesText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center', paddingVertical: 8 },
+  weightEntryRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 8, borderTopWidth: 1, borderTopColor: Colors.bgElevated,
+  },
+  weightEntryDate: { flex: 1, fontSize: 14, color: Colors.textSecondary },
+  weightEntryValue: { fontSize: 15, fontWeight: '700', color: Colors.textPrimary, marginRight: 4 },
+  weightAction: { padding: 6 },
+  weightActionText: { fontSize: 15 },
   notifRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   notifLabel: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
   notifDesc: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
@@ -270,12 +369,14 @@ const styles = StyleSheet.create({
   toggleThumbOn: { alignSelf: 'flex-end' },
   actions: { gap: 10 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center' },
-  weightCard: { width: '80%', gap: 16 },
+  weightCard: { width: '85%', gap: 16 },
   weightTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary, textAlign: 'center' },
+  weightFormField: { gap: 6 },
+  weightFormLabel: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
   weightInput: {
     backgroundColor: Colors.bgElevated, borderRadius: Colors.radius,
     borderWidth: 1, borderColor: Colors.border, color: Colors.textPrimary,
-    fontSize: 24, padding: 14, textAlign: 'center', fontWeight: '700',
+    fontSize: 18, padding: 12, textAlign: 'center', fontWeight: '600',
   },
   weightBtns: { flexDirection: 'row', gap: 10 },
 });
