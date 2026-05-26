@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { createProfile, deleteProfile, getAllProfiles } from '@/lib/db';
 import { useStore } from '@/lib/store';
 import { UserProfile } from '@/lib/types';
+import { normalizeText } from '@/lib/utils';
 
 const EMOJI_COLORS = [
   '#10b981', '#3b82f6', '#f59e0b', '#ef4444',
@@ -71,8 +72,8 @@ export default function Profiles() {
 
   async function handleDelete() {
     if (!deleteTarget?.profile_id) return;
-    if (deleteConfirmText.trim().toLowerCase() !== DELETE_PHRASE) {
-      Alert.alert('Confirmation incorrecte', `Tapez exactement : "${DELETE_PHRASE}"`);
+    if (normalizeText(deleteConfirmText) !== DELETE_PHRASE) {
+      Alert.alert('Confirmation incorrecte', `Tapez exactement : ${DELETE_PHRASE}`);
       return;
     }
     setDeleting(true);
@@ -204,7 +205,7 @@ export default function Profiles() {
             <Text style={styles.deleteInstruction}>
               Pour confirmer, tape exactement :
             </Text>
-            <Text style={styles.deletePhrase}>"{DELETE_PHRASE}"</Text>
+            <Text style={styles.deletePhrase}>{DELETE_PHRASE}</Text>
             <TextInput
               style={[styles.fieldInput, styles.deleteInput]}
               value={deleteConfirmText}

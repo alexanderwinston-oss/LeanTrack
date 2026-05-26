@@ -4,14 +4,15 @@ import {
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { useStore } from '@/lib/store';
 import { getMealPlan, saveMealPlan, addMeal, getProfile } from '@/lib/db';
 import { generateMealPlan, callGemini, extractText, safeParseJSON } from '@/lib/gemini';
 import { MealPlan, MealPlanRepas, MealType } from '@/lib/types';
+import { showGeminiError } from '@/lib/utils';
 
 const TODAY = new Date().toISOString().split('T')[0];
 const DAY_LABELS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -83,7 +84,6 @@ function PlanMealCard({
 }
 
 export default function Plan() {
-  const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
   const [plan, setPlan] = useState<MealPlan | null>(null);
@@ -116,11 +116,8 @@ export default function Plan() {
       );
       await saveMealPlan(JSON.stringify(newPlan));
       setPlan(newPlan);
-    } catch {
-      Alert.alert(
-        'Génération indisponible',
-        'Le plan alimentaire n\'a pas pu être généré. Vérifie ta connexion et réessaie.'
-      );
+    } catch (err) {
+      showGeminiError(err);
     } finally {
       setGenerating(false);
     }
@@ -142,6 +139,8 @@ export default function Plan() {
 ${ingredientList ? `- CONTRAINTE : utilise UNIQUEMENT ces ingrédients disponibles : ${ingredientList}` : '- Cuisine française, supermarché classique'}
 ${dailyBudget ? `- CONTRAINTE BUDGET : coût de ce repas max ${(parseFloat(dailyBudget) / 4).toFixed(0)}€` : ''}
 - Ne pas répéter les repas déjà présents ce jour-là dans le plan.
+
+RÈGLE NOM (STRICTE ET NON NÉGOCIABLE) : Le champ "nom" = noms des aliments uniquement, 2-4 mots max. Exemples valides : "Fromage blanc amandes", "Oeufs brouillés pain". Exemples invalides : "Déjeuner du midi", tout adjectif qualitatif.
 
 Retourne UNIQUEMENT ce JSON sans markdown :
 {
@@ -174,8 +173,8 @@ Retourne UNIQUEMENT ce JSON sans markdown :
         setPlan(updatedPlan);
         await saveMealPlan(JSON.stringify(updatedPlan));
       }
-    } catch {
-      Alert.alert('Erreur', 'Impossible de régénérer ce repas. Réessaie.');
+    } catch (err) {
+      showGeminiError(err);
     } finally {
       setRegeneratingMealKey(null);
     }
@@ -201,7 +200,7 @@ Retourne UNIQUEMENT ce JSON sans markdown :
 
   if (!plan) {
     return (
-      <View style={[styles.safe, { paddingTop: insets.top }]}>
+      <ScreenContainer>
         <View style={styles.container}>
           <View style={styles.header}>
             <Text style={styles.title}>📅 Mon plan alimentaire</Text>
@@ -232,7 +231,7 @@ Retourne UNIQUEMENT ce JSON sans markdown :
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </View>
+      </ScreenContainer>
     );
   }
 
@@ -269,13 +268,13 @@ Retourne UNIQUEMENT ce JSON sans markdown :
   }
 
   return (
-    <View style={[styles.safe, { paddingTop: insets.top }]}>
+    <ScreenContainer>
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>📅 Mon plan alimentaire</Text>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayTabs} contentContainerStyle={styles.dayTabsContent}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false} style={styles.dayTabs} contentContainerStyle={styles.dayTabsContent}>
           {DAY_LABELS.map((day, i) => (
             <Pressable
               key={day}
@@ -337,15 +336,14 @@ Retourne UNIQUEMENT ce JSON sans markdown :
             <Text style={styles.recipesBtnText}>🍳 Mes recettes</Text>
           </TouchableOpacity>
 
-          <View style={{ height: 80 }} />
+          <View style={{ height: BOTTOM_SPACER_HEIGHT }} />
         </ScrollView>
       </View>
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bgPrimary },
   container: { flex: 1 },
   header: {
     paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12,
@@ -385,7 +383,7 @@ const styles = StyleSheet.create({
     padding: 14, alignItems: 'center', marginTop: 4,
   },
   recipesBtnText: { color: Colors.textSecondary, fontSize: 14, fontWeight: '600' },
-  dayTabs: { maxHeight: 56, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  dayTabs: { flexGrow: 0, borderBottomWidth: 1, borderBottomColor: Colors.border },
   dayTabsContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
   dayTab: {
     paddingHorizontal: 16, paddingVertical: 6,

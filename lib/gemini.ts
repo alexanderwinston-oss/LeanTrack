@@ -33,7 +33,9 @@ export async function callGemini(body: object, disableThinking = false, temperat
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(`[${response.status}] ${data?.error?.message ?? 'Erreur API'}`);
+    const errorMsg = data?.error?.message ?? 'Erreur API';
+    const isQuota = response.status === 429 || errorMsg.toLowerCase().includes('quota');
+    throw new Error(isQuota ? 'QUOTA_EXCEEDED' : `[${response.status}] ${errorMsg}`);
   }
   return data;
 }
@@ -167,6 +169,8 @@ ${ingredientList?.trim()
 ${dailyBudgetEuros && dailyBudgetEuros > 0
   ? `\nCONTRAINTE BUDGET : le coût total des repas du jour doit rester sous ${dailyBudgetEuros}€. Choisis des aliments économiques et accessibles.`
   : ''}
+
+RÈGLE NOM (STRICTE ET NON NÉGOCIABLE) : Le champ "nom" = noms des aliments uniquement, 2-4 mots max. Exemples valides : "Fromage blanc amandes", "Oeufs brouillés pain". Exemples invalides : "Petit-déjeuner campagnard", tout adjectif qualitatif.
 
 Retourne UNIQUEMENT ce JSON sans markdown :
 {

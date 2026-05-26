@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { analyzeFoodPhoto } from '@/lib/gemini';
 import { addWater } from '@/lib/db';
+import { showGeminiError } from '@/lib/utils';
 import { useStore } from '@/lib/store';
 import { FoodAnalysisResult, MealType } from '@/lib/types';
 
@@ -72,11 +73,7 @@ export default function PhotoAnalyse() {
       setShowCustomMultiplier(false);
       setCustomMultiplierText('');
     } catch (err: any) {
-      Alert.alert(
-        'Analyse indisponible',
-        "L'analyse n'a pas pu aboutir. Vérifie ta connexion et réessaie.",
-        [{ text: 'OK' }]
-      );
+      showGeminiError(err);
     } finally {
       setAnalyzing(false);
     }
@@ -131,11 +128,7 @@ export default function PhotoAnalyse() {
       setRawBase64(base64);
       await analyseWithBase64(base64, userComment);
     } catch (err: any) {
-      Alert.alert(
-        'Analyse indisponible',
-        "L'analyse n'a pas pu aboutir. Vérifie ta connexion et réessaie.",
-        [{ text: 'OK' }]
-      );
+      showGeminiError(err);
     } finally {
       setAnalyzing(false);
     }

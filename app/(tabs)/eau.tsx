@@ -3,11 +3,11 @@ import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from '
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import { useFocusEffect } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
+import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { useStore } from '@/lib/store';
 import { deleteWaterEntry, getWaterLogsForDate } from '@/lib/db';
 
@@ -19,7 +19,6 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 const QUICK_AMOUNTS = [150, 250, 330, 500, 750];
 
 export default function Eau() {
-  const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
   const waterMl = useStore((s) => s.waterMl);
   const addWaterToStore = useStore((s) => s.addWaterToStore);
@@ -75,7 +74,7 @@ export default function Eau() {
   const strokeDashoffset = CIRCUMFERENCE * (1 - ratio);
 
   return (
-    <View style={[styles.safe, { paddingTop: insets.top }]}>
+    <ScreenContainer>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>💧 Hydratation</Text>
@@ -157,14 +156,13 @@ export default function Eau() {
             ))}
           </View>
         )}
-        <View style={{ height: 80 }} />
+        <View style={{ height: BOTTOM_SPACER_HEIGHT }} />
       </ScrollView>
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bgPrimary },
   container: { flex: 1 },
   content: { padding: 20, paddingTop: 12, gap: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

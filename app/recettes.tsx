@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { saveRecipe, getRecipes, deleteRecipe } from '@/lib/db';
 import { generateRecipe } from '@/lib/gemini';
 import { useStore } from '@/lib/store';
+import { showGeminiError } from '@/lib/utils';
 import { GeneratedRecipe, Recipe, RecipeIngredient } from '@/lib/types';
 
 type Tab = 'recipes' | 'generate' | 'shopping';
@@ -68,8 +69,8 @@ export default function Recettes() {
         genIngredients || undefined
       );
       setGeneratedRecipe(result);
-    } catch {
-      Alert.alert('Erreur', 'Impossible de générer la recette. Vérifie ta connexion.');
+    } catch (err) {
+      showGeminiError(err);
     } finally {
       setGenerating(false);
     }

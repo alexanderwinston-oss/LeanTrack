@@ -4,7 +4,6 @@ import {
   TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -16,6 +15,8 @@ import {
 } from '@/lib/db';
 import { cancelAllNotifications, scheduleAllNotifications } from '@/lib/notifications';
 import { WeightEntry } from '@/lib/types';
+import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
+import { getProfileName } from '@/lib/utils';
 
 const ACTIVITY_LABELS: Record<string, string> = {
   sedentaire: 'Sédentaire',
@@ -41,7 +42,6 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function Profil() {
-  const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
   const setProfile = useStore((s) => s.setProfile);
   const [weightModal, setWeightModal] = useState(false);
@@ -74,12 +74,12 @@ export default function Profil() {
 
   if (!profile) {
     return (
-      <View style={[styles.safe, { paddingTop: insets.top }]}>
+      <ScreenContainer>
         <View style={styles.emptyState}>
           <Text style={styles.emptyText}>Profil non configuré</Text>
           <Button label="Créer mon profil" onPress={() => router.replace('/onboarding')} />
         </View>
-      </View>
+      </ScreenContainer>
     );
   }
 
@@ -185,7 +185,7 @@ export default function Profil() {
   }
 
   return (
-    <View style={[styles.safe, { paddingTop: insets.top }]}>
+    <ScreenContainer>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>⚙️ Mon profil</Text>
@@ -199,7 +199,7 @@ export default function Profil() {
           <View style={styles.avatar}>
             <Text style={styles.avatarEmoji}>{profile.gender === 'homme' ? '👨' : '👩'}</Text>
           </View>
-          <Text style={styles.profileName}>{profile.name}</Text>
+          <Text style={styles.profileName}>{getProfileName(profile)}</Text>
           <Text style={styles.profileSub}>
             {profile.age} ans · {profile.height} cm · {profile.weight_current} kg
           </Text>
@@ -296,7 +296,7 @@ export default function Profil() {
           />
         </View>
 
-        <View style={{ height: 80 }} />
+        <View style={{ height: BOTTOM_SPACER_HEIGHT }} />
 
         {/* Weight modal */}
         <Modal visible={weightModal} transparent animationType="fade">
@@ -342,12 +342,11 @@ export default function Profil() {
         achievementId={celebrationId}
         onClose={() => setCelebrationId(null)}
       />
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bgPrimary },
   container: { flex: 1 },
   content: { padding: 20, paddingTop: 12, gap: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },

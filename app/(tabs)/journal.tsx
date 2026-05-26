@@ -6,15 +6,17 @@ import {
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, router } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { MealCard } from '@/components/MealCard';
+import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { useStore } from '@/lib/store';
 import { searchFood } from '@/lib/openfoodfacts';
+import { analyzeFoodPhoto } from '@/lib/gemini';
+import { showGeminiError } from '@/lib/utils';
 import { FoodItem, Meal, MealType } from '@/lib/types';
 
 const SECTIONS: { type: MealType; label: string; emoji: string }[] = [
@@ -31,8 +33,9 @@ const MEAL_TYPE_CHIPS: { key: MealType; label: string }[] = [
   { key: 'collation', label: '🍎 Collation' },
 ];
 
+type ModalTab = 'search' | 'manual' | 'ai';
+
 export default function Journal() {
-  const insets = useSafeAreaInsets();
   const meals = useStore((s) => s.meals);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
   const addMealToStore = useStore((s) => s.addMealToStore);
@@ -55,13 +58,15 @@ export default function Journal() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
-  // Manual entry state
-  const [manual, setManual] = useState(false);
+  // Modal tab + manual/AI entry state
+  const [modalTab, setModalTab] = useState<ModalTab>('search');
   const [manualName, setManualName] = useState('');
   const [manualCal, setManualCal] = useState('');
   const [manualProt, setManualProt] = useState('');
   const [manualCarbs, setManualCarbs] = useState('');
   const [manualFat, setManualFat] = useState('');
+  const [textDescription, setTextDescription] = useState('');
+  const [isAnalyzingText, setIsAnalyzingText] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -115,7 +120,8 @@ export default function Journal() {
     setResults([]);
     setSelected(null);
     setQuantity('100');
-    setManual(false);
+    setModalTab('search');
+    setTextDescription('');
     setPage(1);
     setHasMore(true);
     setModalVisible(true);
@@ -197,6 +203,24 @@ export default function Journal() {
     showToast(`✅ ${manualName} ajouté · ${calories} kcal`);
   }
 
+  async function analyzeTextDescription() {
+    if (!textDescription.trim()) return;
+    setIsAnalyzingText(true);
+    try {
+      const result = await analyzeFoodPhoto(null, textDescription);
+      setManualName(result.aliment_principal);
+      setManualCal(String(Math.round(result.calories_estimees)));
+      setManualProt(String(Math.round(result.proteines_g)));
+      setManualCarbs(String(Math.round(result.glucides_g)));
+      setManualFat(String(Math.round(result.lipides_g)));
+      setModalTab('manual');
+    } catch (err) {
+      showGeminiError(err);
+    } finally {
+      setIsAnalyzingText(false);
+    }
+  }
+
   function refresh() {
     refreshDailyData(new Date().toISOString().split('T')[0]);
   }
@@ -235,7 +259,7 @@ export default function Journal() {
   );
 
   return (
-    <View style={[styles.safe, { paddingTop: insets.top }]}>
+    <ScreenContainer>
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Journal du {format(new Date(), 'd MMMM', { locale: fr })}</Text>
@@ -263,7 +287,7 @@ export default function Journal() {
             </TouchableOpacity>
           </View>
         ))}
-        <View style={{ height: 80 }} />
+        <View style={{ height: BOTTOM_SPACER_HEIGHT }} />
       </ScrollView>
 
       {/* Toast notification */}
@@ -313,20 +337,26 @@ export default function Journal() {
 
           <View style={styles.modeTabs}>
             <TouchableOpacity
-              style={[styles.modeTab, !manual && styles.modeTabActive]}
-              onPress={() => setManual(false)}
+              style={[styles.modeTab, modalTab === 'search' && styles.modeTabActive]}
+              onPress={() => setModalTab('search')}
             >
-              <Text style={[styles.modeTabText, !manual && styles.modeTabTextActive]}>🔍 Recherche</Text>
+              <Text style={[styles.modeTabText, modalTab === 'search' && styles.modeTabTextActive]}>🔍 Recherche</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.modeTab, manual && styles.modeTabActive]}
-              onPress={() => setManual(true)}
+              style={[styles.modeTab, modalTab === 'ai' && styles.modeTabActive]}
+              onPress={() => setModalTab('ai')}
             >
-              <Text style={[styles.modeTabText, manual && styles.modeTabTextActive]}>✏️ Manuel</Text>
+              <Text style={[styles.modeTabText, modalTab === 'ai' && styles.modeTabTextActive]}>🤖 IA</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modeTab, modalTab === 'manual' && styles.modeTabActive]}
+              onPress={() => setModalTab('manual')}
+            >
+              <Text style={[styles.modeTabText, modalTab === 'manual' && styles.modeTabTextActive]}>✏️ Manuel</Text>
             </TouchableOpacity>
           </View>
 
-          {!manual ? (
+          {modalTab === 'search' ? (
             <FlatList
               style={styles.modalList}
               contentContainerStyle={styles.modalListContent}
@@ -350,6 +380,30 @@ export default function Journal() {
               onEndReached={loadMoreResults}
               onEndReachedThreshold={0.5}
             />
+          ) : modalTab === 'ai' ? (
+            <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent} keyboardShouldPersistTaps="handled">
+              <View style={styles.manualForm}>
+                <Text style={styles.aiDescHint}>
+                  Décris ton repas en texte et l'IA remplira le formulaire automatiquement.
+                </Text>
+                <View style={styles.formField}>
+                  <Text style={styles.formLabel}>Description du repas</Text>
+                  <TextInput
+                    style={[styles.formInput, { minHeight: 80, textAlignVertical: 'top' }]}
+                    value={textDescription}
+                    onChangeText={setTextDescription}
+                    multiline
+                    placeholder="Ex: steak haché avec riz basmati et haricots verts vapeur..."
+                    placeholderTextColor={Colors.textMuted}
+                  />
+                </View>
+                <Button
+                  label={isAnalyzingText ? 'Analyse en cours...' : '🤖 Analyser et remplir'}
+                  onPress={analyzeTextDescription}
+                  loading={isAnalyzingText}
+                />
+              </View>
+            </ScrollView>
           ) : (
             <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent} keyboardShouldPersistTaps="handled">
               <View style={styles.manualForm}>
@@ -379,12 +433,11 @@ export default function Journal() {
         </View>
       </Modal>
     </View>
-    </View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bgPrimary },
   container: { flex: 1 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
@@ -443,14 +496,14 @@ const styles = StyleSheet.create({
   mealTypeChipActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
   mealTypeChipText: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' },
   mealTypeChipTextActive: { color: Colors.accent, fontWeight: '700' },
-  modeTabs: { flexDirection: 'row', padding: 16, gap: 12 },
+  modeTabs: { flexDirection: 'row', padding: 16, gap: 8 },
   modeTab: {
     flex: 1, padding: 10, borderRadius: Colors.radius,
     borderWidth: 1.5, borderColor: Colors.border, alignItems: 'center',
     backgroundColor: Colors.bgSurface,
   },
   modeTabActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
-  modeTabText: { fontSize: 14, color: Colors.textSecondary, fontWeight: '500' },
+  modeTabText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
   modeTabTextActive: { color: Colors.accent },
   modalList: { flex: 1 },
   modalListContent: { padding: 16 },
@@ -487,5 +540,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgSurface, borderRadius: Colors.radius,
     borderWidth: 1, borderColor: Colors.border, color: Colors.textPrimary,
     fontSize: 15, padding: 12,
+  },
+  aiDescHint: {
+    fontSize: 13, color: Colors.textSecondary, lineHeight: 19, marginBottom: 4,
   },
 });

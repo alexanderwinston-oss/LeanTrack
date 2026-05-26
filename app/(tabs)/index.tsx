@@ -4,7 +4,6 @@ import {
 } from 'react-native';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { router, useFocusEffect } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
@@ -12,12 +11,13 @@ import { ProgressRing } from '@/components/ProgressRing';
 import { MacroBars } from '@/components/MacroBars';
 import { Card } from '@/components/ui/Card';
 import { MealCard } from '@/components/MealCard';
+import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { useStore } from '@/lib/store';
 import { getStreakDays } from '@/lib/db';
+import { getProfileName } from '@/lib/utils';
 
 
 export default function Dashboard() {
-  const insets = useSafeAreaInsets();
   const profile = useStore((s) => s.profile);
   const dailyTotals = useStore((s) => s.dailyTotals);
   const meals = useStore((s) => s.meals);
@@ -49,7 +49,8 @@ export default function Dashboard() {
   const showCalorieBanner = calorieRatio >= 0.9 && calorieRatio <= 1.15;
 
   return (
-    <Animated.View entering={FadeIn.duration(300)} style={[styles.safe, { paddingTop: insets.top }]}>
+    <ScreenContainer>
+    <Animated.View entering={FadeIn.duration(300)} style={{ flex: 1 }}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
@@ -58,7 +59,7 @@ export default function Dashboard() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Bonjour {profile?.name ?? '👋'} 👋</Text>
+            <Text style={styles.greeting}>Bonjour {getProfileName(profile)} 👋</Text>
             <Text style={styles.date}>{todayLabel}</Text>
           </View>
           {streak > 0 && (
@@ -94,6 +95,38 @@ export default function Dashboard() {
               />
             </View>
           </View>
+          {(() => {
+            const remainingCalories = Math.max(
+              (profile?.calorie_target ?? 0) - (dailyTotals?.calories ?? 0),
+              0
+            );
+            const isOver = (dailyTotals?.calories ?? 0) > (profile?.calorie_target ?? 0);
+            const overBy = (dailyTotals?.calories ?? 0) - (profile?.calorie_target ?? 0);
+            return (
+              <View style={{
+                alignItems: 'center',
+                marginTop: 8,
+                paddingTop: 8,
+                borderTopWidth: 1,
+                borderTopColor: '#334155',
+              }}>
+                <Text style={{
+                  color: isOver ? '#ef4444' : '#10b981',
+                  fontSize: 22,
+                  fontWeight: '800',
+                }}>
+                  {isOver ? `-${overBy}` : `${remainingCalories}`} kcal
+                </Text>
+                <Text style={{
+                  color: '#64748b',
+                  fontSize: 12,
+                  marginTop: 2,
+                }}>
+                  {isOver ? 'au-dessus de l\'objectif' : 'restantes aujourd\'hui'}
+                </Text>
+              </View>
+            );
+          })()}
         </Card>
         </Animated.View>
 
@@ -160,14 +193,14 @@ export default function Dashboard() {
             <Text style={styles.actionLabel}>Ma semaine</Text>
           </Pressable>
         </Animated.View>
-        <View style={{ height: 80 }} />
+        <View style={{ height: BOTTOM_SPACER_HEIGHT }} />
       </ScrollView>
     </Animated.View>
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bgPrimary },
   container: { flex: 1 },
   content: { padding: 20, paddingTop: 12, gap: 16 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
