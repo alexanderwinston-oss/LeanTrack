@@ -1,16 +1,16 @@
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet,
-  Text, TouchableOpacity, View,
+  Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useStore } from '@/lib/store';
-import { getMealPlan, saveMealPlan, addMeal } from '@/lib/db';
-import { generateMealPlan } from '@/lib/gemini';
+import { getMealPlan, saveMealPlan, addMeal, getProfile } from '@/lib/db';
+import { generateMealPlan, callGemini, extractText, safeParseJSON } from '@/lib/gemini';
 import { MealPlan, MealPlanRepas, MealType } from '@/lib/types';
 
 const TODAY = new Date().toISOString().split('T')[0];
@@ -23,12 +23,18 @@ const MEAL_TYPE_LABELS: Record<string, { label: string; emoji: string }> = {
   collation: { label: 'Collation', emoji: '🍎' },
 };
 
-function MealCard({
+function PlanMealCard({
   meal,
   onAdd,
+  onRegenerate,
+  isRegenerating,
+  anyRegenerating,
 }: {
   meal: MealPlanRepas;
   onAdd: () => void;
+  onRegenerate: () => void;
+  isRegenerating: boolean;
+  anyRegenerating: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -36,7 +42,7 @@ function MealCard({
     <Card style={styles.mealCard}>
       <TouchableOpacity onPress={() => setExpanded(!expanded)}>
         <View style={styles.mealCardHeader}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, paddingRight: 36 }}>
             <Text style={styles.mealCardName}>{meal.nom}</Text>
             <Text style={styles.mealCardMacros}>
               P:{meal.proteines_g}g · G:{meal.glucides_g}g · L:{meal.lipides_g}g
@@ -48,6 +54,14 @@ function MealCard({
           </View>
           <Text style={styles.chevron}>{expanded ? '▲' : '▼'}</Text>
         </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={onRegenerate}
+        disabled={anyRegenerating}
+        style={[styles.regenBtn, { opacity: anyRegenerating ? 0.5 : 1 }]}
+      >
+        <Text style={styles.regenBtnText}>{isRegenerating ? '⏳' : '🔄'}</Text>
       </TouchableOpacity>
 
       {expanded && (
@@ -76,6 +90,11 @@ export default function Plan() {
   const [generating, setGenerating] = useState(false);
   const [selectedDay, setSelectedDay] = useState(0);
 
+  const [regeneratingMealKey, setRegeneratingMealKey] = useState<string | null>(null);
+  const [showPlanSettings, setShowPlanSettings] = useState(false);
+  const [ingredientList, setIngredientList] = useState('');
+  const [dailyBudget, setDailyBudget] = useState('');
+
   useFocusEffect(
     useCallback(() => {
       getMealPlan().then(setPlan);
@@ -91,18 +110,74 @@ export default function Plan() {
         profile.protein_target,
         profile.carbs_target,
         profile.fat_target,
-        profile.goal
+        profile.goal,
+        ingredientList || undefined,
+        dailyBudget ? parseFloat(dailyBudget) : undefined
       );
       await saveMealPlan(JSON.stringify(newPlan));
       setPlan(newPlan);
-    } catch (err: any) {
+    } catch {
       Alert.alert(
         'Génération indisponible',
-        'Le plan alimentaire n\'a pas pu être généré. Vérifie ta connexion et réessaie.',
-        [{ text: 'OK' }]
+        'Le plan alimentaire n\'a pas pu être généré. Vérifie ta connexion et réessaie.'
       );
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function regenerateSingleMeal(dayIndex: number, mealType: string): Promise<void> {
+    const key = `${dayIndex}-${mealType}`;
+    setRegeneratingMealKey(key);
+    try {
+      const p = await getProfile();
+      if (!p || !plan) return;
+
+      const data = await callGemini({
+        contents: [{
+          parts: [{
+            text: `Génère UN SEUL repas de type "${mealType}" pour :
+- Objectif journalier : ${p.calorie_target} kcal
+- Protéines cible : ${p.protein_target}g | Glucides : ${p.carbs_target}g | Lipides : ${p.fat_target}g
+${ingredientList ? `- CONTRAINTE : utilise UNIQUEMENT ces ingrédients disponibles : ${ingredientList}` : '- Cuisine française, supermarché classique'}
+${dailyBudget ? `- CONTRAINTE BUDGET : coût de ce repas max ${(parseFloat(dailyBudget) / 4).toFixed(0)}€` : ''}
+- Ne pas répéter les repas déjà présents ce jour-là dans le plan.
+
+Retourne UNIQUEMENT ce JSON sans markdown :
+{
+  "type": "${mealType}",
+  "nom": "string",
+  "description": "string",
+  "calories": number,
+  "proteines_g": number,
+  "glucides_g": number,
+  "lipides_g": number,
+  "ingredients": ["string avec quantité"]
+}`,
+          }],
+        }],
+      }, true, 0);
+
+      const newMeal = safeParseJSON<MealPlanRepas | null>(extractText(data), null);
+      if (newMeal) {
+        const updatedPlan: MealPlan = JSON.parse(JSON.stringify(plan));
+        const dayPlan = updatedPlan.plan[dayIndex];
+        if (dayPlan) {
+          const mealIndex = dayPlan.repas.findIndex((m) => m.type === mealType);
+          if (mealIndex >= 0) {
+            dayPlan.repas[mealIndex] = newMeal;
+          } else {
+            dayPlan.repas.push(newMeal);
+          }
+          dayPlan.total_calories = dayPlan.repas.reduce((sum, m) => sum + (m.calories ?? 0), 0);
+        }
+        setPlan(updatedPlan);
+        await saveMealPlan(JSON.stringify(updatedPlan));
+      }
+    } catch {
+      Alert.alert('Erreur', 'Impossible de régénérer ce repas. Réessaie.');
+    } finally {
+      setRegeneratingMealKey(null);
     }
   }
 
@@ -131,19 +206,64 @@ export default function Plan() {
           <View style={styles.header}>
             <Text style={styles.title}>📅 Mon plan alimentaire</Text>
           </View>
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyEmoji}>🍽️</Text>
-            <Text style={styles.emptyTitle}>Aucun plan généré</Text>
-            <Text style={styles.emptySubtitle}>
-              Génère un plan alimentaire personnalisé sur 7 jours adapté à tes objectifs
-            </Text>
-            <Button
-              label="Générer mon plan"
-              onPress={generate}
-              loading={generating}
-            />
-          </View>
+          <ScrollView contentContainerStyle={styles.emptyScroll}>
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyEmoji}>🍽️</Text>
+              <Text style={styles.emptyTitle}>Aucun plan généré</Text>
+              <Text style={styles.emptySubtitle}>
+                Génère un plan alimentaire personnalisé sur 7 jours adapté à tes objectifs
+              </Text>
+            </View>
+
+            {/* Settings panel */}
+            <TouchableOpacity
+              onPress={() => setShowPlanSettings(!showPlanSettings)}
+              style={styles.settingsToggle}
+            >
+              <Text style={styles.settingsToggleText}>⚙️ Paramètres du plan</Text>
+              <Text style={styles.settingsToggleText}>{showPlanSettings ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+            {showPlanSettings && renderSettings()}
+
+            <Button label="Générer mon plan" onPress={generate} loading={generating} />
+
+            <TouchableOpacity style={styles.recipesBtn} onPress={() => router.push('/recettes')}>
+              <Text style={styles.recipesBtnText}>🍳 Mes recettes</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
+      </View>
+    );
+  }
+
+  function renderSettings() {
+    return (
+      <View style={styles.settingsPanel}>
+        <Text style={styles.settingsSectionTitle}>🥕 Mes ingrédients disponibles</Text>
+        <TextInput
+          value={ingredientList}
+          onChangeText={setIngredientList}
+          placeholder="Ex: poulet, riz, brocoli, oeufs, yaourt grec..."
+          placeholderTextColor={Colors.textMuted}
+          multiline
+          numberOfLines={3}
+          style={styles.settingsTextarea}
+        />
+        <Text style={styles.settingsHint}>
+          Laisse vide pour un plan libre sans contrainte d'ingrédients.
+        </Text>
+        <Text style={[styles.settingsSectionTitle, { marginTop: 12 }]}>💰 Budget journalier (€)</Text>
+        <TextInput
+          value={dailyBudget}
+          onChangeText={setDailyBudget}
+          placeholder="Ex: 15"
+          placeholderTextColor={Colors.textMuted}
+          keyboardType="decimal-pad"
+          style={styles.settingsInput}
+        />
+        <Text style={styles.settingsHint}>
+          Laisse vide pour aucune contrainte budgétaire.
+        </Text>
       </View>
     );
   }
@@ -155,7 +275,6 @@ export default function Plan() {
           <Text style={styles.title}>📅 Mon plan alimentaire</Text>
         </View>
 
-        {/* Day tabs */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayTabs} contentContainerStyle={styles.dayTabsContent}>
           {DAY_LABELS.map((day, i) => (
             <Pressable
@@ -183,15 +302,28 @@ export default function Plan() {
                 return (
                   <View key={repas.type} style={styles.mealSection}>
                     <Text style={styles.mealSectionTitle}>{typeInfo.emoji} {typeInfo.label}</Text>
-                    <MealCard
+                    <PlanMealCard
                       meal={repas}
                       onAdd={() => addToJournal(repas)}
+                      onRegenerate={() => regenerateSingleMeal(selectedDay, repas.type)}
+                      isRegenerating={regeneratingMealKey === `${selectedDay}-${repas.type}`}
+                      anyRegenerating={regeneratingMealKey !== null}
                     />
                   </View>
                 );
               })}
             </>
           )}
+
+          {/* Settings panel */}
+          <TouchableOpacity
+            onPress={() => setShowPlanSettings(!showPlanSettings)}
+            style={styles.settingsToggle}
+          >
+            <Text style={styles.settingsToggleText}>⚙️ Paramètres du plan</Text>
+            <Text style={styles.settingsToggleText}>{showPlanSettings ? '▲' : '▼'}</Text>
+          </TouchableOpacity>
+          {showPlanSettings && renderSettings()}
 
           <View style={styles.regenRow}>
             {generating ? (
@@ -200,6 +332,11 @@ export default function Plan() {
               <Button label="🔄 Régénérer le plan" onPress={generate} variant="secondary" />
             )}
           </View>
+
+          <TouchableOpacity style={styles.recipesBtn} onPress={() => router.push('/recettes')}>
+            <Text style={styles.recipesBtnText}>🍳 Mes recettes</Text>
+          </TouchableOpacity>
+
           <View style={{ height: 80 }} />
         </ScrollView>
       </View>
@@ -215,10 +352,39 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: Colors.border,
   },
   title: { fontSize: 20, fontWeight: '700', color: Colors.textPrimary },
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 16 },
+  emptyScroll: { padding: 20, gap: 16, alignItems: 'stretch' },
+  emptyState: { alignItems: 'center', gap: 16, paddingVertical: 20 },
   emptyEmoji: { fontSize: 64 },
   emptyTitle: { fontSize: 22, fontWeight: '700', color: Colors.textPrimary, textAlign: 'center' },
   emptySubtitle: { fontSize: 15, color: Colors.textSecondary, textAlign: 'center', lineHeight: 22 },
+  settingsToggle: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, padding: 12,
+  },
+  settingsToggleText: { color: Colors.accent, fontSize: 14 },
+  settingsPanel: {
+    backgroundColor: Colors.bgSurface, borderRadius: 12,
+    padding: 16, marginBottom: 8,
+  },
+  settingsSectionTitle: { color: Colors.textPrimary, fontWeight: '600', marginBottom: 6, fontSize: 14 },
+  settingsTextarea: {
+    backgroundColor: Colors.bgElevated, borderRadius: 10,
+    padding: 12, color: Colors.textPrimary, fontSize: 13,
+    minHeight: 70, textAlignVertical: 'top',
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  settingsInput: {
+    backgroundColor: Colors.bgElevated, borderRadius: 10,
+    padding: 12, color: Colors.textPrimary, fontSize: 14,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  settingsHint: { color: Colors.textMuted, fontSize: 11, marginTop: 4 },
+  recipesBtn: {
+    backgroundColor: Colors.bgSurface, borderRadius: Colors.radius,
+    borderWidth: 1, borderColor: Colors.border,
+    padding: 14, alignItems: 'center', marginTop: 4,
+  },
+  recipesBtnText: { color: Colors.textSecondary, fontSize: 14, fontWeight: '600' },
   dayTabs: { maxHeight: 56, borderBottomWidth: 1, borderBottomColor: Colors.border },
   dayTabsContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
   dayTab: {
@@ -247,6 +413,13 @@ const styles = StyleSheet.create({
   mealCardCal: { fontSize: 18, fontWeight: '700', color: Colors.accent },
   mealCardCalUnit: { fontSize: 11, color: Colors.textSecondary },
   chevron: { fontSize: 10, color: Colors.textMuted },
+  regenBtn: {
+    position: 'absolute', top: 8, right: 8,
+    padding: 6, borderRadius: 8,
+    backgroundColor: Colors.bgElevated,
+    zIndex: 1,
+  },
+  regenBtnText: { fontSize: 14 },
   mealDetails: { marginTop: 12, gap: 6, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 12 },
   ingredientsTitle: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary, marginTop: 4 },
   ingredient: { fontSize: 13, color: Colors.textSecondary, paddingLeft: 4, lineHeight: 20 },

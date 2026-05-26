@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { AchievementStats, DailyEntry, DailyTotals, Meal, MealPlan, UserProfile, WeightEntry } from './types';
+import { AchievementStats, DailyEntry, DailyTotals, Meal, MealPlan, Recipe, UserProfile, WeightEntry } from './types';
 import { ALL_ACHIEVEMENTS } from './achievements';
 
 let _db: SQLite.SQLiteDatabase | null = null;
@@ -107,6 +107,23 @@ export async function initDB(): Promise<void> {
       id TEXT PRIMARY KEY,
       unlocked_at TEXT NOT NULL,
       profile_id TEXT NOT NULL DEFAULT 'default'
+    );
+
+    CREATE TABLE IF NOT EXISTS recipes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      servings INTEGER DEFAULT 2,
+      calories_per_serving INTEGER DEFAULT 0,
+      protein_g REAL DEFAULT 0,
+      carbs_g REAL DEFAULT 0,
+      fat_g REAL DEFAULT 0,
+      prep_time_minutes INTEGER DEFAULT 0,
+      cook_time_minutes INTEGER DEFAULT 0,
+      ingredients_json TEXT DEFAULT '[]',
+      steps_json TEXT DEFAULT '[]',
+      profile_id TEXT DEFAULT 'default',
+      created_at TEXT DEFAULT (datetime('now'))
     );
   `);
 
@@ -670,6 +687,41 @@ export async function unlockAchievement(id: string): Promise<void> {
     'INSERT OR IGNORE INTO achievements (id, unlocked_at, profile_id) VALUES (?, ?, ?)',
     [id, new Date().toISOString(), profileId]
   );
+}
+
+// ─── Recipes ─────────────────────────────────────────────────────────────────
+
+export async function saveRecipe(recipe: Omit<Recipe, 'id' | 'created_at'>): Promise<number> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  const result = await db.runAsync(
+    `INSERT INTO recipes
+      (name, description, servings, calories_per_serving, protein_g, carbs_g, fat_g,
+       prep_time_minutes, cook_time_minutes, ingredients_json, steps_json, profile_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      recipe.name, recipe.description, recipe.servings,
+      recipe.calories_per_serving, recipe.protein_g, recipe.carbs_g, recipe.fat_g,
+      recipe.prep_time_minutes, recipe.cook_time_minutes,
+      recipe.ingredients_json, recipe.steps_json,
+      recipe.profile_id ?? profileId,
+    ]
+  );
+  return result.lastInsertRowId;
+}
+
+export async function getRecipes(): Promise<Recipe[]> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  return db.getAllAsync<Recipe>(
+    'SELECT * FROM recipes WHERE profile_id = ? ORDER BY created_at DESC',
+    [profileId]
+  );
+}
+
+export async function deleteRecipe(id: number): Promise<void> {
+  const db = await getDB();
+  await db.runAsync('DELETE FROM recipes WHERE id = ?', [id]);
 }
 
 // ─── Streak / Stats ──────────────────────────────────────────────────────────

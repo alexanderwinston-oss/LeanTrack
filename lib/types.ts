@@ -112,6 +112,44 @@ export interface DailyEntry {
   water_ml: number;
 }
 
+export interface RecipeIngredient {
+  name: string;
+  quantity: string;
+  unit: string;
+  have?: boolean;
+}
+
+export interface Recipe {
+  id?: number;
+  name: string;
+  description: string;
+  servings: number;
+  calories_per_serving: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  prep_time_minutes: number;
+  cook_time_minutes: number;
+  ingredients_json: string;
+  steps_json: string;
+  profile_id?: string;
+  created_at?: string;
+}
+
+export interface GeneratedRecipe {
+  name: string;
+  description: string;
+  servings: number;
+  calories_per_serving: number;
+  protein_g: number;
+  carbs_g: number;
+  fat_g: number;
+  prep_time_minutes: number;
+  cook_time_minutes: number;
+  ingredients: { name: string; quantity: string; unit: string }[];
+  steps: string[];
+}
+
 export interface AchievementStats {
   totalWaterEntries: number;
   waterGoalDaysCount: number;

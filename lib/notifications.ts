@@ -55,6 +55,25 @@ export async function scheduleAllNotifications(settings: { notifications_enabled
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: h, minute: 30 },
     });
   }
+
+  await scheduleWeeklySundayNotification();
+}
+
+export async function scheduleWeeklySundayNotification(): Promise<void> {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: '📊 Bilan de ta semaine',
+      body: 'C\'est dimanche ! Consulte ton récap hebdomadaire pour voir tes progrès.',
+      data: { screen: '/recap-semaine' },
+    },
+    trigger: {
+      weekday: 1,
+      hour: 20,
+      minute: 0,
+      repeats: true,
+      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+    } as any,
+  });
 }
 
 export async function cancelAllNotifications(): Promise<void> {

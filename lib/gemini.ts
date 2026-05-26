@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { FoodAnalysisResult, MealPlan } from './types';
+import { FoodAnalysisResult, GeneratedRecipe, MealPlan } from './types';
 
 const API_KEY = Constants.expoConfig?.extra?.geminiApiKey ?? '';
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
@@ -15,7 +15,7 @@ async function fetchWithTimeout(url: string, options: RequestInit): Promise<Resp
   }
 }
 
-async function callGemini(body: object, disableThinking = false, temperature = 0): Promise<any> {
+export async function callGemini(body: object, disableThinking = false, temperature = 0): Promise<any> {
   if (!API_KEY) throw new Error('Clé API manquante dans app.json');
 
   const generationConfig: any = { temperature };
@@ -38,7 +38,7 @@ async function callGemini(body: object, disableThinking = false, temperature = 0
   return data;
 }
 
-function safeParseJSON<T>(text: string, fallback: T): T {
+export function safeParseJSON<T>(text: string, fallback: T): T {
   try {
     const clean = text.replace(/```json|```/g, '').trim();
     return JSON.parse(clean) as T;
@@ -47,7 +47,7 @@ function safeParseJSON<T>(text: string, fallback: T): T {
   }
 }
 
-function extractText(data: any): string {
+export function extractText(data: any): string {
   const parts = data?.candidates?.[0]?.content?.parts ?? [];
   return parts
     .filter((p: any) => p.text && !p.thought)
@@ -59,44 +59,72 @@ export async function analyzeFoodPhoto(
   base64Image: string | null,
   userComment = ''
 ): Promise<FoodAnalysisResult> {
-  const parts: any[] = [];
+  const promptText = `${base64Image
+    ? 'Analyse cette photo de repas.'
+    : 'Analyse ce repas décrit par l\'utilisateur.'}
+${userComment
+    ? `\nINFORMATION UTILISATEUR PRIORITAIRE : "${userComment}"\nCette information prime sur toute estimation visuelle.`
+    : ''}
 
-  if (base64Image) {
-    parts.push({ inline_data: { mime_type: 'image/jpeg', data: base64Image } });
-  }
+=== RÈGLES STRICTES — RESPECTE-LES DANS L'ORDRE ===
 
-  const promptText = `Analyse ${base64Image ? 'cette photo de repas' : 'ce repas décrit'} et estime les valeurs nutritionnelles.
-${userComment ? `Information prioritaire de l'utilisateur : "${userComment}". Cette information prime sur ce que montre la photo.` : ''}
+RÈGLE 1 — ÉTIQUETTE NUTRITIONNELLE (priorité absolue) :
+Si la photo montre une étiquette nutritionnelle lisible sur un emballage :
+→ Lis les valeurs DIRECTEMENT sur l'étiquette. Ne jamais estimer si l'étiquette est lisible.
+→ Si l'étiquette indique des valeurs pour 100g, calcule pour la portion visible ou indiquée.
+→ Si l'étiquette indique une portion (ex: "1 part 400g"), utilise ces valeurs directement.
+→ Indique dans remarques : "Valeurs lues directement sur l'étiquette nutritionnelle."
 
-Règles strictes pour la précision :
-- Utilise les valeurs de la table CIQUAL (base nutritionnelle française officielle)
-- Pour les plats composés, décompose chaque ingrédient visible
-- Estime le poids en grammes selon les portions FRANÇAISES standard
-- Si plusieurs portions sont visibles, estime le total
-- Sois CONSISTANT : pour un même plat, tu dois toujours retourner les mêmes valeurs
-- Ne sur-estime pas les lipides des plats grillés ou cuits à la vapeur
-- Pour la mayo : 1 cuillère à soupe = 15g = 100 kcal (mayo normale), 50 kcal (mayo allégée)
-- Si tu détectes un verre d'eau, une bouteille, ou tout liquide :
-  * Estime le volume en ml (verre standard = 250ml, grande bouteille = 500ml)
-  * Pour l'eau plate : calories = 0, macros = 0
-  * Pour les boissons sucrées : calcule normalement les calories
+RÈGLE 2 — POIDS INDIQUÉ PAR L'UTILISATEUR (priorité haute) :
+Parse tout poids mentionné dans l'information utilisateur :
+→ "400g" ou "400 g" ou "400gr" ou "400grammes" ou "400 grammes" → quantite_estimee_g = 400
+→ "0.4kg" ou "0.4 kg" ou "0,4 kg" → quantite_estimee_g = 400
+→ "2 portions" → estime le poids de 2 portions standard du plat identifié
+→ Ce poids override toute estimation visuelle pour quantite_estimee_g.
+→ Recalcule calories et macros proportionnellement si le poids indiqué diffère
+   du poids estimé visuellement. Exemple : si visuellement 200g mais utilisateur
+   dit 400g → multiplie toutes les valeurs par 2.
 
-Retourne UNIQUEMENT ce JSON sans markdown :
+RÈGLE 3 — PRÉCISION CALORIQUE (tables CIQUAL France) :
+Utilise des valeurs précises issues des tables CIQUAL françaises.
+Ne jamais arrondir à des multiples de 50 ou 100 sauf si c'est la vraie valeur.
+Références de précision :
+→ Steak haché 15%MG 100g : 194 kcal | P:20g C:0g L:12g
+→ Pain burger 50g : 131 kcal | P:5g C:25g L:2g
+→ Burger complet 200g (steak+pain+sauce) : ~450-500 kcal selon la sauce
+→ Chipolata cuite 55g : 155 kcal | P:8g C:1g L:14g
+→ Œuf dur moyen 50g : 74 kcal | P:6g C:0.5g L:5g
+→ Couscous cuit 200g : 224 kcal | P:8g C:44g L:2g
+
+RÈGLE 4 — DÉTECTION BOISSON (stricte) :
+is_drink = true UNIQUEMENT si le sujet PRINCIPAL de la photo ou description
+est une boisson liquide (verre d'eau, bouteille, café, jus, soda...).
+is_drink = false si :
+→ Une boisson est visible en arrière-plan
+→ L'utilisateur décrit principalement de la nourriture solide
+→ La boisson est un accompagnement mineur
+En cas de doute → is_drink = false.
+
+Retourne UNIQUEMENT ce JSON valide sans markdown ni explication :
 {
-  "aliment_principal": "string (nom précis du plat en français)",
-  "aliments_detectes": ["string (avec quantité estimée ex: '2 oeufs durs 100g')"],
-  "quantite_estimee_g": number (poids total en grammes),
-  "calories_estimees": number (kcal total, pas /100g),
+  "aliment_principal": "string (nom précis en français)",
+  "aliments_detectes": ["string avec quantité ex: 'Steak haché 150g'"],
+  "quantite_estimee_g": number,
+  "calories_estimees": number,
   "proteines_g": number,
   "glucides_g": number,
   "lipides_g": number,
   "confiance": "haute" | "moyenne" | "faible",
-  "remarques": "string (méthodologie utilisée, ex: basé sur CIQUAL code 1234)",
-  "is_drink": boolean (true si l'image montre une boisson, de l'eau, un jus, du café, du thé etc.),
-  "volume_ml": number (volume estimé en ml si is_drink est true, 0 sinon),
-  "drink_type": "water" | "other" (si is_drink true : "water" pour l'eau plate, "other" pour jus/soda/café/thé)
+  "remarques": "string (méthode: estimation visuelle / étiquette / CIQUAL codes utilisés)",
+  "is_drink": boolean,
+  "volume_ml": number,
+  "drink_type": "water" | "other"
 }`;
 
+  const parts: any[] = [];
+  if (base64Image) {
+    parts.push({ inline_data: { mime_type: 'image/jpeg', data: base64Image } });
+  }
   parts.push({ text: promptText });
 
   const data = await callGemini({ contents: [{ parts }] }, false, 0);
@@ -122,7 +150,9 @@ export async function generateMealPlan(
   protein_g: number,
   carbs_g: number,
   fat_g: number,
-  goal: string
+  goal: string,
+  ingredientList?: string,
+  dailyBudgetEuros?: number
 ): Promise<MealPlan> {
   const data = await callGemini({
     contents: [{
@@ -131,6 +161,12 @@ export async function generateMealPlan(
 - Objectif : ${goal} — ${calorieTarget} kcal/jour
 - Protéines : ${protein_g}g | Glucides : ${carbs_g}g | Lipides : ${fat_g}g
 - Cuisine française, aliments courants en supermarché, repas simples < 30 min
+${ingredientList?.trim()
+  ? `\nCONTRAINTE INGRÉDIENTS (OBLIGATOIRE) : utilise UNIQUEMENT ces ingrédients disponibles : ${ingredientList}. N'utilise aucun autre ingrédient non mentionné.`
+  : ''}
+${dailyBudgetEuros && dailyBudgetEuros > 0
+  ? `\nCONTRAINTE BUDGET : le coût total des repas du jour doit rester sous ${dailyBudgetEuros}€. Choisis des aliments économiques et accessibles.`
+  : ''}
 
 Retourne UNIQUEMENT ce JSON sans markdown :
 {
@@ -158,4 +194,52 @@ Retourne UNIQUEMENT ce JSON sans markdown :
   }, true, 0);
 
   return safeParseJSON<MealPlan>(extractText(data), { plan: [] });
+}
+
+export async function generateRecipe(
+  description: string,
+  servings: number,
+  calorieTarget: number,
+  availableIngredients?: string
+): Promise<GeneratedRecipe> {
+  const data = await callGemini({
+    contents: [{
+      parts: [{
+        text: `Génère une recette de cuisine française pour ${servings} personnes basée sur : "${description}".
+${availableIngredients ? `Utilise de préférence ces ingrédients disponibles : ${availableIngredients}` : ''}
+Objectif : environ ${Math.round(calorieTarget / 3)} kcal par portion.
+
+Retourne UNIQUEMENT ce JSON sans markdown :
+{
+  "name": "string",
+  "description": "string (1-2 phrases appétissantes)",
+  "servings": ${servings},
+  "calories_per_serving": number,
+  "protein_g": number,
+  "carbs_g": number,
+  "fat_g": number,
+  "prep_time_minutes": number,
+  "cook_time_minutes": number,
+  "ingredients": [
+    { "name": "string", "quantity": "string", "unit": "string" }
+  ],
+  "steps": ["string (étape numérotée)"]
+}`,
+      }],
+    }],
+  }, true, 0);
+
+  return safeParseJSON<GeneratedRecipe>(extractText(data), {
+    name: description,
+    description: '',
+    servings,
+    calories_per_serving: 0,
+    protein_g: 0,
+    carbs_g: 0,
+    fat_g: 0,
+    prep_time_minutes: 30,
+    cook_time_minutes: 20,
+    ingredients: [],
+    steps: [],
+  });
 }

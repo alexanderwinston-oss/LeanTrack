@@ -22,13 +22,6 @@ const MEAL_TYPES: { key: MealType; label: string }[] = [
   { key: 'collation', label: '🍎 Collation' },
 ];
 
-const PORTIONS = [
-  { label: '×0.5', factor: 0.5 },
-  { label: '×1', factor: 1 },
-  { label: '×1.5', factor: 1.5 },
-  { label: '×2', factor: 2 },
-];
-
 const CONFIDENCE_CONFIG: Record<string, { label: string; color: string }> = {
   haute: { label: 'Haute confiance', color: Colors.accent },
   moyenne: { label: 'Confiance moyenne', color: Colors.warning },
@@ -45,10 +38,19 @@ export default function PhotoAnalyse() {
   const [userComment, setUserComment] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<FoodAnalysisResult | null>(null);
-  const [portion, setPortion] = useState(1);
+  const [baseResult, setBaseResult] = useState<FoodAnalysisResult | null>(null);
+  const [multiplier, setMultiplier] = useState<number>(1);
+  const [showCustomMultiplier, setShowCustomMultiplier] = useState<boolean>(false);
+  const [customMultiplierText, setCustomMultiplierText] = useState<string>('');
   const [mealType, setMealType] = useState<MealType>((currentMealType as MealType) || 'dejeuner');
   const [adjustedVolume, setAdjustedVolume] = useState(250);
   const [showMealTypeSelector, setShowMealTypeSelector] = useState(false);
+
+  const displayCalories = baseResult ? Math.round(baseResult.calories_estimees * multiplier) : 0;
+  const displayProtein = baseResult ? Math.round(baseResult.proteines_g * multiplier * 10) / 10 : 0;
+  const displayCarbs = baseResult ? Math.round(baseResult.glucides_g * multiplier * 10) / 10 : 0;
+  const displayFat = baseResult ? Math.round(baseResult.lipides_g * multiplier * 10) / 10 : 0;
+  const displayQuantity = baseResult ? Math.round(baseResult.quantite_estimee_g * multiplier) : 0;
 
   useEffect(() => {
     if (pendingImageBase64) {
@@ -65,7 +67,10 @@ export default function PhotoAnalyse() {
     try {
       const analysis = await analyzeFoodPhoto(b64, comment);
       setResult(analysis);
-      setPortion(1);
+      setBaseResult(analysis);
+      setMultiplier(1);
+      setShowCustomMultiplier(false);
+      setCustomMultiplierText('');
     } catch (err: any) {
       Alert.alert(
         'Analyse indisponible',
@@ -154,17 +159,17 @@ export default function PhotoAnalyse() {
   }
 
   async function addToJournal() {
-    if (!result) return;
+    if (!baseResult) return;
     const today = new Date().toISOString().split('T')[0];
     await addMealToStore({
       date: today,
       meal_type: mealType,
-      food_name: result.aliment_principal,
-      quantity_g: Math.round(result.quantite_estimee_g * portion),
-      calories: Math.round(result.calories_estimees * portion),
-      protein: Math.round(result.proteines_g * portion),
-      carbs: Math.round(result.glucides_g * portion),
-      fat: Math.round(result.lipides_g * portion),
+      food_name: baseResult.aliment_principal,
+      quantity_g: displayQuantity,
+      calories: displayCalories,
+      protein: displayProtein,
+      carbs: displayCarbs,
+      fat: displayFat,
       source: 'photo',
       photo_uri: imageUri ?? undefined,
       notes: userComment || undefined,
@@ -264,32 +269,24 @@ export default function PhotoAnalyse() {
 
             <View style={styles.macroGrid}>
               <View style={styles.macroItem}>
-                <Text style={[styles.macroVal, { color: Colors.accent }]}>
-                  {Math.round(result.calories_estimees * portion)}
-                </Text>
+                <Text style={[styles.macroVal, { color: Colors.accent }]}>{displayCalories}</Text>
                 <Text style={styles.macroUnit}>kcal</Text>
               </View>
               <View style={styles.macroItem}>
-                <Text style={[styles.macroVal, { color: Colors.proteinColor }]}>
-                  {Math.round(result.proteines_g * portion)}g
-                </Text>
+                <Text style={[styles.macroVal, { color: Colors.proteinColor }]}>{displayProtein}g</Text>
                 <Text style={styles.macroUnit}>Protéines</Text>
               </View>
               <View style={styles.macroItem}>
-                <Text style={[styles.macroVal, { color: Colors.carbsColor }]}>
-                  {Math.round(result.glucides_g * portion)}g
-                </Text>
+                <Text style={[styles.macroVal, { color: Colors.carbsColor }]}>{displayCarbs}g</Text>
                 <Text style={styles.macroUnit}>Glucides</Text>
               </View>
               <View style={styles.macroItem}>
-                <Text style={[styles.macroVal, { color: Colors.fatColor }]}>
-                  {Math.round(result.lipides_g * portion)}g
-                </Text>
+                <Text style={[styles.macroVal, { color: Colors.fatColor }]}>{displayFat}g</Text>
                 <Text style={styles.macroUnit}>Lipides</Text>
               </View>
             </View>
 
-            <Text style={styles.qty}>Quantité estimée : {Math.round(result.quantite_estimee_g * portion)}g</Text>
+            <Text style={styles.qty}>Quantité estimée : {displayQuantity}g</Text>
             {result.remarques ? <Text style={styles.remarques}>{result.remarques}</Text> : null}
           </Card>
 
@@ -336,18 +333,63 @@ export default function PhotoAnalyse() {
               <Card style={styles.portionCard}>
                 <Text style={styles.portionTitle}>Ajuster la portion</Text>
                 <View style={styles.portionBtns}>
-                  {PORTIONS.map((p) => (
+                  {([0.5, 1, 1.5, 2, 3, 4] as number[]).map((preset) => (
                     <TouchableOpacity
-                      key={p.label}
-                      style={[styles.portionBtn, portion === p.factor && styles.portionBtnActive]}
-                      onPress={() => setPortion(p.factor)}
+                      key={preset}
+                      onPress={() => {
+                        setMultiplier(preset);
+                        setShowCustomMultiplier(false);
+                        setCustomMultiplierText('');
+                      }}
+                      style={[
+                        styles.portionBtn,
+                        multiplier === preset && !showCustomMultiplier && styles.portionBtnActive,
+                      ]}
                     >
-                      <Text style={[styles.portionBtnText, portion === p.factor && styles.portionBtnTextActive]}>
-                        {p.label}
+                      <Text style={[
+                        styles.portionBtnText,
+                        multiplier === preset && !showCustomMultiplier && styles.portionBtnTextActive,
+                      ]}>
+                        ×{preset}
                       </Text>
                     </TouchableOpacity>
                   ))}
+                  <TouchableOpacity
+                    onPress={() => {
+                      setShowCustomMultiplier(true);
+                      setCustomMultiplierText('');
+                    }}
+                    style={[styles.portionBtn, showCustomMultiplier && styles.portionBtnActive]}
+                  >
+                    <Text style={[styles.portionBtnText, showCustomMultiplier && styles.portionBtnTextActive]}>
+                      ···
+                    </Text>
+                  </TouchableOpacity>
                 </View>
+
+                {showCustomMultiplier && (
+                  <View style={styles.customMultiplierRow}>
+                    <Text style={styles.customMultiplierX}>×</Text>
+                    <TextInput
+                      value={customMultiplierText}
+                      onChangeText={(text) => {
+                        setCustomMultiplierText(text);
+                        const parsed = parseFloat(text.replace(',', '.'));
+                        if (!isNaN(parsed) && parsed > 0 && parsed <= 50) {
+                          setMultiplier(parsed);
+                        }
+                      }}
+                      keyboardType="decimal-pad"
+                      placeholder="Ex: 6"
+                      placeholderTextColor={Colors.textMuted}
+                      style={styles.customMultiplierInput}
+                      autoFocus
+                    />
+                    <Text style={styles.customMultiplierPreview}>
+                      = {displayQuantity}g · {displayCalories} kcal
+                    </Text>
+                  </View>
+                )}
               </Card>
 
               {/* Meal type selector */}
@@ -435,8 +477,15 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.bgSurface,
   },
   portionBtnActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
-  portionBtnText: { fontSize: 14, fontWeight: '600', color: Colors.textSecondary },
+  portionBtnText: { fontSize: 13, fontWeight: '700', color: Colors.textSecondary },
   portionBtnTextActive: { color: Colors.accent },
+  customMultiplierRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10,
+    backgroundColor: Colors.bgPrimary, borderRadius: 10, padding: 10,
+  },
+  customMultiplierX: { color: Colors.textSecondary, fontSize: 16 },
+  customMultiplierInput: { flex: 1, color: Colors.textPrimary, fontSize: 18, fontWeight: '700' },
+  customMultiplierPreview: { color: Colors.textMuted, fontSize: 12 },
   mealTypeCard: { gap: 10 },
   mealTypeBtns: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   mealTypeBtn: {

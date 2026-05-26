@@ -19,13 +19,12 @@ const MEAL_TYPE_OPTIONS: { key: MealType; label: string }[] = [
 
 interface MealCardProps {
   meal: Meal;
-  onUpdate: () => void;
-  onDelete: () => void;
+  onMealChanged?: () => void;
   compact?: boolean;
   style?: object;
 }
 
-export function MealCard({ meal, onUpdate, onDelete, compact = false, style }: MealCardProps) {
+export function MealCard({ meal, onMealChanged, compact = false, style }: MealCardProps) {
   const [detailVisible, setDetailVisible] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -40,6 +39,11 @@ export function MealCard({ meal, onUpdate, onDelete, compact = false, style }: M
   const [editType, setEditType] = useState<MealType>(meal.meal_type);
   const [editNotes, setEditNotes] = useState(meal.notes ?? '');
 
+  // Portion calc state
+  const [originalMeal, setOriginalMeal] = useState<Meal | null>(null);
+  const [showPortionCalc, setShowPortionCalc] = useState<boolean>(false);
+  const [customPortionText, setCustomPortionText] = useState<string>('');
+
   function openDetail() {
     setEditing(false);
     setEditName(meal.food_name);
@@ -50,6 +54,9 @@ export function MealCard({ meal, onUpdate, onDelete, compact = false, style }: M
     setEditFat(String(Math.round(meal.fat)));
     setEditType(meal.meal_type);
     setEditNotes(meal.notes ?? '');
+    setOriginalMeal({ ...meal });
+    setShowPortionCalc(false);
+    setCustomPortionText('');
     setDetailVisible(true);
   }
 
@@ -69,26 +76,36 @@ export function MealCard({ meal, onUpdate, onDelete, compact = false, style }: M
       });
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       setDetailVisible(false);
-      onUpdate();
+      onMealChanged?.();
+    } catch (err: any) {
+      Alert.alert('Erreur', err?.message ?? 'Impossible de modifier ce repas.');
     } finally {
       setSaving(false);
     }
   }
 
   function confirmDelete() {
-    Alert.alert('Supprimer', 'Supprimer ce repas ?', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Supprimer', style: 'destructive',
-        onPress: async () => {
-          if (!meal.id) return;
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          await deleteMeal(meal.id);
-          setDetailVisible(false);
-          onDelete();
+    Alert.alert(
+      'Supprimer',
+      `Supprimer "${meal.food_name}" (${Math.round(meal.calories)} kcal) ?`,
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer', style: 'destructive',
+          onPress: async () => {
+            if (!meal.id) return;
+            try {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              await deleteMeal(meal.id);
+              setDetailVisible(false);
+              onMealChanged?.();
+            } catch (err: any) {
+              Alert.alert('Erreur', err?.message ?? `Impossible de supprimer "${meal.food_name}".`);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   if (compact) {
@@ -197,6 +214,68 @@ export function MealCard({ meal, onUpdate, onDelete, compact = false, style }: M
                       />
                     </View>
                   ))}
+                  {/* Quick portion recalculator */}
+                  <View style={styles.portionCalcSection}>
+                    <TouchableOpacity
+                      onPress={() => setShowPortionCalc(!showPortionCalc)}
+                      style={styles.portionCalcToggle}
+                    >
+                      <Text style={styles.portionCalcToggleText}>⚡ Recalcul rapide par portion</Text>
+                      <Text style={styles.portionCalcToggleText}>{showPortionCalc ? '▲' : '▼'}</Text>
+                    </TouchableOpacity>
+
+                    {showPortionCalc && originalMeal && (
+                      <View style={{ marginTop: 10 }}>
+                        <View style={styles.portionChips}>
+                          {([0.5, 1, 1.5, 2, 3, 4] as number[]).map((m) => (
+                            <TouchableOpacity
+                              key={m}
+                              onPress={() => {
+                                setEditCal(String(Math.round(originalMeal.calories * m)));
+                                setEditProt(String(Math.round(originalMeal.protein * m * 10) / 10));
+                                setEditCarbs(String(Math.round(originalMeal.carbs * m * 10) / 10));
+                                setEditFat(String(Math.round(originalMeal.fat * m * 10) / 10));
+                                setEditQty(String(Math.round(originalMeal.quantity_g * m)));
+                              }}
+                              style={styles.portionChip}
+                            >
+                              <Text style={styles.portionChipText}>×{m}</Text>
+                            </TouchableOpacity>
+                          ))}
+                          <TouchableOpacity
+                            onPress={() => setCustomPortionText('custom')}
+                            style={styles.portionChip}
+                          >
+                            <Text style={styles.portionChipText}>···</Text>
+                          </TouchableOpacity>
+                        </View>
+
+                        {customPortionText === 'custom' && (
+                          <View style={styles.customPortionRow}>
+                            <Text style={styles.customPortionX}>×</Text>
+                            <TextInput
+                              keyboardType="decimal-pad"
+                              placeholder="Multiplicateur custom (ex: 6)"
+                              placeholderTextColor={Colors.textMuted}
+                              onChangeText={(text) => {
+                                const parsed = parseFloat(text.replace(',', '.'));
+                                if (!isNaN(parsed) && parsed > 0 && parsed <= 50) {
+                                  setEditCal(String(Math.round(originalMeal.calories * parsed)));
+                                  setEditProt(String(Math.round(originalMeal.protein * parsed * 10) / 10));
+                                  setEditCarbs(String(Math.round(originalMeal.carbs * parsed * 10) / 10));
+                                  setEditFat(String(Math.round(originalMeal.fat * parsed * 10) / 10));
+                                  setEditQty(String(Math.round(originalMeal.quantity_g * parsed)));
+                                }
+                              }}
+                              style={styles.customPortionInput}
+                              autoFocus
+                            />
+                          </View>
+                        )}
+                      </View>
+                    )}
+                  </View>
+
                   <View style={styles.field}>
                     <Text style={styles.fieldLabel}>Type de repas</Text>
                     <View style={styles.typeRow}>
@@ -305,4 +384,33 @@ const styles = StyleSheet.create({
   editBtns: { flexDirection: 'row', gap: 10, marginTop: 8 },
   closeRow: { marginTop: 16, alignItems: 'center', paddingVertical: 8 },
   closeText: { color: Colors.textMuted, fontSize: 15 },
+  portionCalcSection: {
+    marginBottom: 12, borderWidth: 1, borderColor: Colors.border,
+    borderRadius: Colors.radius, overflow: 'hidden',
+  },
+  portionCalcToggle: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: Colors.bgElevated, paddingHorizontal: 12, paddingVertical: 10,
+  },
+  portionCalcToggleText: { fontSize: 13, color: Colors.accent, fontWeight: '600' },
+  portionChips: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8,
+    paddingHorizontal: 12, paddingBottom: 10,
+  },
+  portionChip: {
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: Colors.radiusPill, borderWidth: 1.5,
+    borderColor: Colors.accent, backgroundColor: Colors.accentSubtle,
+  },
+  portionChipText: { fontSize: 13, color: Colors.accent, fontWeight: '600' },
+  customPortionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 12, paddingBottom: 10,
+  },
+  customPortionX: { fontSize: 18, color: Colors.accent, fontWeight: '700' },
+  customPortionInput: {
+    flex: 1, backgroundColor: Colors.bgElevated, borderRadius: Colors.radius,
+    borderWidth: 1, borderColor: Colors.accent, color: Colors.textPrimary,
+    fontSize: 15, padding: 10,
+  },
 });

@@ -11,16 +11,10 @@ import { Colors } from '@/constants/Colors';
 import { ProgressRing } from '@/components/ProgressRing';
 import { MacroBars } from '@/components/MacroBars';
 import { Card } from '@/components/ui/Card';
+import { MealCard } from '@/components/MealCard';
 import { useStore } from '@/lib/store';
 import { getStreakDays } from '@/lib/db';
-import { MealType } from '@/lib/types';
 
-const MEAL_LABELS: Record<MealType, string> = {
-  petit_dejeuner: '🥣 Petit-déjeuner',
-  dejeuner: '🍽️ Déjeuner',
-  diner: '🌙 Dîner',
-  collation: '🍎 Collation',
-};
 
 export default function Dashboard() {
   const insets = useSafeAreaInsets();
@@ -140,14 +134,13 @@ export default function Dashboard() {
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mealScroll}>
             {meals.map((meal) => (
-              <Card key={meal.id} style={styles.mealCard}>
-                <Text style={styles.mealType}>{MEAL_LABELS[meal.meal_type]}</Text>
-                <Text style={styles.mealName} numberOfLines={2}>{meal.food_name}</Text>
-                <Text style={[styles.mealCalories, { color: Colors.accent }]}>{Math.round(meal.calories)} kcal</Text>
-                <Text style={styles.mealMacros}>
-                  P:{Math.round(meal.protein)}g G:{Math.round(meal.carbs)}g L:{Math.round(meal.fat)}g
-                </Text>
-              </Card>
+              <MealCard
+                key={meal.id}
+                meal={meal}
+                compact
+                style={styles.mealCardItem}
+                onMealChanged={() => refreshDailyData(new Date().toISOString().split('T')[0])}
+              />
             ))}
           </ScrollView>
         )}
@@ -232,11 +225,7 @@ const styles = StyleSheet.create({
   emptyText: { color: Colors.textSecondary, fontSize: 15 },
   emptyHint: { color: Colors.textMuted, fontSize: 13 },
   mealScroll: { marginHorizontal: -4 },
-  mealCard: { width: 150, marginHorizontal: 4, gap: 6 },
-  mealType: { fontSize: 11, color: Colors.textMuted, fontWeight: '500' },
-  mealName: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary, lineHeight: 19 },
-  mealCalories: { fontSize: 18, fontWeight: '700' },
-  mealMacros: { fontSize: 11, color: Colors.textSecondary },
+  mealCardItem: { marginHorizontal: 4 },
   actionRow: { flexDirection: 'row', gap: 12 },
   actionBtn: {
     flex: 1,

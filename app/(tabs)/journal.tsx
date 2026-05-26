@@ -255,7 +255,7 @@ export default function Journal() {
             </View>
 
             {mealsByType(type).map((meal) => (
-              <MealCard key={meal.id} meal={meal} onUpdate={refresh} onDelete={refresh} />
+              <MealCard key={meal.id} meal={meal} onMealChanged={refresh} />
             ))}
 
             <TouchableOpacity style={styles.addBtn} onPress={() => openAdd(type)}>

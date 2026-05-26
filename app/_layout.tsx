@@ -1,4 +1,5 @@
 import * as SplashScreen from 'expo-splash-screen';
+import * as Notifications from 'expo-notifications';
 import { Stack, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
@@ -12,6 +13,14 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const setProfile = useStore((s) => s.setProfile);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
+
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const screen = response.notification.request.content.data?.screen as string | undefined;
+      if (screen) router.push(screen as any);
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -50,6 +59,7 @@ export default function RootLayout() {
         <Stack.Screen name="projection" />
         <Stack.Screen name="recap-semaine" />
         <Stack.Screen name="profiles" />
+        <Stack.Screen name="recettes" />
       </Stack>
     </SafeAreaProvider>
   );
