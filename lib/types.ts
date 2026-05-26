@@ -5,6 +5,10 @@ export type MealType = 'petit_dejeuner' | 'dejeuner' | 'diner' | 'collation';
 
 export interface UserProfile {
   id?: number;
+  profile_id?: string;
+  emoji_color?: string;
+  display_name?: string;
+  is_active?: boolean;
   name: string;
   age: number;
   gender: Gender;
@@ -36,6 +40,7 @@ export interface Meal {
   fat: number;
   source: 'photo' | 'search' | 'manual' | 'plan';
   photo_uri?: string;
+  notes?: string;
 }
 
 export interface DailyTotals {
@@ -66,6 +71,9 @@ export interface FoodAnalysisResult {
   lipides_g: number;
   confiance: 'haute' | 'moyenne' | 'faible';
   remarques: string;
+  is_drink: boolean;
+  volume_ml: number;
+  drink_type: 'water' | 'other';
 }
 
 export interface MealPlanRepas {
@@ -93,4 +101,29 @@ export interface MealPlan {
 export interface WeightEntry {
   date: string;
   weight: number;
+}
+
+export interface DailyEntry {
+  date: string;
+  total_calories: number;
+  total_protein: number;
+  total_carbs: number;
+  total_fat: number;
+  water_ml: number;
+}
+
+export interface AchievementStats {
+  totalWaterEntries: number;
+  waterGoalDaysCount: number;
+  waterGoalStreak: number;
+  totalMeals: number;
+  photoMeals: number;
+  loggingDays: number;
+  calorieGoalDays: number;
+  calorieStreak: number;
+  lowCarbDays: number;
+  weightEntries: number;
+  weightLost: number;
+  progressPercent: number;
+  appStreak: number;
 }

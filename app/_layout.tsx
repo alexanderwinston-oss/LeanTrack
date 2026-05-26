@@ -48,6 +48,8 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="photo-analyse" options={{ presentation: 'modal' }} />
         <Stack.Screen name="projection" />
+        <Stack.Screen name="recap-semaine" />
+        <Stack.Screen name="profiles" />
       </Stack>
     </SafeAreaProvider>
   );

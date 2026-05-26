@@ -1,7 +1,9 @@
 import * as SQLite from 'expo-sqlite';
-import { DailyTotals, Meal, MealPlan, UserProfile, WeightEntry } from './types';
+import { AchievementStats, DailyEntry, DailyTotals, Meal, MealPlan, UserProfile, WeightEntry } from './types';
+import { ALL_ACHIEVEMENTS } from './achievements';
 
 let _db: SQLite.SQLiteDatabase | null = null;
+let _activeProfileId: string | null = null;
 
 async function getDB(): Promise<SQLite.SQLiteDatabase> {
   if (!_db) {
@@ -10,10 +12,40 @@ async function getDB(): Promise<SQLite.SQLiteDatabase> {
   return _db;
 }
 
+export async function getCurrentProfileId(): Promise<string> {
+  if (_activeProfileId) return _activeProfileId;
+  const db = await getDB();
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM settings WHERE key = ?', ['active_profile_id']
+  );
+  _activeProfileId = row?.value ?? 'default';
+  return _activeProfileId;
+}
+
+async function safeAlterAdd(
+  db: SQLite.SQLiteDatabase,
+  table: string,
+  column: string,
+  definition: string
+): Promise<void> {
+  try {
+    await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  } catch {
+    // Column already exists — ignore
+  }
+}
+
 export async function initDB(): Promise<void> {
   const db = await getDB();
+
+  // Core schema
   await db.execAsync(`
     PRAGMA journal_mode = WAL;
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
 
     CREATE TABLE IF NOT EXISTS user_profile (
       id INTEGER PRIMARY KEY NOT NULL,
@@ -73,49 +105,212 @@ export async function initDB(): Promise<void> {
 
     CREATE TABLE IF NOT EXISTS achievements (
       id TEXT PRIMARY KEY,
-      unlocked_at TEXT NOT NULL
+      unlocked_at TEXT NOT NULL,
+      profile_id TEXT NOT NULL DEFAULT 'default'
     );
+  `);
+
+  // Safe column migrations for features added after initial release
+  const migrations: [string, string, string][] = [
+    ['meals', 'notes', "TEXT DEFAULT ''"],
+    ['meals', 'profile_id', "TEXT NOT NULL DEFAULT 'default'"],
+    ['water_log', 'profile_id', "TEXT NOT NULL DEFAULT 'default'"],
+    ['weight_log', 'profile_id', "TEXT NOT NULL DEFAULT 'default'"],
+    ['achievements', 'lost_at', 'TEXT'],
+    ['user_profile', 'profile_id', "TEXT DEFAULT 'default'"],
+    ['user_profile', 'emoji_color', "TEXT DEFAULT '#10b981'"],
+    ['user_profile', 'display_name', "TEXT DEFAULT ''"],
+    ['user_profile', 'is_active', 'INTEGER DEFAULT 0'],
+  ];
+  for (const [table, col, def] of migrations) {
+    await safeAlterAdd(db, table, col, def);
+  }
+
+  // Activate default profile on first run
+  await db.execAsync(`
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('active_profile_id', 'default');
+    UPDATE user_profile SET is_active = 1, profile_id = 'default' WHERE id = 1 AND is_active = 0;
   `);
 }
 
-export async function getProfile(): Promise<UserProfile | null> {
-  const db = await getDB();
-  const row = await db.getFirstAsync<any>('SELECT * FROM user_profile WHERE id = 1');
-  if (!row) return null;
+// ─── Profile helpers ────────────────────────────────────────────────────────
+
+function rowToProfile(row: any): UserProfile {
   return {
     ...row,
     notifications_enabled: row.notifications_enabled === 1,
     onboarding_completed: row.onboarding_completed === 1,
+    is_active: row.is_active === 1,
   };
+}
+
+export async function getProfile(): Promise<UserProfile | null> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  const row = await db.getFirstAsync<any>(
+    'SELECT * FROM user_profile WHERE profile_id = ?', [profileId]
+  );
+  if (!row) {
+    // Backward compat fallback
+    const fallback = await db.getFirstAsync<any>('SELECT * FROM user_profile WHERE id = 1');
+    return fallback ? rowToProfile(fallback) : null;
+  }
+  return rowToProfile(row);
+}
+
+export async function getAllProfiles(): Promise<UserProfile[]> {
+  const db = await getDB();
+  const rows = await db.getAllAsync<any>(
+    'SELECT * FROM user_profile ORDER BY is_active DESC, id ASC'
+  );
+  return rows.map(rowToProfile);
 }
 
 export async function saveProfile(data: UserProfile): Promise<void> {
   const db = await getDB();
+  const profileId = data.profile_id ?? await getCurrentProfileId();
+
+  const existing = await db.getFirstAsync<{ id: number }>(
+    'SELECT id FROM user_profile WHERE profile_id = ?', [profileId]
+  );
+
+  if (existing) {
+    await db.runAsync(
+      `UPDATE user_profile SET
+        name = ?, age = ?, gender = ?, weight_current = ?, weight_target = ?,
+        height = ?, activity_level = ?, goal = ?, target_date = ?, tdee = ?,
+        calorie_target = ?, protein_target = ?, carbs_target = ?, fat_target = ?,
+        water_target = ?, notifications_enabled = ?, onboarding_completed = ?,
+        emoji_color = COALESCE(?, emoji_color), display_name = COALESCE(?, display_name),
+        is_active = COALESCE(?, is_active)
+       WHERE profile_id = ?`,
+      [
+        data.name, data.age, data.gender, data.weight_current, data.weight_target,
+        data.height, data.activity_level, data.goal, data.target_date,
+        data.tdee, data.calorie_target, data.protein_target, data.carbs_target,
+        data.fat_target, data.water_target,
+        data.notifications_enabled ? 1 : 0,
+        data.onboarding_completed ? 1 : 0,
+        data.emoji_color ?? null,
+        data.display_name ?? null,
+        data.is_active !== undefined ? (data.is_active ? 1 : 0) : null,
+        profileId,
+      ]
+    );
+  } else {
+    await db.runAsync(
+      `INSERT INTO user_profile
+        (profile_id, name, age, gender, weight_current, weight_target, height, activity_level,
+         goal, target_date, tdee, calorie_target, protein_target, carbs_target, fat_target,
+         water_target, notifications_enabled, onboarding_completed, emoji_color, display_name, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        profileId, data.name, data.age, data.gender, data.weight_current, data.weight_target,
+        data.height, data.activity_level, data.goal, data.target_date,
+        data.tdee, data.calorie_target, data.protein_target, data.carbs_target,
+        data.fat_target, data.water_target,
+        data.notifications_enabled ? 1 : 0,
+        data.onboarding_completed ? 1 : 0,
+        data.emoji_color ?? '#10b981',
+        data.display_name ?? data.name,
+        data.is_active ? 1 : 0,
+      ]
+    );
+  }
+}
+
+function generateProfileId(): string {
+  return `profile_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+export async function createProfile(data: Partial<UserProfile>): Promise<string> {
+  const db = await getDB();
+  const profileId = generateProfileId();
   await db.runAsync(
-    `INSERT OR REPLACE INTO user_profile
-      (id, name, age, gender, weight_current, weight_target, height, activity_level, goal,
-       target_date, tdee, calorie_target, protein_target, carbs_target, fat_target,
-       water_target, notifications_enabled, onboarding_completed)
-     VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO user_profile
+      (profile_id, name, age, gender, weight_current, weight_target, height, activity_level,
+       goal, target_date, tdee, calorie_target, protein_target, carbs_target, fat_target,
+       water_target, notifications_enabled, onboarding_completed, emoji_color, display_name, is_active)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      data.name, data.age, data.gender, data.weight_current, data.weight_target,
-      data.height, data.activity_level, data.goal, data.target_date,
-      data.tdee, data.calorie_target, data.protein_target, data.carbs_target,
-      data.fat_target, data.water_target,
-      data.notifications_enabled ? 1 : 0,
-      data.onboarding_completed ? 1 : 0,
+      profileId, data.name ?? 'Nouveau profil', data.age ?? 25, data.gender ?? 'homme',
+      data.weight_current ?? 70, data.weight_target ?? 65, data.height ?? 170,
+      data.activity_level ?? 'modere', data.goal ?? 'perte',
+      data.target_date ?? '', data.tdee ?? 2000, data.calorie_target ?? 1800,
+      data.protein_target ?? 150, data.carbs_target ?? 200, data.fat_target ?? 60,
+      data.water_target ?? 2000,
+      0, 0,
+      data.emoji_color ?? '#10b981',
+      data.display_name ?? data.name ?? 'Nouveau profil',
+      0,
+    ]
+  );
+  return profileId;
+}
+
+export async function switchProfile(profileId: string): Promise<void> {
+  const db = await getDB();
+  await db.execAsync(`UPDATE user_profile SET is_active = 0`);
+  await db.runAsync(`UPDATE user_profile SET is_active = 1 WHERE profile_id = ?`, [profileId]);
+  await db.runAsync(
+    `INSERT OR REPLACE INTO settings (key, value) VALUES ('active_profile_id', ?)`,
+    [profileId]
+  );
+  _activeProfileId = profileId;
+}
+
+export async function deleteProfile(profileId: string): Promise<void> {
+  const db = await getDB();
+  await db.runAsync('DELETE FROM meals WHERE profile_id = ?', [profileId]);
+  await db.runAsync('DELETE FROM water_log WHERE profile_id = ?', [profileId]);
+  await db.runAsync('DELETE FROM weight_log WHERE profile_id = ?', [profileId]);
+  await db.runAsync('DELETE FROM achievements WHERE profile_id = ?', [profileId]);
+  await db.runAsync('DELETE FROM user_profile WHERE profile_id = ?', [profileId]);
+}
+
+export async function resetAllData(profileId: string): Promise<void> {
+  const db = await getDB();
+  await db.runAsync('DELETE FROM meals WHERE profile_id = ?', [profileId]);
+  await db.runAsync('DELETE FROM water_log WHERE profile_id = ?', [profileId]);
+  await db.runAsync('DELETE FROM weight_log WHERE profile_id = ?', [profileId]);
+  await db.runAsync('DELETE FROM achievements WHERE profile_id = ?', [profileId]);
+  await db.runAsync(
+    'UPDATE user_profile SET onboarding_completed = 0 WHERE profile_id = ?',
+    [profileId]
+  );
+}
+
+// ─── Meals ────────────────────────────────────────────────────────────────────
+
+export async function addMeal(meal: Meal): Promise<void> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  await db.runAsync(
+    `INSERT INTO meals
+      (date, meal_type, food_name, quantity_g, calories, protein, carbs, fat, source, photo_uri, notes, profile_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      meal.date, meal.meal_type, meal.food_name, meal.quantity_g,
+      meal.calories, meal.protein, meal.carbs, meal.fat,
+      meal.source, meal.photo_uri ?? null, meal.notes ?? '', profileId,
     ]
   );
 }
 
-export async function addMeal(meal: Meal): Promise<void> {
+export async function updateMeal(id: number, updates: Partial<Meal>): Promise<void> {
   const db = await getDB();
-  await db.runAsync(
-    `INSERT INTO meals (date, meal_type, food_name, quantity_g, calories, protein, carbs, fat, source, photo_uri)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [meal.date, meal.meal_type, meal.food_name, meal.quantity_g, meal.calories,
-     meal.protein, meal.carbs, meal.fat, meal.source, meal.photo_uri ?? null]
-  );
+  const fields: string[] = [];
+  const values: any[] = [];
+  const allowed: (keyof Meal)[] = ['food_name', 'quantity_g', 'calories', 'protein', 'carbs', 'fat', 'meal_type', 'notes'];
+  for (const key of allowed) {
+    if (updates[key] !== undefined) {
+      fields.push(`${key} = ?`);
+      values.push(updates[key]);
+    }
+  }
+  if (!fields.length) return;
+  values.push(id);
+  await db.runAsync(`UPDATE meals SET ${fields.join(', ')} WHERE id = ?`, values);
 }
 
 export async function deleteMeal(id: number): Promise<void> {
@@ -125,19 +320,24 @@ export async function deleteMeal(id: number): Promise<void> {
 
 export async function getMealsForDate(date: string): Promise<Meal[]> {
   const db = await getDB();
-  return db.getAllAsync<Meal>('SELECT * FROM meals WHERE date = ? ORDER BY created_at ASC', [date]);
+  const profileId = await getCurrentProfileId();
+  return db.getAllAsync<Meal>(
+    'SELECT * FROM meals WHERE date = ? AND profile_id = ? ORDER BY created_at ASC',
+    [date, profileId]
+  );
 }
 
 export async function getDailyTotals(date: string): Promise<DailyTotals> {
   const db = await getDB();
+  const profileId = await getCurrentProfileId();
   const row = await db.getFirstAsync<any>(
     `SELECT
        COALESCE(SUM(calories), 0) as calories,
        COALESCE(SUM(protein), 0)  as protein,
        COALESCE(SUM(carbs), 0)    as carbs,
        COALESCE(SUM(fat), 0)      as fat
-     FROM meals WHERE date = ?`,
-    [date]
+     FROM meals WHERE date = ? AND profile_id = ?`,
+    [date, profileId]
   );
   const water = await getWaterForDate(date);
   return {
@@ -150,23 +350,36 @@ export async function getDailyTotals(date: string): Promise<DailyTotals> {
   };
 }
 
+// ─── Water ────────────────────────────────────────────────────────────────────
+
 export async function addWater(date: string, ml: number): Promise<void> {
   const db = await getDB();
-  await db.runAsync('INSERT INTO water_log (date, amount_ml) VALUES (?, ?)', [date, ml]);
+  const profileId = await getCurrentProfileId();
+  await db.runAsync(
+    'INSERT INTO water_log (date, amount_ml, profile_id) VALUES (?, ?, ?)',
+    [date, ml, profileId]
+  );
 }
 
 export async function getWaterForDate(date: string): Promise<number> {
   const db = await getDB();
+  const profileId = await getCurrentProfileId();
   const row = await db.getFirstAsync<{ total: number }>(
-    'SELECT COALESCE(SUM(amount_ml), 0) as total FROM water_log WHERE date = ?',
-    [date]
+    'SELECT COALESCE(SUM(amount_ml), 0) as total FROM water_log WHERE date = ? AND profile_id = ?',
+    [date, profileId]
   );
   return row?.total ?? 0;
 }
 
-export async function getWaterLogsForDate(date: string): Promise<{ id: number; amount_ml: number; created_at: string }[]> {
+export async function getWaterLogsForDate(
+  date: string
+): Promise<{ id: number; amount_ml: number; created_at: string }[]> {
   const db = await getDB();
-  return db.getAllAsync('SELECT id, amount_ml, created_at FROM water_log WHERE date = ? ORDER BY created_at ASC', [date]);
+  const profileId = await getCurrentProfileId();
+  return db.getAllAsync(
+    'SELECT id, amount_ml, created_at FROM water_log WHERE date = ? AND profile_id = ? ORDER BY created_at ASC',
+    [date, profileId]
+  );
 }
 
 export async function deleteWaterEntry(id: number): Promise<void> {
@@ -174,40 +387,104 @@ export async function deleteWaterEntry(id: number): Promise<void> {
   await db.runAsync('DELETE FROM water_log WHERE id = ?', [id]);
 }
 
+// ─── Weight ──────────────────────────────────────────────────────────────────
+
 export async function logWeight(date: string, weight: number): Promise<void> {
   const db = await getDB();
+  const profileId = await getCurrentProfileId();
   await db.runAsync(
-    'INSERT OR REPLACE INTO weight_log (date, weight) VALUES (?, ?)',
-    [date, weight]
+    'INSERT OR REPLACE INTO weight_log (date, weight, profile_id) VALUES (?, ?, ?)',
+    [date, weight, profileId]
   );
 }
 
 export async function getWeightHistory(days: number): Promise<WeightEntry[]> {
   const db = await getDB();
+  const profileId = await getCurrentProfileId();
   return db.getAllAsync<WeightEntry>(
-    `SELECT date, weight FROM weight_log
-     ORDER BY date DESC LIMIT ?`,
-    [days]
+    'SELECT date, weight FROM weight_log WHERE profile_id = ? ORDER BY date DESC LIMIT ?',
+    [profileId, days]
   );
 }
 
 export async function getAllWeightEntries(): Promise<WeightEntry[]> {
   const db = await getDB();
+  const profileId = await getCurrentProfileId();
   return db.getAllAsync<WeightEntry>(
-    'SELECT date, weight FROM weight_log ORDER BY date DESC'
+    'SELECT date, weight FROM weight_log WHERE profile_id = ? ORDER BY date DESC',
+    [profileId]
   );
 }
 
 export async function updateWeightEntry(date: string, weight: number): Promise<void> {
   const db = await getDB();
-  await db.runAsync('DELETE FROM weight_log WHERE date = ?', [date]);
-  await db.runAsync('INSERT INTO weight_log (date, weight) VALUES (?, ?)', [date, weight]);
+  const profileId = await getCurrentProfileId();
+  await db.runAsync('DELETE FROM weight_log WHERE date = ? AND profile_id = ?', [date, profileId]);
+  await db.runAsync(
+    'INSERT INTO weight_log (date, weight, profile_id) VALUES (?, ?, ?)',
+    [date, weight, profileId]
+  );
 }
 
 export async function deleteWeightEntry(date: string): Promise<void> {
   const db = await getDB();
-  await db.runAsync('DELETE FROM weight_log WHERE date = ?', [date]);
+  const profileId = await getCurrentProfileId();
+  await db.runAsync('DELETE FROM weight_log WHERE date = ? AND profile_id = ?', [date, profileId]);
 }
+
+// ─── Weekly data ─────────────────────────────────────────────────────────────
+
+export async function getWeeklyData(startDate: string, endDate: string): Promise<DailyEntry[]> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+
+  const mealRows = await db.getAllAsync<{
+    date: string;
+    total_calories: number;
+    total_protein: number;
+    total_carbs: number;
+    total_fat: number;
+  }>(
+    `SELECT date,
+       COALESCE(SUM(calories), 0) as total_calories,
+       COALESCE(SUM(protein), 0) as total_protein,
+       COALESCE(SUM(carbs), 0) as total_carbs,
+       COALESCE(SUM(fat), 0) as total_fat
+     FROM meals WHERE date BETWEEN ? AND ? AND profile_id = ?
+     GROUP BY date`,
+    [startDate, endDate, profileId]
+  );
+
+  const waterRows = await db.getAllAsync<{ date: string; total: number }>(
+    `SELECT date, COALESCE(SUM(amount_ml), 0) as total
+     FROM water_log WHERE date BETWEEN ? AND ? AND profile_id = ?
+     GROUP BY date`,
+    [startDate, endDate, profileId]
+  );
+
+  const mealMap = new Map(mealRows.map((r) => [r.date, r]));
+  const waterMap = new Map(waterRows.map((r) => [r.date, r.total]));
+
+  const result: DailyEntry[] = [];
+  const cursor = new Date(startDate);
+  const end = new Date(endDate);
+  while (cursor <= end) {
+    const dateStr = cursor.toISOString().split('T')[0];
+    const m = mealMap.get(dateStr);
+    result.push({
+      date: dateStr,
+      total_calories: m?.total_calories ?? 0,
+      total_protein: m?.total_protein ?? 0,
+      total_carbs: m?.total_carbs ?? 0,
+      total_fat: m?.total_fat ?? 0,
+      water_ml: waterMap.get(dateStr) ?? 0,
+    });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return result;
+}
+
+// ─── Meal plan ───────────────────────────────────────────────────────────────
 
 export async function saveMealPlan(json: string): Promise<void> {
   const db = await getDB();
@@ -217,132 +494,203 @@ export async function saveMealPlan(json: string): Promise<void> {
 
 export async function getMealPlan(): Promise<MealPlan | null> {
   const db = await getDB();
-  const row = await db.getFirstAsync<{ plan_json: string }>('SELECT plan_json FROM meal_plan ORDER BY id DESC LIMIT 1');
+  const row = await db.getFirstAsync<{ plan_json: string }>(
+    'SELECT plan_json FROM meal_plan ORDER BY id DESC LIMIT 1'
+  );
   if (!row) return null;
-  try {
-    return JSON.parse(row.plan_json) as MealPlan;
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(row.plan_json) as MealPlan; } catch { return null; }
 }
+
+// ─── Achievements ─────────────────────────────────────────────────────────────
 
 export async function getUnlockedAchievements(): Promise<string[]> {
   const db = await getDB();
-  const rows = await db.getAllAsync<{ id: string }>('SELECT id FROM achievements');
+  const profileId = await getCurrentProfileId();
+  const rows = await db.getAllAsync<{ id: string }>(
+    'SELECT id FROM achievements WHERE profile_id = ? AND (lost_at IS NULL)',
+    [profileId]
+  );
   return rows.map((r) => r.id);
 }
 
-export async function unlockAchievement(id: string): Promise<void> {
+export async function getAchievementsStatus(): Promise<
+  { id: string; unlocked_at: string; lost_at: string | null }[]
+> {
   const db = await getDB();
-  await db.runAsync(
-    'INSERT OR IGNORE INTO achievements (id, unlocked_at) VALUES (?, ?)',
-    [id, new Date().toISOString()]
+  const profileId = await getCurrentProfileId();
+  return db.getAllAsync(
+    'SELECT id, unlocked_at, lost_at FROM achievements WHERE profile_id = ?',
+    [profileId]
   );
+}
+
+function computeStreakFromDates(datesDesc: string[]): number {
+  if (!datesDesc.length) return 0;
+  let streak = 0;
+  const today = new Date();
+  for (let i = 0; i < datesDesc.length; i++) {
+    const diff = Math.round(
+      (today.getTime() - new Date(datesDesc[i]).getTime()) / (1000 * 60 * 60 * 24)
+    );
+    if (diff === i || diff === i + 1) streak++;
+    else break;
+  }
+  return streak;
+}
+
+export async function getAchievementStats(profile: UserProfile): Promise<AchievementStats> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+
+  const [waterEntryRow, waterGoalDays, mealCountRow, photoMealRow, loggingDaysRow,
+         calorieGoalDays, lowCarbRow, weightCountRow, firstWeightRow] = await Promise.all([
+    db.getFirstAsync<{ c: number }>(
+      'SELECT COUNT(*) as c FROM water_log WHERE profile_id = ?', [profileId]
+    ),
+    db.getAllAsync<{ date: string }>(
+      `SELECT date FROM (
+        SELECT date, SUM(amount_ml) as total FROM water_log WHERE profile_id = ?
+        GROUP BY date HAVING total >= ?
+      ) ORDER BY date DESC`,
+      [profileId, profile.water_target]
+    ),
+    db.getFirstAsync<{ c: number }>(
+      'SELECT COUNT(*) as c FROM meals WHERE profile_id = ?', [profileId]
+    ),
+    db.getFirstAsync<{ c: number }>(
+      "SELECT COUNT(*) as c FROM meals WHERE profile_id = ? AND source = 'photo'", [profileId]
+    ),
+    db.getFirstAsync<{ c: number }>(
+      'SELECT COUNT(DISTINCT date) as c FROM meals WHERE profile_id = ?', [profileId]
+    ),
+    db.getAllAsync<{ date: string }>(
+      `SELECT date FROM (
+        SELECT date, SUM(calories) as total FROM meals WHERE profile_id = ?
+        GROUP BY date HAVING total >= ? AND total <= ?
+      ) ORDER BY date DESC`,
+      [profileId, profile.calorie_target * 0.8, profile.calorie_target * 1.1]
+    ),
+    db.getFirstAsync<{ c: number }>(
+      `SELECT COUNT(*) as c FROM (
+        SELECT date, SUM(carbs) as total FROM meals WHERE profile_id = ?
+        GROUP BY date HAVING total < 200
+      )`, [profileId]
+    ),
+    db.getFirstAsync<{ c: number }>(
+      'SELECT COUNT(*) as c FROM weight_log WHERE profile_id = ?', [profileId]
+    ),
+    db.getFirstAsync<{ weight: number }>(
+      'SELECT weight FROM weight_log WHERE profile_id = ? ORDER BY date ASC LIMIT 1', [profileId]
+    ),
+  ]);
+
+  const waterGoalStreak = computeStreakFromDates(waterGoalDays.map((r) => r.date));
+  const calorieStreak = computeStreakFromDates(calorieGoalDays.map((r) => r.date));
+
+  let weightLost = 0;
+  let progressPercent = 0;
+  if (firstWeightRow) {
+    const initial = firstWeightRow.weight;
+    const current = profile.weight_current;
+    const target = profile.weight_target;
+    if (profile.goal === 'perte') {
+      weightLost = initial - current;
+      const total = initial - target;
+      progressPercent = total > 0 ? Math.min((weightLost / total) * 100, 100) : 0;
+    } else if (profile.goal === 'prise') {
+      weightLost = current - initial;
+      const total = target - initial;
+      progressPercent = total > 0 ? Math.min((weightLost / total) * 100, 100) : 0;
+    } else {
+      progressPercent = Math.abs(current - target) <= 1 ? 100 : 0;
+    }
+  }
+
+  return {
+    totalWaterEntries: waterEntryRow?.c ?? 0,
+    waterGoalDaysCount: waterGoalDays.length,
+    waterGoalStreak,
+    totalMeals: mealCountRow?.c ?? 0,
+    photoMeals: photoMealRow?.c ?? 0,
+    loggingDays: loggingDaysRow?.c ?? 0,
+    calorieGoalDays: calorieGoalDays.length,
+    calorieStreak,
+    lowCarbDays: lowCarbRow?.c ?? 0,
+    weightEntries: weightCountRow?.c ?? 0,
+    weightLost,
+    progressPercent,
+    appStreak: await getStreakDays(),
+  };
 }
 
 export async function checkAndUnlockAchievements(profile: UserProfile): Promise<string[]> {
   const db = await getDB();
-  const unlocked = await getUnlockedAchievements();
+  const profileId = await getCurrentProfileId();
+  const stats = await getAchievementStats(profile);
+
+  const rows = await db.getAllAsync<{ id: string; unlocked_at: string; lost_at: string | null }>(
+    'SELECT id, unlocked_at, lost_at FROM achievements WHERE profile_id = ?',
+    [profileId]
+  );
+  const statusMap = new Map(rows.map((r) => [r.id, r]));
   const newlyUnlocked: string[] = [];
 
-  async function tryUnlock(id: string, check: () => Promise<boolean>) {
-    if (unlocked.includes(id)) return;
-    try {
-      if (await check()) {
-        await db.runAsync(
-          'INSERT OR IGNORE INTO achievements (id, unlocked_at) VALUES (?, ?)',
-          [id, new Date().toISOString()]
-        );
-        newlyUnlocked.push(id);
-      }
-    } catch {}
+  for (const achievement of ALL_ACHIEVEMENTS) {
+    const passes = achievement.check(stats);
+    const current = statusMap.get(achievement.id);
+
+    if (passes && !current) {
+      await db.runAsync(
+        'INSERT OR IGNORE INTO achievements (id, unlocked_at, profile_id) VALUES (?, ?, ?)',
+        [achievement.id, new Date().toISOString(), profileId]
+      );
+      newlyUnlocked.push(achievement.id);
+    } else if (passes && current?.lost_at) {
+      await db.runAsync(
+        'UPDATE achievements SET lost_at = NULL, unlocked_at = ? WHERE id = ? AND profile_id = ?',
+        [new Date().toISOString(), achievement.id, profileId]
+      );
+      newlyUnlocked.push(achievement.id);
+    } else if (!passes && current && !current.lost_at) {
+      await db.runAsync(
+        'UPDATE achievements SET lost_at = ? WHERE id = ? AND profile_id = ?',
+        [new Date().toISOString(), achievement.id, profileId]
+      );
+    }
   }
-
-  await tryUnlock('water_first', async () => {
-    const r = await db.getFirstAsync<{ c: number }>('SELECT COUNT(*) as c FROM water_log');
-    return (r?.c ?? 0) > 0;
-  });
-
-  await tryUnlock('water_goal_1', async () => {
-    const r = await db.getFirstAsync<{ c: number }>(
-      `SELECT COUNT(*) as c FROM (SELECT date, SUM(amount_ml) as total FROM water_log GROUP BY date HAVING total >= ?)`,
-      [profile.water_target]
-    );
-    return (r?.c ?? 0) > 0;
-  });
-
-  await tryUnlock('water_hydro_master', async () => {
-    const rows = await db.getAllAsync<{ date: string; total: number }>(
-      `SELECT date, SUM(amount_ml) as total FROM water_log GROUP BY date ORDER BY date DESC LIMIT 7`
-    );
-    return rows.length >= 7 && rows.every((r) => r.total >= profile.water_target);
-  });
-
-  await tryUnlock('meal_first', async () => {
-    const r = await db.getFirstAsync<{ c: number }>('SELECT COUNT(*) as c FROM meals');
-    return (r?.c ?? 0) > 0;
-  });
-
-  await tryUnlock('calories_perfect_week', async () => {
-    const rows = await db.getAllAsync<{ date: string; total: number }>(
-      `SELECT date, SUM(calories) as total FROM meals GROUP BY date ORDER BY date DESC LIMIT 7`
-    );
-    if (rows.length < 7) return false;
-    const t = profile.calorie_target;
-    return rows.every((r) => r.total >= t * 0.8 && r.total <= t * 1.1);
-  });
-
-  await tryUnlock('streak_30', async () => {
-    const s = await getStreakDays();
-    return s >= 30;
-  });
-
-  await tryUnlock('weight_first', async () => {
-    const r = await db.getFirstAsync<{ c: number }>('SELECT COUNT(*) as c FROM weight_log');
-    return (r?.c ?? 0) > 0;
-  });
-
-  const firstWeightRow = await db.getFirstAsync<{ weight: number }>(
-    'SELECT weight FROM weight_log ORDER BY date ASC LIMIT 1'
-  );
-  if (firstWeightRow) {
-    const initial = firstWeightRow.weight;
-    await tryUnlock('weight_1kg', async () => {
-      const diff = initial - profile.weight_current;
-      return profile.goal === 'perte' ? diff >= 1 : -diff >= 1;
-    });
-    await tryUnlock('weight_halfway', async () => {
-      const totalDiff = Math.abs(initial - profile.weight_target);
-      if (totalDiff === 0) return false;
-      return Math.abs(initial - profile.weight_current) / totalDiff >= 0.5;
-    });
-  }
-
-  await tryUnlock('weight_goal', async () => {
-    if (profile.goal === 'perte') return profile.weight_current <= profile.weight_target;
-    if (profile.goal === 'prise') return profile.weight_current >= profile.weight_target;
-    return Math.abs(profile.weight_current - profile.weight_target) <= 1;
-  });
 
   return newlyUnlocked;
 }
 
+// Kept for backward compat — callers that only want IDs
+export async function unlockAchievement(id: string): Promise<void> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  await db.runAsync(
+    'INSERT OR IGNORE INTO achievements (id, unlocked_at, profile_id) VALUES (?, ?, ?)',
+    [id, new Date().toISOString(), profileId]
+  );
+}
+
+// ─── Streak / Stats ──────────────────────────────────────────────────────────
+
 export async function getStreakDays(): Promise<number> {
   const db = await getDB();
+  const profileId = await getCurrentProfileId();
   const rows = await db.getAllAsync<{ date: string }>(
-    `SELECT DISTINCT date FROM meals ORDER BY date DESC LIMIT 30`
+    'SELECT DISTINCT date FROM meals WHERE profile_id = ? ORDER BY date DESC LIMIT 30',
+    [profileId]
   );
   if (!rows.length) return 0;
   let streak = 0;
   const today = new Date();
   for (let i = 0; i < rows.length; i++) {
-    const d = new Date(rows[i].date);
-    const diff = Math.round((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-    if (diff === i || diff === i + 1) {
-      streak++;
-    } else {
-      break;
-    }
+    const diff = Math.round(
+      (today.getTime() - new Date(rows[i].date).getTime()) / (1000 * 60 * 60 * 24)
+    );
+    if (diff === i || diff === i + 1) streak++;
+    else break;
   }
   return streak;
 }
+

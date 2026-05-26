@@ -1,8 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
-  Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet,
+  Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,8 +12,8 @@ import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { MealCard } from '@/components/MealCard';
 import { useStore } from '@/lib/store';
-import { deleteMeal, getMealsForDate } from '@/lib/db';
 import { searchFood } from '@/lib/openfoodfacts';
 import { FoodItem, Meal, MealType } from '@/lib/types';
 
@@ -23,6 +24,13 @@ const SECTIONS: { type: MealType; label: string; emoji: string }[] = [
   { type: 'collation', label: 'Collation', emoji: '🍎' },
 ];
 
+const MEAL_TYPE_CHIPS: { key: MealType; label: string }[] = [
+  { key: 'petit_dejeuner', label: '🥣 Petit-déj' },
+  { key: 'dejeuner', label: '🍽️ Déjeuner' },
+  { key: 'diner', label: '🌙 Dîner' },
+  { key: 'collation', label: '🍎 Collation' },
+];
+
 export default function Journal() {
   const insets = useSafeAreaInsets();
   const meals = useStore((s) => s.meals);
@@ -30,9 +38,12 @@ export default function Journal() {
   const addMealToStore = useStore((s) => s.addMealToStore);
   const dailyTotals = useStore((s) => s.dailyTotals);
   const setPendingImage = useStore((s) => s.setPendingImage);
+  const setCurrentMealType = useStore((s) => s.setCurrentMealType);
 
   const [modalVisible, setModalVisible] = useState(false);
   const [activeMealType, setActiveMealType] = useState<MealType>('dejeuner');
+  const [toastMessage, setToastMessage] = useState('');
+  const toastAnim = useRef(new Animated.Value(80)).current;
 
   // Search state
   const [query, setQuery] = useState('');
@@ -58,6 +69,16 @@ export default function Journal() {
     }, [])
   );
 
+  function showToast(message: string) {
+    setToastMessage(message);
+    toastAnim.setValue(80);
+    Animated.sequence([
+      Animated.spring(toastAnim, { toValue: 0, friction: 8, useNativeDriver: true }),
+      Animated.delay(2000),
+      Animated.timing(toastAnim, { toValue: 80, duration: 250, useNativeDriver: true }),
+    ]).start();
+  }
+
   async function pickFromGalleryAndAnalyse() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -67,6 +88,7 @@ export default function Journal() {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, base64: true });
     if (!res.canceled && res.assets[0]?.base64) {
       setPendingImage(res.assets[0].base64);
+      setCurrentMealType(activeMealType);
       setModalVisible(false);
       router.push('/photo-analyse');
     }
@@ -81,6 +103,7 @@ export default function Journal() {
     const res = await ImagePicker.launchCameraAsync({ quality: 0.8, base64: true });
     if (!res.canceled && res.assets[0]?.base64) {
       setPendingImage(res.assets[0].base64);
+      setCurrentMealType(activeMealType);
       setModalVisible(false);
       router.push('/photo-analyse');
     }
@@ -135,52 +158,47 @@ export default function Journal() {
     const today = new Date().toISOString().split('T')[0];
     const q = parseFloat(quantity) || 100;
     const factor = q / 100;
+    const calories = Math.round(food.calories_100g * factor);
     const meal: Meal = {
       date: today,
       meal_type: activeMealType,
       food_name: food.name,
       quantity_g: q,
-      calories: Math.round(food.calories_100g * factor),
+      calories,
       protein: Math.round(food.protein_100g * factor),
       carbs: Math.round(food.carbs_100g * factor),
       fat: Math.round(food.fat_100g * factor),
       source: 'search',
     };
     await addMealToStore(meal);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setModalVisible(false);
+    showToast(`✅ ${food.name} ajouté · ${calories} kcal`);
   }
 
   async function addManual() {
     if (!manualName.trim()) return;
     const today = new Date().toISOString().split('T')[0];
+    const calories = parseFloat(manualCal) || 0;
     const meal: Meal = {
       date: today,
       meal_type: activeMealType,
       food_name: manualName,
       quantity_g: parseFloat(quantity) || 100,
-      calories: parseFloat(manualCal) || 0,
+      calories,
       protein: parseFloat(manualProt) || 0,
       carbs: parseFloat(manualCarbs) || 0,
       fat: parseFloat(manualFat) || 0,
       source: 'manual',
     };
     await addMealToStore(meal);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setModalVisible(false);
+    showToast(`✅ ${manualName} ajouté · ${calories} kcal`);
   }
 
-  async function handleDelete(id: number) {
-    const today = new Date().toISOString().split('T')[0];
-    Alert.alert('Supprimer', 'Supprimer ce repas ?', [
-      { text: 'Annuler', style: 'cancel' },
-      {
-        text: 'Supprimer',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteMeal(id);
-          await refreshDailyData(today);
-        },
-      },
-    ]);
+  function refresh() {
+    refreshDailyData(new Date().toISOString().split('T')[0]);
   }
 
   const mealsByType = (type: MealType) => meals.filter((m) => m.meal_type === type);
@@ -237,23 +255,7 @@ export default function Journal() {
             </View>
 
             {mealsByType(type).map((meal) => (
-              <Card key={meal.id} style={styles.mealItem}>
-                <View style={styles.mealRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.mealName}>{meal.food_name}</Text>
-                    <Text style={styles.mealDetails}>
-                      {meal.quantity_g}g · P:{Math.round(meal.protein)}g G:{Math.round(meal.carbs)}g L:{Math.round(meal.fat)}g
-                    </Text>
-                  </View>
-                  <View style={styles.mealRight}>
-                    <Text style={styles.mealCal}>{Math.round(meal.calories)}</Text>
-                    <Text style={styles.mealCalUnit}>kcal</Text>
-                  </View>
-                  <TouchableOpacity onPress={() => meal.id && handleDelete(meal.id)} style={styles.deleteBtn}>
-                    <Text style={styles.deleteText}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-              </Card>
+              <MealCard key={meal.id} meal={meal} onUpdate={refresh} onDelete={refresh} />
             ))}
 
             <TouchableOpacity style={styles.addBtn} onPress={() => openAdd(type)}>
@@ -263,6 +265,14 @@ export default function Journal() {
         ))}
         <View style={{ height: 80 }} />
       </ScrollView>
+
+      {/* Toast notification */}
+      <Animated.View
+        style={[styles.toast, { transform: [{ translateY: toastAnim }] }]}
+        pointerEvents="none"
+      >
+        <Text style={styles.toastText}>{toastMessage}</Text>
+      </Animated.View>
 
       {/* Add food modal */}
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
@@ -284,6 +294,21 @@ export default function Journal() {
               <Text style={styles.photoModalBtnEmoji}>🖼️</Text>
               <Text style={styles.photoModalBtnText}>Galerie</Text>
             </TouchableOpacity>
+          </View>
+
+          {/* Meal type selector */}
+          <View style={styles.mealTypeRow}>
+            {MEAL_TYPE_CHIPS.map((chip) => (
+              <TouchableOpacity
+                key={chip.key}
+                style={[styles.mealTypeChip, activeMealType === chip.key && styles.mealTypeChipActive]}
+                onPress={() => setActiveMealType(chip.key)}
+              >
+                <Text style={[styles.mealTypeChipText, activeMealType === chip.key && styles.mealTypeChipTextActive]}>
+                  {chip.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           <View style={styles.modeTabs}>
@@ -378,15 +403,16 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary },
   sectionCals: { fontSize: 13, color: Colors.textSecondary },
-  mealItem: { paddingVertical: 10, paddingHorizontal: 12 },
-  mealRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  mealName: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
-  mealDetails: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
-  mealRight: { alignItems: 'flex-end' },
-  mealCal: { fontSize: 16, fontWeight: '700', color: Colors.accent },
-  mealCalUnit: { fontSize: 11, color: Colors.textSecondary },
-  deleteBtn: { padding: 6 },
-  deleteText: { color: Colors.danger, fontSize: 14, fontWeight: '700' },
+  toast: {
+    position: 'absolute', bottom: 90, left: 20, right: 20,
+    backgroundColor: '#1e293b', borderRadius: Colors.radius,
+    borderWidth: 1, borderColor: Colors.accent,
+    paddingHorizontal: 16, paddingVertical: 12,
+    alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
+    elevation: 8,
+  },
+  toastText: { color: Colors.accent, fontWeight: '700', fontSize: 14 },
   addBtn: {
     borderRadius: Colors.radius, borderWidth: 1.5, borderColor: Colors.border,
     borderStyle: 'dashed', padding: 12, alignItems: 'center',
@@ -408,6 +434,15 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
   closeBtn: { fontSize: 18, color: Colors.textSecondary, padding: 4 },
+  mealTypeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingTop: 12 },
+  mealTypeChip: {
+    paddingHorizontal: 10, paddingVertical: 7,
+    borderRadius: Colors.radiusPill, borderWidth: 1.5,
+    borderColor: Colors.border, backgroundColor: Colors.bgSurface,
+  },
+  mealTypeChipActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
+  mealTypeChipText: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' },
+  mealTypeChipTextActive: { color: Colors.accent, fontWeight: '700' },
   modeTabs: { flexDirection: 'row', padding: 16, gap: 12 },
   modeTab: {
     flex: 1, padding: 10, borderRadius: Colors.radius,

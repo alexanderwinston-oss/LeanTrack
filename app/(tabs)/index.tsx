@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import {
   Pressable, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
+import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
@@ -54,7 +55,7 @@ export default function Dashboard() {
   const showCalorieBanner = calorieRatio >= 0.9 && calorieRatio <= 1.15;
 
   return (
-    <View style={[styles.safe, { paddingTop: insets.top }]}>
+    <Animated.View entering={FadeIn.duration(300)} style={[styles.safe, { paddingTop: insets.top }]}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
@@ -83,6 +84,7 @@ export default function Dashboard() {
         )}
 
         {/* Progress Ring */}
+        <Animated.View entering={SlideInDown.delay(0).springify()}>
         <Card style={styles.ringCard}>
           <View style={styles.ringRow}>
             <ProgressRing
@@ -99,8 +101,10 @@ export default function Dashboard() {
             </View>
           </View>
         </Card>
+        </Animated.View>
 
         {/* Water bar */}
+        <Animated.View entering={SlideInDown.delay(80).springify()}>
         <Card style={styles.waterCard}>
           <View style={styles.waterHeader}>
             <Text style={styles.waterLabel}>💧 Hydratation</Text>
@@ -124,6 +128,7 @@ export default function Dashboard() {
             ))}
           </View>
         </Card>
+        </Animated.View>
 
         {/* Today's meals */}
         <Text style={styles.sectionTitle}>Repas d'aujourd'hui</Text>
@@ -148,7 +153,7 @@ export default function Dashboard() {
         )}
 
         {/* Action buttons */}
-        <View style={styles.actionRow}>
+        <Animated.View entering={SlideInDown.delay(160).springify()} style={styles.actionRow}>
           <Pressable style={styles.actionBtn} onPress={() => router.push('/photo-analyse')}>
             <Text style={styles.actionEmoji}>📷</Text>
             <Text style={styles.actionLabel}>Analyser repas</Text>
@@ -157,10 +162,14 @@ export default function Dashboard() {
             <Text style={styles.actionEmoji}>📊</Text>
             <Text style={styles.actionLabel}>Ma projection</Text>
           </Pressable>
-        </View>
+          <Pressable style={styles.actionBtn} onPress={() => router.push('/recap-semaine')}>
+            <Text style={styles.actionEmoji}>📅</Text>
+            <Text style={styles.actionLabel}>Ma semaine</Text>
+          </Pressable>
+        </Animated.View>
         <View style={{ height: 80 }} />
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 }
 

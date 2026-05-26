@@ -12,7 +12,7 @@ import { AchievementGrid, CelebrationModal } from '@/components/Achievements';
 import { useStore } from '@/lib/store';
 import {
   checkAndUnlockAchievements, deleteWeightEntry, getAllWeightEntries,
-  getUnlockedAchievements, saveProfile, updateWeightEntry,
+  getUnlockedAchievements, resetAllData, saveProfile, updateWeightEntry,
 } from '@/lib/db';
 import { cancelAllNotifications, scheduleAllNotifications } from '@/lib/notifications';
 import { WeightEntry } from '@/lib/types';
@@ -153,11 +153,45 @@ export default function Profil() {
     }
   }
 
+  function confirmReset() {
+    Alert.alert(
+      '⚠️ Réinitialiser les données',
+      'Toutes tes données (repas, eau, poids, succès) seront supprimées. Ton profil sera réinitialisé.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Supprimer tout', style: 'destructive',
+          onPress: () => {
+            Alert.alert(
+              'Confirmation finale',
+              'Cette action est irréversible. Confirmes-tu la suppression de toutes tes données ?',
+              [
+                { text: 'Annuler', style: 'cancel' },
+                {
+                  text: 'Oui, tout supprimer', style: 'destructive',
+                  onPress: async () => {
+                    const profileId = profile!.profile_id;
+                    if (!profileId) return;
+                    await resetAllData(profileId);
+                    router.replace('/onboarding');
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  }
+
   return (
     <View style={[styles.safe, { paddingTop: insets.top }]}>
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>⚙️ Mon profil</Text>
+          <TouchableOpacity style={styles.profilesBtn} onPress={() => router.push('/profiles')}>
+            <Text style={styles.profilesBtnText}>👤 Profils</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Identity card */}
@@ -255,6 +289,11 @@ export default function Profil() {
             onPress={() => router.push('/onboarding')}
             variant="ghost"
           />
+          <Button
+            label="🗑️ Réinitialiser toutes mes données"
+            onPress={confirmReset}
+            variant="ghost"
+          />
         </View>
 
         <View style={{ height: 80 }} />
@@ -311,8 +350,14 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bgPrimary },
   container: { flex: 1 },
   content: { padding: 20, paddingTop: 12, gap: 16 },
-  header: { marginBottom: 4 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
   title: { fontSize: 22, fontWeight: '700', color: Colors.textPrimary },
+  profilesBtn: {
+    backgroundColor: Colors.bgSurface, borderRadius: Colors.radiusPill,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderWidth: 1, borderColor: Colors.border,
+  },
+  profilesBtnText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 40 },
   emptyText: { fontSize: 18, color: Colors.textSecondary },
   identityCard: { alignItems: 'center', gap: 8 },

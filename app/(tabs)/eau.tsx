@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,6 +58,7 @@ export default function Eau() {
   async function addWater(ml: number) {
     const today = new Date().toISOString().split('T')[0];
     await addWaterToStore(today, ml);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const newLogs = await getWaterLogsForDate(today);
     setLogs(newLogs);
   }
