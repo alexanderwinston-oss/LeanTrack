@@ -12,9 +12,9 @@ import { useStore } from '@/lib/store';
 import { getMealPlan, saveMealPlan, addMeal, getProfile } from '@/lib/db';
 import { generateMealPlan, callGemini, extractText, safeParseJSON } from '@/lib/gemini';
 import { MealPlan, MealPlanRepas, MealType } from '@/lib/types';
-import { showGeminiError } from '@/lib/utils';
+import { getLocalDateString, showGeminiError } from '@/lib/utils';
 
-const TODAY = new Date().toISOString().split('T')[0];
+const TODAY = getLocalDateString();
 const DAY_LABELS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
 const MEAL_TYPE_LABELS: Record<string, { label: string; emoji: string }> = {

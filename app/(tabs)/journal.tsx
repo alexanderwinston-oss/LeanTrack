@@ -16,7 +16,7 @@ import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContai
 import { useStore } from '@/lib/store';
 import { searchFood } from '@/lib/openfoodfacts';
 import { analyzeFoodPhoto } from '@/lib/gemini';
-import { showGeminiError } from '@/lib/utils';
+import { getLocalDateString, showGeminiError } from '@/lib/utils';
 import { FoodItem, Meal, MealType } from '@/lib/types';
 
 const SECTIONS: { type: MealType; label: string; emoji: string }[] = [
@@ -70,7 +70,7 @@ export default function Journal() {
 
   useFocusEffect(
     useCallback(() => {
-      refreshDailyData(new Date().toISOString().split('T')[0]);
+      refreshDailyData(getLocalDateString());
     }, [])
   );
 
@@ -161,7 +161,7 @@ export default function Journal() {
   }
 
   async function addFromFood(food: FoodItem) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const q = parseFloat(quantity) || 100;
     const factor = q / 100;
     const calories = Math.round(food.calories_100g * factor);
@@ -184,7 +184,7 @@ export default function Journal() {
 
   async function addManual() {
     if (!manualName.trim()) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const calories = parseFloat(manualCal) || 0;
     const meal: Meal = {
       date: today,
@@ -222,7 +222,7 @@ export default function Journal() {
   }
 
   function refresh() {
-    refreshDailyData(new Date().toISOString().split('T')[0]);
+    refreshDailyData(getLocalDateString());
   }
 
   const mealsByType = (type: MealType) => meals.filter((m) => m.meal_type === type);

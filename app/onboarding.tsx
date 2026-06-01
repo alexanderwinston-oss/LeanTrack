@@ -13,6 +13,7 @@ import { saveProfile } from '@/lib/db';
 import { requestPermissions, scheduleAllNotifications } from '@/lib/notifications';
 import { useStore } from '@/lib/store';
 import { ActivityLevel, Goal } from '@/lib/types';
+import { getLocalDateString } from '@/lib/utils';
 
 const TOTAL_STEPS = 6;
 
@@ -89,7 +90,7 @@ export default function Onboarding() {
   function getTargetDate(): string {
     const d = new Date();
     d.setMonth(d.getMonth() + durationMonths);
-    return d.toISOString().split('T')[0];
+    return getLocalDateString(d);
   }
 
   function getCalculated() {

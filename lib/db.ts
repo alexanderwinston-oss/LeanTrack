@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import { AchievementStats, DailyEntry, DailyTotals, Meal, MealPlan, Recipe, UserProfile, WeightEntry } from './types';
 import { ALL_ACHIEVEMENTS } from './achievements';
+import { getLocalDateString } from './utils';
 
 let _db: SQLite.SQLiteDatabase | null = null;
 let _activeProfileId: string | null = null;
@@ -80,27 +81,27 @@ export async function initDB(): Promise<void> {
       fat REAL NOT NULL,
       source TEXT NOT NULL DEFAULT 'manual',
       photo_uri TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
     );
 
     CREATE TABLE IF NOT EXISTS water_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL,
       amount_ml INTEGER NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
     );
 
     CREATE TABLE IF NOT EXISTS weight_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL,
       weight REAL NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
     );
 
     CREATE TABLE IF NOT EXISTS meal_plan (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       plan_json TEXT NOT NULL,
-      generated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      generated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
     );
 
     CREATE TABLE IF NOT EXISTS achievements (
@@ -123,7 +124,7 @@ export async function initDB(): Promise<void> {
       ingredients_json TEXT DEFAULT '[]',
       steps_json TEXT DEFAULT '[]',
       profile_id TEXT DEFAULT 'default',
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
   `);
 
@@ -486,7 +487,7 @@ export async function getWeeklyData(startDate: string, endDate: string): Promise
   const cursor = new Date(startDate);
   const end = new Date(endDate);
   while (cursor <= end) {
-    const dateStr = cursor.toISOString().split('T')[0];
+    const dateStr = getLocalDateString(cursor);
     const m = mealMap.get(dateStr);
     result.push({
       date: dateStr,

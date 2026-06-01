@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { analyzeFoodPhoto } from '@/lib/gemini';
 import { addWater } from '@/lib/db';
-import { showGeminiError } from '@/lib/utils';
+import { getLocalDateString, showGeminiError } from '@/lib/utils';
 import { useStore } from '@/lib/store';
 import { FoodAnalysisResult, MealType } from '@/lib/types';
 
@@ -143,7 +143,7 @@ export default function PhotoAnalyse() {
   }, [result]);
 
   async function addToWaterTracker() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     await addWater(today, adjustedVolume);
     useStore.getState().refreshDailyData(today);
     Alert.alert('💧 Hydratation', `${adjustedVolume} ml ajoutés à ton hydratation !`, [
@@ -153,7 +153,7 @@ export default function PhotoAnalyse() {
 
   async function addToJournal() {
     if (!baseResult) return;
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     await addMealToStore({
       date: today,
       meal_type: mealType,

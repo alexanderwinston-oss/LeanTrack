@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initDB, getProfile } from '@/lib/db';
 import { useStore } from '@/lib/store';
+import { getLocalDateString } from '@/lib/utils';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -29,7 +30,7 @@ export default function RootLayout() {
         const profile = await getProfile();
         if (profile) {
           setProfile(profile);
-          const today = new Date().toISOString().split('T')[0];
+          const today = getLocalDateString();
           await refreshDailyData(today);
         }
         setReady(true);

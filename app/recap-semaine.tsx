@@ -9,15 +9,16 @@ import { Card } from '@/components/ui/Card';
 import { getWeeklyData } from '@/lib/db';
 import { useStore } from '@/lib/store';
 import { DailyEntry } from '@/lib/types';
+import { getLocalDateString } from '@/lib/utils';
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 function getWeekBounds(offset: number): { start: string; end: string; weekStart: Date; weekEnd: Date } {
-  const base = addWeeks(new Date(), offset);
+  const todayLocal = new Date(getLocalDateString() + 'T00:00:00');
+  const base = addWeeks(todayLocal, offset);
   const weekStart = startOfWeek(base, { weekStartsOn: 1 });
   const weekEnd = endOfWeek(base, { weekStartsOn: 1 });
-  const fmt = (d: Date) => d.toISOString().split('T')[0];
-  return { start: fmt(weekStart), end: fmt(weekEnd), weekStart, weekEnd };
+  return { start: getLocalDateString(weekStart), end: getLocalDateString(weekEnd), weekStart, weekEnd };
 }
 
 function barColor(calories: number, target: number): string {

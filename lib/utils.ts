@@ -25,3 +25,29 @@ export function showGeminiError(err: any): void {
   const { title, message } = getGeminiErrorContent(err);
   Alert.alert(title, message, [{ text: 'OK' }]);
 }
+
+export function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function getLocalTimeString(date: Date = new Date()): string {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+// SQLite stores datetime('now') as UTC — this converts for display
+export function utcToLocalTimeString(utcString: string): string {
+  if (!utcString) return '';
+  const date = new Date(utcString.replace(' ', 'T') + 'Z');
+  return getLocalTimeString(date);
+}
+
+export function utcToLocalDateString(utcString: string): string {
+  if (!utcString) return '';
+  const date = new Date(utcString.replace(' ', 'T') + 'Z');
+  return getLocalDateString(date);
+}

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { DailyTotals, Meal, UserProfile } from './types';
 import { addMeal as dbAddMeal, addWater as dbAddWater, getDailyTotals, getMealsForDate, getProfile, getWaterForDate, switchProfile } from './db';
+import { getLocalDateString } from './utils';
 
 interface AppState {
   profile: UserProfile | null;
@@ -24,7 +25,7 @@ const emptyTotals = (date: string): DailyTotals => ({
 
 export const useStore = create<AppState>((set, get) => ({
   profile: null,
-  dailyTotals: emptyTotals(new Date().toISOString().split('T')[0]),
+  dailyTotals: emptyTotals(getLocalDateString()),
   meals: [],
   waterMl: 0,
   pendingImageBase64: null,
@@ -58,7 +59,7 @@ export const useStore = create<AppState>((set, get) => ({
   switchProfileInStore: async (profileId: string) => {
     await switchProfile(profileId);
     const profile = await getProfile();
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     const [totals, meals, water] = await Promise.all([
       getDailyTotals(today),
       getMealsForDate(today),

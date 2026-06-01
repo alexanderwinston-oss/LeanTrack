@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { useStore } from '@/lib/store';
 import { deleteWaterEntry, getWaterLogsForDate } from '@/lib/db';
+import { getLocalDateString, utcToLocalTimeString } from '@/lib/utils';
 
 const RING_SIZE = 220;
 const STROKE = 16;
@@ -34,7 +35,7 @@ export default function Eau() {
 
   useFocusEffect(
     React.useCallback(() => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateString();
       loadWaterData(today);
     }, [])
   );
@@ -55,7 +56,7 @@ export default function Eau() {
   }
 
   async function addWater(ml: number) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     await addWaterToStore(today, ml);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const newLogs = await getWaterLogsForDate(today);
@@ -63,7 +64,7 @@ export default function Eau() {
   }
 
   async function handleDeleteEntry(id: number) {
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     await deleteWaterEntry(id);
     await refreshDailyData(today);
     const newLogs = await getWaterLogsForDate(today);
@@ -143,7 +144,7 @@ export default function Eau() {
                   <Text style={styles.logAmount}>{log.amount_ml} ml</Text>
                 </View>
                 <Text style={styles.logTime}>
-                  {format(new Date(log.created_at), 'HH:mm', { locale: fr })}
+                  {utcToLocalTimeString(log.created_at)}
                 </Text>
                 <TouchableOpacity
                   style={styles.deleteBtn}

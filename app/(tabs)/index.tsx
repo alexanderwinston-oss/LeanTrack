@@ -14,7 +14,7 @@ import { MealCard } from '@/components/MealCard';
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { useStore } from '@/lib/store';
 import { getStreakDays } from '@/lib/db';
-import { getProfileName } from '@/lib/utils';
+import { getLocalDateString, getProfileName } from '@/lib/utils';
 
 
 export default function Dashboard() {
@@ -28,7 +28,7 @@ export default function Dashboard() {
 
   useFocusEffect(
     useCallback(() => {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateString();
       refreshDailyData(today);
       getStreakDays().then(setStreak);
     }, [])
@@ -36,7 +36,7 @@ export default function Dashboard() {
 
   async function onRefresh() {
     setRefreshing(true);
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
     await refreshDailyData(today);
     setRefreshing(false);
   }
@@ -148,7 +148,7 @@ export default function Dashboard() {
               <TouchableOpacity
                 key={ml}
                 style={styles.waterBtn}
-                onPress={() => addWaterToStore(new Date().toISOString().split('T')[0], ml)}
+                onPress={() => addWaterToStore(getLocalDateString(), ml)}
               >
                 <Text style={styles.waterBtnText}>+{ml}ml</Text>
               </TouchableOpacity>
@@ -172,7 +172,7 @@ export default function Dashboard() {
                 meal={meal}
                 compact
                 style={styles.mealCardItem}
-                onMealChanged={() => refreshDailyData(new Date().toISOString().split('T')[0])}
+                onMealChanged={() => refreshDailyData(getLocalDateString())}
               />
             ))}
           </ScrollView>

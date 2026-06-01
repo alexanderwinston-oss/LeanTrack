@@ -1,5 +1,6 @@
 import { ActivityLevel, Goal, UserProfile } from './types';
 import { differenceInWeeks, parseISO } from 'date-fns';
+import { getLocalDateString } from './utils';
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   sedentaire: 1.2,
@@ -60,7 +61,7 @@ export function calcProjection(
     const clamped = weightTarget < weightCurrent
       ? Math.max(weightTarget, projected)
       : Math.min(weightTarget, projected);
-    points.push({ date: d.toISOString().split('T')[0], weight: Math.round(clamped * 10) / 10 });
+    points.push({ date: getLocalDateString(d), weight: Math.round(clamped * 10) / 10 });
   }
   return points;
 }

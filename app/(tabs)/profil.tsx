@@ -16,7 +16,7 @@ import {
 import { cancelAllNotifications, scheduleAllNotifications } from '@/lib/notifications';
 import { WeightEntry } from '@/lib/types';
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
-import { getProfileName } from '@/lib/utils';
+import { getLocalDateString, getProfileName } from '@/lib/utils';
 
 const ACTIVITY_LABELS: Record<string, string> = {
   sedentaire: 'Sédentaire',
@@ -95,7 +95,7 @@ export default function Profil() {
   }
 
   function openAddWeight() {
-    setWeightDate(new Date().toISOString().split('T')[0]);
+    setWeightDate(getLocalDateString());
     setWeightInput(String(profile!.weight_current));
     setWeightModal(true);
   }
@@ -132,7 +132,7 @@ export default function Profil() {
     setSaving(true);
     try {
       await updateWeightEntry(weightDate, w);
-      const today = new Date().toISOString().split('T')[0];
+      const today = getLocalDateString();
       if (weightDate === today) {
         const updated = { ...profile, weight_current: w } as NonNullable<typeof profile>;
         await saveProfile(updated);
