@@ -43,7 +43,9 @@ export async function callGemini(body: object, disableThinking = false, temperat
 export function safeParseJSON<T>(text: string, fallback: T): T {
   try {
     const clean = text.replace(/```json|```/g, '').trim();
-    return JSON.parse(clean) as T;
+    const parsed = JSON.parse(clean);
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return fallback;
+    return parsed as T;
   } catch {
     return fallback;
   }
@@ -131,7 +133,7 @@ Retourne UNIQUEMENT ce JSON valide sans markdown ni explication :
 
   const data = await callGemini({ contents: [{ parts }] }, false, 0);
 
-  return safeParseJSON<FoodAnalysisResult>(extractText(data), {
+  const fallback: FoodAnalysisResult = {
     aliment_principal: 'Non identifié',
     aliments_detectes: [],
     quantite_estimee_g: 100,
@@ -144,7 +146,19 @@ Retourne UNIQUEMENT ce JSON valide sans markdown ni explication :
     is_drink: false,
     volume_ml: 0,
     drink_type: 'other',
-  });
+  };
+  const parsed = safeParseJSON<FoodAnalysisResult>(extractText(data), fallback);
+  return {
+    ...fallback,
+    ...parsed,
+    calories_estimees: typeof parsed.calories_estimees === 'number' ? parsed.calories_estimees : 0,
+    proteines_g: typeof parsed.proteines_g === 'number' ? parsed.proteines_g : 0,
+    glucides_g: typeof parsed.glucides_g === 'number' ? parsed.glucides_g : 0,
+    lipides_g: typeof parsed.lipides_g === 'number' ? parsed.lipides_g : 0,
+    quantite_estimee_g: typeof parsed.quantite_estimee_g === 'number' ? parsed.quantite_estimee_g : 100,
+    is_drink: typeof parsed.is_drink === 'boolean' ? parsed.is_drink : false,
+    volume_ml: typeof parsed.volume_ml === 'number' ? parsed.volume_ml : 0,
+  };
 }
 
 export async function generateMealPlan(

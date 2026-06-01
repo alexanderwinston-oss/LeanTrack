@@ -154,20 +154,24 @@ export default function PhotoAnalyse() {
   async function addToJournal() {
     if (!baseResult) return;
     const today = getLocalDateString();
-    await addMealToStore({
-      date: today,
-      meal_type: mealType,
-      food_name: baseResult.aliment_principal,
-      quantity_g: displayQuantity,
-      calories: displayCalories,
-      protein: displayProtein,
-      carbs: displayCarbs,
-      fat: displayFat,
-      source: 'photo',
-      photo_uri: imageUri ?? undefined,
-      notes: userComment || undefined,
-    });
-    router.back();
+    try {
+      await addMealToStore({
+        date: today,
+        meal_type: mealType,
+        food_name: baseResult.aliment_principal,
+        quantity_g: displayQuantity,
+        calories: displayCalories,
+        protein: displayProtein,
+        carbs: displayCarbs,
+        fat: displayFat,
+        source: 'photo',
+        photo_uri: imageUri ?? undefined,
+        notes: userComment || undefined,
+      });
+      router.back();
+    } catch {
+      Alert.alert('Erreur', 'Impossible d\'enregistrer le repas. Réessaie.');
+    }
   }
 
   const conf = result ? CONFIDENCE_CONFIG[result.confiance] : null;

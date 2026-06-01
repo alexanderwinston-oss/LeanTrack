@@ -268,6 +268,10 @@ export async function createProfile(data: Partial<UserProfile>): Promise<string>
 
 export async function switchProfile(profileId: string): Promise<void> {
   const db = await getDB();
+  const exists = await db.getFirstAsync<{ id: number }>(
+    'SELECT id FROM user_profile WHERE profile_id = ?', [profileId]
+  );
+  if (!exists) throw new Error(`Profil introuvable : ${profileId}`);
   await db.execAsync(`UPDATE user_profile SET is_active = 0`);
   await db.runAsync(`UPDATE user_profile SET is_active = 1 WHERE profile_id = ?`, [profileId]);
   await db.runAsync(
@@ -278,6 +282,10 @@ export async function switchProfile(profileId: string): Promise<void> {
 }
 
 export async function deleteProfile(profileId: string): Promise<void> {
+  const activeId = await getCurrentProfileId();
+  if (profileId === activeId) {
+    throw new Error('Impossible de supprimer le profil actif.');
+  }
   const db = await getDB();
   await db.runAsync('DELETE FROM meals WHERE profile_id = ?', [profileId]);
   await db.runAsync('DELETE FROM water_log WHERE profile_id = ?', [profileId]);
@@ -437,11 +445,13 @@ export async function getAllWeightEntries(): Promise<WeightEntry[]> {
 export async function updateWeightEntry(date: string, weight: number): Promise<void> {
   const db = await getDB();
   const profileId = await getCurrentProfileId();
-  await db.runAsync('DELETE FROM weight_log WHERE date = ? AND profile_id = ?', [date, profileId]);
-  await db.runAsync(
-    'INSERT INTO weight_log (date, weight, profile_id) VALUES (?, ?, ?)',
-    [date, weight, profileId]
-  );
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM weight_log WHERE date = ? AND profile_id = ?', [date, profileId]);
+    await db.runAsync(
+      'INSERT INTO weight_log (date, weight, profile_id) VALUES (?, ?, ?)',
+      [date, weight, profileId]
+    );
+  });
 }
 
 export async function deleteWeightEntry(date: string): Promise<void> {
@@ -545,10 +555,10 @@ export async function getAchievementsStatus(): Promise<
 function computeStreakFromDates(datesDesc: string[]): number {
   if (!datesDesc.length) return 0;
   let streak = 0;
-  const today = new Date();
+  const today = new Date(getLocalDateString() + 'T00:00:00');
   for (let i = 0; i < datesDesc.length; i++) {
     const diff = Math.round(
-      (today.getTime() - new Date(datesDesc[i]).getTime()) / (1000 * 60 * 60 * 24)
+      (today.getTime() - new Date(datesDesc[i] + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)
     );
     if (diff === i || diff === i + 1) streak++;
     else break;
@@ -736,10 +746,10 @@ export async function getStreakDays(): Promise<number> {
   );
   if (!rows.length) return 0;
   let streak = 0;
-  const today = new Date();
+  const today = new Date(getLocalDateString() + 'T00:00:00');
   for (let i = 0; i < rows.length; i++) {
     const diff = Math.round(
-      (today.getTime() - new Date(rows[i].date).getTime()) / (1000 * 60 * 60 * 24)
+      (today.getTime() - new Date(rows[i].date + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)
     );
     if (diff === i || diff === i + 1) streak++;
     else break;

@@ -82,6 +82,9 @@ export default function Profiles() {
       setDeleteTarget(null);
       setDeleteConfirmText('');
       await loadProfiles();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Impossible de supprimer ce profil.';
+      Alert.alert('Erreur', msg);
     } finally {
       setDeleting(false);
     }

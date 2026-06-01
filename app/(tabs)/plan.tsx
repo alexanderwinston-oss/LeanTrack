@@ -14,7 +14,6 @@ import { generateMealPlan, callGemini, extractText, safeParseJSON } from '@/lib/
 import { MealPlan, MealPlanRepas, MealType } from '@/lib/types';
 import { getLocalDateString, showGeminiError } from '@/lib/utils';
 
-const TODAY = getLocalDateString();
 const DAY_LABELS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 
 const MEAL_TYPE_LABELS: Record<string, { label: string; emoji: string }> = {
@@ -181,8 +180,9 @@ Retourne UNIQUEMENT ce JSON sans markdown :
   }
 
   async function addToJournal(item: MealPlanRepas) {
+    const today = getLocalDateString();
     await addMeal({
-      date: TODAY,
+      date: today,
       meal_type: (item.type as MealType) || 'dejeuner',
       food_name: item.nom,
       quantity_g: 0,
@@ -192,7 +192,7 @@ Retourne UNIQUEMENT ce JSON sans markdown :
       fat: item.lipides_g,
       source: 'plan',
     });
-    await refreshDailyData(TODAY);
+    await refreshDailyData(today);
     Alert.alert('✅', 'Repas ajouté au journal !');
   }
 

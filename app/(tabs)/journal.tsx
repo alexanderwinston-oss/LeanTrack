@@ -176,10 +176,14 @@ export default function Journal() {
       fat: Math.round(food.fat_100g * factor),
       source: 'search',
     };
-    await addMealToStore(meal);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setModalVisible(false);
-    showToast(`✅ ${food.name} ajouté · ${calories} kcal`);
+    try {
+      await addMealToStore(meal);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setModalVisible(false);
+      showToast(`✅ ${food.name} ajouté · ${calories} kcal`);
+    } catch {
+      Alert.alert('Erreur', 'Impossible d\'enregistrer le repas. Réessaie.');
+    }
   }
 
   async function addManual() {
@@ -197,10 +201,14 @@ export default function Journal() {
       fat: parseFloat(manualFat) || 0,
       source: 'manual',
     };
-    await addMealToStore(meal);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setModalVisible(false);
-    showToast(`✅ ${manualName} ajouté · ${calories} kcal`);
+    try {
+      await addMealToStore(meal);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setModalVisible(false);
+      showToast(`✅ ${manualName} ajouté · ${calories} kcal`);
+    } catch {
+      Alert.alert('Erreur', 'Impossible d\'enregistrer le repas. Réessaie.');
+    }
   }
 
   async function analyzeTextDescription() {

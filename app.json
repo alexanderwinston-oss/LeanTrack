@@ -20,13 +20,12 @@
     },
     "updates": {
       "url": "https://u.expo.dev/7be8528a-7b26-4359-8927-6c5a4067eca1",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 30000
     },
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "extra": {
-      "geminiApiKey": "AIzaSyDfXp0ZJVf-2PVz2OwWEYQQo_IG4ERNc2w",
       "eas": {
         "projectId": "7be8528a-7b26-4359-8927-6c5a4067eca1"
       }

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Svg, { Circle } from 'react-native-svg';
 import { useFocusEffect } from 'expo-router';
@@ -57,10 +57,14 @@ export default function Eau() {
 
   async function addWater(ml: number) {
     const today = getLocalDateString();
-    await addWaterToStore(today, ml);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const newLogs = await getWaterLogsForDate(today);
-    setLogs(newLogs);
+    try {
+      await addWaterToStore(today, ml);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const newLogs = await getWaterLogsForDate(today);
+      setLogs(newLogs);
+    } catch {
+      Alert.alert('Erreur', 'Impossible d\'enregistrer l\'eau. Réessaie.');
+    }
   }
 
   async function handleDeleteEntry(id: number) {

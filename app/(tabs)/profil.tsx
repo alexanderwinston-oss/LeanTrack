@@ -148,6 +148,8 @@ export default function Profil() {
       setWeightDate('');
       await loadWeightEntries();
       Alert.alert('✅', `Poids enregistré : ${w} kg`);
+    } catch {
+      Alert.alert('Erreur', 'Impossible d\'enregistrer le poids. Réessaie.');
     } finally {
       setSaving(false);
     }
