@@ -1,5 +1,7 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+
+const SCREEN_W = Dimensions.get('window').width;
 import { router, useFocusEffect } from 'expo-router';
 import { addWeeks, endOfWeek, format, startOfWeek } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -133,33 +135,40 @@ export default function RecapSemaine() {
           <Card style={styles.chartCard}>
             <Text style={styles.cardTitle}>Calories par jour</Text>
             <Text style={styles.cardSub}>Objectif : {calorieTarget} kcal/jour</Text>
-            <VictoryChart height={200} padding={{ top: 10, bottom: 40, left: 50, right: 16 }}>
-              <VictoryAxis
-                tickValues={[1, 2, 3, 4, 5, 6, 7]}
-                tickFormat={(t: number) => DAY_LABELS[t - 1] ?? ''}
-                style={{
-                  axis: { stroke: Colors.border },
-                  tickLabels: { fill: Colors.textSecondary, fontSize: 11 },
-                }}
-              />
-              <VictoryAxis
-                dependentAxis
-                style={{
-                  axis: { stroke: Colors.border },
-                  tickLabels: { fill: Colors.textSecondary, fontSize: 10 },
-                  grid: { stroke: Colors.border, strokeDasharray: '4,4' },
-                }}
-              />
-              <VictoryLine
-                data={[{ x: 0.5, y: calorieTarget }, { x: 7.5, y: calorieTarget }]}
-                style={{ data: { stroke: Colors.warning, strokeWidth: 1.5 } }}
-              />
-              <VictoryBar
-                data={chartData}
-                style={{ data: { fill: ({ datum }: any) => datum.fill as string, width: 28 } }}
-                cornerRadius={{ top: 4 }}
-              />
-            </VictoryChart>
+            <View style={{ width: SCREEN_W - 32, overflow: 'hidden', alignSelf: 'center' }}>
+              <VictoryChart
+                width={SCREEN_W - 48}
+                height={200}
+                domainPadding={{ x: 20 }}
+                padding={{ top: 10, bottom: 40, left: 50, right: 20 }}
+              >
+                <VictoryAxis
+                  tickValues={[1, 2, 3, 4, 5, 6, 7]}
+                  tickFormat={(t: number) => DAY_LABELS[t - 1] ?? ''}
+                  style={{
+                    axis: { stroke: Colors.border },
+                    tickLabels: { fill: Colors.textSecondary, fontSize: 11 },
+                  }}
+                />
+                <VictoryAxis
+                  dependentAxis
+                  style={{
+                    axis: { stroke: Colors.border },
+                    tickLabels: { fill: Colors.textSecondary, fontSize: 10 },
+                    grid: { stroke: Colors.border, strokeDasharray: '4,4' },
+                  }}
+                />
+                <VictoryLine
+                  data={[{ x: 0.5, y: calorieTarget }, { x: 7.5, y: calorieTarget }]}
+                  style={{ data: { stroke: Colors.warning, strokeWidth: 1.5 } }}
+                />
+                <VictoryBar
+                  data={chartData}
+                  style={{ data: { fill: ({ datum }: any) => datum.fill as string, width: 28 } }}
+                  cornerRadius={{ top: 4 }}
+                />
+              </VictoryChart>
+            </View>
             <View style={styles.legend}>
               {[
                 { color: Colors.accent, label: 'Dans l\'objectif' },

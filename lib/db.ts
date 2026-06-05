@@ -105,9 +105,11 @@ export async function initDB(): Promise<void> {
     );
 
     CREATE TABLE IF NOT EXISTS achievements (
-      id TEXT PRIMARY KEY,
-      unlocked_at TEXT NOT NULL,
-      profile_id TEXT NOT NULL DEFAULT 'default'
+      id TEXT NOT NULL,
+      profile_id TEXT NOT NULL DEFAULT 'default',
+      unlocked_at TEXT,
+      lost_at TEXT,
+      PRIMARY KEY (id, profile_id)
     );
 
     CREATE TABLE IF NOT EXISTS recipes (
@@ -134,7 +136,7 @@ export async function initDB(): Promise<void> {
     ['meals', 'profile_id', "TEXT NOT NULL DEFAULT 'default'"],
     ['water_log', 'profile_id', "TEXT NOT NULL DEFAULT 'default'"],
     ['weight_log', 'profile_id', "TEXT NOT NULL DEFAULT 'default'"],
-    ['achievements', 'lost_at', 'TEXT'],
+    // achievements schema migrated via achievements_pk_v2 below
     ['user_profile', 'profile_id', "TEXT DEFAULT 'default'"],
     ['user_profile', 'emoji_color', "TEXT DEFAULT '#10b981'"],
     ['user_profile', 'display_name', "TEXT DEFAULT ''"],
@@ -142,6 +144,26 @@ export async function initDB(): Promise<void> {
   ];
   for (const [table, col, def] of migrations) {
     await safeAlterAdd(db, table, col, def);
+  }
+
+  // Migration : rebuild achievements table with composite PRIMARY KEY (id, profile_id)
+  const achievementsMigrated = await db.getFirstAsync<{ value: string }>(
+    "SELECT value FROM settings WHERE key = 'achievements_pk_v2'"
+  );
+  if (!achievementsMigrated) {
+    await db.execAsync(`
+      DROP TABLE IF EXISTS achievements;
+      CREATE TABLE achievements (
+        id TEXT NOT NULL,
+        profile_id TEXT NOT NULL DEFAULT 'default',
+        unlocked_at TEXT,
+        lost_at TEXT,
+        PRIMARY KEY (id, profile_id)
+      );
+    `);
+    await db.runAsync(
+      "INSERT OR REPLACE INTO settings (key, value) VALUES ('achievements_pk_v2', '1')"
+    );
   }
 
   // Activate default profile on first run
@@ -631,16 +653,24 @@ export async function getAchievementStats(profile: UserProfile): Promise<Achieve
   const bestCalorieStreak = computeMaxStreak(calorieGoalDays.map((r) => r.date));
 
   const appDays = await db.getAllAsync<{ date: string }>(
-    'SELECT DISTINCT date FROM meals WHERE profile_id = ? ORDER BY date DESC',
-    [profileId]
+    `SELECT DISTINCT date FROM meals WHERE profile_id = ?
+     UNION
+     SELECT DISTINCT date FROM water_log WHERE profile_id = ?
+     ORDER BY date DESC`,
+    [profileId, profileId]
   );
+  const appStreak = computeStreakFromDates(appDays.map((r) => r.date));
   const bestAppStreak = computeMaxStreak(appDays.map((r) => r.date));
+
+  const latestWeightRow = await db.getFirstAsync<{ weight: number }>(
+    'SELECT weight FROM weight_log WHERE profile_id = ? ORDER BY date DESC LIMIT 1', [profileId]
+  );
 
   let weightLost = 0;
   let progressPercent = 0;
   if (firstWeightRow) {
     const initial = firstWeightRow.weight;
-    const current = profile.weight_current;
+    const current = latestWeightRow?.weight ?? profile.weight_current;
     const target = profile.weight_target;
     if (profile.goal === 'perte') {
       weightLost = initial - current;
@@ -670,7 +700,7 @@ export async function getAchievementStats(profile: UserProfile): Promise<Achieve
     weightEntries: weightCountRow?.c ?? 0,
     weightLost,
     progressPercent,
-    appStreak: await getStreakDays(),
+    appStreak,
     bestAppStreak,
   };
 }

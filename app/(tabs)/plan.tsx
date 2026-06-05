@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
   },
   recipesBtnText: { color: Colors.textSecondary, fontSize: 14, fontWeight: '600' },
   dayTabs: { flexGrow: 0, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  dayTabsContent: { paddingHorizontal: 16, paddingVertical: 10, gap: 8 },
+  dayTabsContent: { paddingLeft: 16, paddingRight: 32, paddingVertical: 10, gap: 8, flexDirection: 'row' },
   dayTab: {
     paddingHorizontal: 16, paddingVertical: 6,
     borderRadius: Colors.radiusPill,
