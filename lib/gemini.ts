@@ -168,7 +168,7 @@ export async function generateMealPlan(
   fat_g: number,
   goal: string,
   ingredientList?: string,
-  dailyBudgetEuros?: number
+  weeklyBudgetEuros?: number
 ): Promise<MealPlan> {
   const data = await callGemini({
     contents: [{
@@ -180,8 +180,15 @@ export async function generateMealPlan(
 ${ingredientList?.trim()
   ? `\nCONTRAINTE INGRÉDIENTS (OBLIGATOIRE) : utilise UNIQUEMENT ces ingrédients disponibles : ${ingredientList}. N'utilise aucun autre ingrédient non mentionné.`
   : ''}
-${dailyBudgetEuros && dailyBudgetEuros > 0
-  ? `\nCONTRAINTE BUDGET : le coût total des repas du jour doit rester sous ${dailyBudgetEuros}€. Choisis des aliments économiques et accessibles.`
+${weeklyBudgetEuros && weeklyBudgetEuros > 0
+  ? `\nCONTRAINTE BUDGET STRICTE ET OBLIGATOIRE :
+Budget total pour 7 jours : ${weeklyBudgetEuros}€ maximum.
+Budget par jour : ${(weeklyBudgetEuros / 7).toFixed(1)}€ maximum.
+Pour respecter ce budget :
+→ Favorise : œufs, légumineuses, riz, pâtes, légumes de saison, poulet bas de gamme, sardines
+→ Evite : saumon, viandes nobles, fruits exotiques, produits bio premium
+→ Chaque jour DOIT coûter moins de ${(weeklyBudgetEuros / 7).toFixed(1)}€ en courses
+→ Si le budget est très serré (< 10€/jour), propose des repas végétariens simples`
   : ''}
 
 RÈGLE NOM (STRICTE ET NON NÉGOCIABLE) : Le champ "nom" = noms des aliments uniquement, 2-4 mots max. Exemples valides : "Fromage blanc amandes", "Oeufs brouillés pain". Exemples invalides : "Petit-déjeuner campagnard", tout adjectif qualitatif.

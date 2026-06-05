@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
-  Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { VictoryAxis, VictoryChart, VictoryLine, VictoryScatter } from 'victory-native';
 import { router, useFocusEffect } from 'expo-router';
@@ -8,11 +8,26 @@ import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
-import { getProfile, getWeightHistory } from '@/lib/db';
+import { getProfile, getWeightHistory, updateWeightEntry } from '@/lib/db';
+import { getLocalDateString } from '@/lib/utils';
 import { calcProjection } from '@/lib/nutrition';
 import { UserProfile, WeightEntry } from '@/lib/types';
 
 const shownMilestonesThisSession = new Set<number>();
+
+function getWeighInSchedule(startDate: Date, count = 10): Date[] {
+  const schedule: Date[] = [];
+  const d = new Date(startDate);
+  const dayOfWeek = d.getDay();
+  const daysUntilTuesday = dayOfWeek <= 2 ? 2 - dayOfWeek : 9 - dayOfWeek;
+  d.setDate(d.getDate() + daysUntilTuesday);
+  d.setHours(0, 0, 0, 0);
+  for (let i = 0; i < count; i++) {
+    schedule.push(new Date(d));
+    d.setDate(d.getDate() + 14);
+  }
+  return schedule;
+}
 
 const getCelebrationContent = (percent: number) => {
   if (percent >= 100) return { emoji: '🏆', text: 'Objectif atteint !' };
@@ -28,6 +43,9 @@ export default function Projection() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationPercent, setCelebrationPercent] = useState(0);
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const [weightModalVisible, setWeightModalVisible] = useState(false);
+  const [selectedWeighInDate, setSelectedWeighInDate] = useState('');
+  const [newWeightInput, setNewWeightInput] = useState('');
 
   useFocusEffect(
     React.useCallback(() => {
@@ -101,6 +119,8 @@ export default function Projection() {
     : '—';
 
   const celebContent = getCelebrationContent(celebrationPercent);
+  const weighInDates = getWeighInSchedule(new Date(), 8);
+  const todayStr = getLocalDateString();
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -197,7 +217,112 @@ export default function Projection() {
         </View>
       </Card>
 
+      {/* Plan de pesée */}
+      <View style={{ backgroundColor: '#1e293b', borderRadius: 12, padding: 16 }}>
+        <Text style={{ color: '#f1f5f9', fontWeight: '700', fontSize: 16, marginBottom: 4 }}>
+          ⚖️ Plan de pesée
+        </Text>
+        <Text style={{ color: '#64748b', fontSize: 12, marginBottom: 12 }}>
+          Tous les 2 mardis · Matin à jeun
+        </Text>
+        {weighInDates.map((date, index) => {
+          const dateStr = getLocalDateString(date);
+          const isPast = date < new Date() && dateStr !== todayStr;
+          const isToday = dateStr === todayStr;
+          const recorded = weightHistory.find((w) => {
+            const diffMs = Math.abs(new Date(w.date).getTime() - date.getTime());
+            return diffMs < 2 * 24 * 60 * 60 * 1000;
+          });
+          return (
+            <TouchableOpacity
+              key={dateStr}
+              onPress={() => {
+                setSelectedWeighInDate(dateStr);
+                setNewWeightInput(recorded ? String(recorded.weight) : '');
+                setWeightModalVisible(true);
+              }}
+              style={{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                paddingVertical: 12,
+                borderBottomWidth: index < weighInDates.length - 1 ? 1 : 0,
+                borderBottomColor: '#334155',
+              }}
+            >
+              <View>
+                <Text style={{
+                  color: isToday ? '#10b981' : isPast ? '#94a3b8' : '#f1f5f9',
+                  fontWeight: isToday ? '700' : '400', fontSize: 14,
+                }}>
+                  {format(date, 'EEEE dd MMMM', { locale: fr })}{isToday ? ' (aujourd\'hui)' : ''}
+                </Text>
+                {recorded && (
+                  <Text style={{ color: '#10b981', fontSize: 12, marginTop: 2 }}>✓ {recorded.weight} kg enregistré</Text>
+                )}
+                {!recorded && isPast && (
+                  <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 2 }}>Non pesé</Text>
+                )}
+                {!recorded && !isPast && (
+                  <Text style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>Tap pour enregistrer</Text>
+                )}
+              </View>
+              <Text style={{ color: '#10b981', fontSize: 18 }}>›</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       <View style={{ height: 40 }} />
+
+      {/* Weight entry modal */}
+      <Modal visible={weightModalVisible} transparent animationType="slide"
+        onRequestClose={() => setWeightModalVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: '#1e293b', borderRadius: 20, padding: 24, paddingBottom: 40 }}>
+            <Text style={{ color: '#f1f5f9', fontWeight: '700', fontSize: 18, marginBottom: 4 }}>
+              ⚖️ Enregistrer mon poids
+            </Text>
+            <Text style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>
+              {selectedWeighInDate
+                ? format(new Date(selectedWeighInDate + 'T00:00:00'), 'EEEE dd MMMM yyyy', { locale: fr })
+                : ''}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f172a', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+              <TextInput
+                value={newWeightInput}
+                onChangeText={setNewWeightInput}
+                keyboardType="decimal-pad"
+                placeholder="Ex: 108.5"
+                placeholderTextColor="#475569"
+                style={{ flex: 1, color: '#f1f5f9', fontSize: 28, fontWeight: '700' }}
+                autoFocus
+              />
+              <Text style={{ color: '#64748b', fontSize: 18 }}>kg</Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => setWeightModalVisible(false)}
+                style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#334155', alignItems: 'center' }}
+              >
+                <Text style={{ color: '#94a3b8' }}>Annuler</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async () => {
+                  const w = parseFloat(newWeightInput.replace(',', '.'));
+                  if (isNaN(w) || w < 20 || w > 500) return;
+                  await updateWeightEntry(selectedWeighInDate, w);
+                  setWeightModalVisible(false);
+                  setNewWeightInput('');
+                  loadData();
+                }}
+                style={{ flex: 2, padding: 14, borderRadius: 12, backgroundColor: '#10b981', alignItems: 'center' }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700' }}>Enregistrer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Celebration modal */}
       <Modal visible={showCelebration} transparent animationType="none">

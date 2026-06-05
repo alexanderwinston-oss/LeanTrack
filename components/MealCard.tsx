@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Modal, ScrollView, StyleSheet, Text,
+  Alert, BackHandler, Modal, ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View, ViewStyle,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -43,6 +43,16 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
   const [originalMeal, setOriginalMeal] = useState<Meal | null>(null);
   const [showPortionCalc, setShowPortionCalc] = useState<boolean>(false);
   const [customPortionText, setCustomPortionText] = useState<string>('');
+
+  useEffect(() => {
+    const onBackPress = () => {
+      if (editing) { setEditing(false); return true; }
+      if (detailVisible) { setDetailVisible(false); return true; }
+      return false;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+  }, [editing, detailVisible]);
 
   function openDetail() {
     setEditing(false);
@@ -152,7 +162,9 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
 
   function renderModal() {
     return (
-      <Modal visible={detailVisible} transparent animationType="slide">
+      <Modal visible={detailVisible} transparent animationType="slide"
+        onRequestClose={() => { if (editing) setEditing(false); else setDetailVisible(false); }}
+      >
         <View style={styles.modalBackdrop}>
           <View style={styles.modalSheet}>
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
@@ -184,7 +196,20 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
                     </View>
                   ) : null}
                   <View style={styles.actionBtns}>
-                    <TouchableOpacity style={styles.editBtn} onPress={() => setEditing(true)}>
+                    <TouchableOpacity style={styles.editBtn} onPress={() => {
+                      setOriginalMeal({ ...meal });
+                      setShowPortionCalc(false);
+                      setCustomPortionText('');
+                      setEditName(meal.food_name);
+                      setEditQty(String(meal.quantity_g));
+                      setEditCal(String(Math.round(meal.calories)));
+                      setEditProt(String(Math.round(meal.protein)));
+                      setEditCarbs(String(Math.round(meal.carbs)));
+                      setEditFat(String(Math.round(meal.fat)));
+                      setEditType(meal.meal_type);
+                      setEditNotes(meal.notes ?? '');
+                      setEditing(true);
+                    }}>
                       <Text style={styles.editBtnText}>✏️ Modifier</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.deleteBtn} onPress={confirmDelete}>
@@ -304,7 +329,12 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
                     />
                   </View>
                   <View style={styles.editBtns}>
-                    <Button label="Annuler" onPress={() => setEditing(false)} variant="ghost" />
+                    <Button label="Annuler" onPress={() => {
+                      setEditing(false);
+                      setShowPortionCalc(false);
+                      setCustomPortionText('');
+                      setOriginalMeal(null);
+                    }} variant="ghost" />
                     <View style={{ flex: 1 }}>
                       <Button label="Enregistrer" onPress={handleSave} loading={saving} />
                     </View>

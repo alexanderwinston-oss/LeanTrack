@@ -40,29 +40,30 @@ function PlanMealCard({
 
   return (
     <Card style={styles.mealCard}>
-      <TouchableOpacity onPress={() => setExpanded(!expanded)}>
-        <View style={styles.mealCardHeader}>
-          <View style={{ flex: 1, paddingRight: 36 }}>
-            <Text style={styles.mealCardName}>{meal.nom}</Text>
-            <Text style={styles.mealCardMacros}>
-              P:{meal.proteines_g}g · G:{meal.glucides_g}g · L:{meal.lipides_g}g
-            </Text>
-          </View>
+      <View style={styles.mealCardHeader}>
+        <TouchableOpacity onPress={() => setExpanded(!expanded)} style={{ flex: 1 }}>
+          <Text style={styles.mealCardName}>{meal.nom}</Text>
+          <Text style={styles.mealCardMacros}>
+            P:{meal.proteines_g}g · G:{meal.glucides_g}g · L:{meal.lipides_g}g
+          </Text>
+        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 0 }}>
           <View style={styles.mealCardRight}>
             <Text style={styles.mealCardCal}>{meal.calories}</Text>
             <Text style={styles.mealCardCalUnit}>kcal</Text>
           </View>
-          <Text style={styles.chevron}>{expanded ? '▲' : '▼'}</Text>
+          <TouchableOpacity
+            onPress={onRegenerate}
+            disabled={anyRegenerating}
+            style={{ padding: 8, borderRadius: 8, backgroundColor: Colors.bgElevated, opacity: anyRegenerating ? 0.5 : 1 }}
+          >
+            <Text style={{ fontSize: 14 }}>{isRegenerating ? '⏳' : '🔄'}</Text>
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        onPress={onRegenerate}
-        disabled={anyRegenerating}
-        style={[styles.regenBtn, { opacity: anyRegenerating ? 0.5 : 1 }]}
-      >
-        <Text style={styles.regenBtnText}>{isRegenerating ? '⏳' : '🔄'}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity onPress={() => setExpanded(!expanded)}>
+          <Text style={styles.chevron}>{expanded ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+      </View>
 
       {expanded && (
         <View style={styles.mealDetails}>
@@ -92,7 +93,7 @@ export default function Plan() {
   const [regeneratingMealKey, setRegeneratingMealKey] = useState<string | null>(null);
   const [showPlanSettings, setShowPlanSettings] = useState(false);
   const [ingredientList, setIngredientList] = useState('');
-  const [dailyBudget, setDailyBudget] = useState('');
+  const [weeklyBudget, setWeeklyBudget] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -111,7 +112,7 @@ export default function Plan() {
         profile.fat_target,
         profile.goal,
         ingredientList || undefined,
-        dailyBudget ? parseFloat(dailyBudget) : undefined
+        weeklyBudget ? parseFloat(weeklyBudget) : undefined
       );
       await saveMealPlan(JSON.stringify(newPlan));
       setPlan(newPlan);
@@ -136,7 +137,7 @@ export default function Plan() {
 - Objectif journalier : ${p.calorie_target} kcal
 - Protéines cible : ${p.protein_target}g | Glucides : ${p.carbs_target}g | Lipides : ${p.fat_target}g
 ${ingredientList ? `- CONTRAINTE : utilise UNIQUEMENT ces ingrédients disponibles : ${ingredientList}` : '- Cuisine française, supermarché classique'}
-${dailyBudget ? `- CONTRAINTE BUDGET : coût de ce repas max ${(parseFloat(dailyBudget) / 4).toFixed(0)}€` : ''}
+${weeklyBudget ? `- CONTRAINTE BUDGET : coût de ce repas max ${(parseFloat(weeklyBudget) / 7 / 4).toFixed(1)}€` : ''}
 - Ne pas répéter les repas déjà présents ce jour-là dans le plan.
 
 RÈGLE NOM (STRICTE ET NON NÉGOCIABLE) : Le champ "nom" = noms des aliments uniquement, 2-4 mots max. Exemples valides : "Fromage blanc amandes", "Oeufs brouillés pain". Exemples invalides : "Déjeuner du midi", tout adjectif qualitatif.
@@ -251,17 +252,17 @@ Retourne UNIQUEMENT ce JSON sans markdown :
         <Text style={styles.settingsHint}>
           Laisse vide pour un plan libre sans contrainte d'ingrédients.
         </Text>
-        <Text style={[styles.settingsSectionTitle, { marginTop: 12 }]}>💰 Budget journalier (€)</Text>
+        <Text style={[styles.settingsSectionTitle, { marginTop: 12 }]}>💰 Budget hebdomadaire (€)</Text>
         <TextInput
-          value={dailyBudget}
-          onChangeText={setDailyBudget}
-          placeholder="Ex: 15"
+          value={weeklyBudget}
+          onChangeText={setWeeklyBudget}
+          placeholder="Ex: 80"
           placeholderTextColor={Colors.textMuted}
           keyboardType="decimal-pad"
           style={styles.settingsInput}
         />
         <Text style={styles.settingsHint}>
-          Laisse vide pour aucune contrainte budgétaire.
+          Ex: 80 pour 80€/semaine (~11€/jour). Laisse vide pour aucune contrainte.
         </Text>
       </View>
     );
@@ -423,13 +424,6 @@ const styles = StyleSheet.create({
   mealCardCal: { fontSize: 18, fontWeight: '700', color: Colors.accent },
   mealCardCalUnit: { fontSize: 11, color: Colors.textSecondary },
   chevron: { fontSize: 10, color: Colors.textMuted },
-  regenBtn: {
-    position: 'absolute', top: 8, right: 8,
-    padding: 6, borderRadius: 8,
-    backgroundColor: Colors.bgElevated,
-    zIndex: 1,
-  },
-  regenBtnText: { fontSize: 14 },
   mealDetails: { marginTop: 12, gap: 6, borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 12 },
   ingredientsTitle: { fontSize: 13, fontWeight: '600', color: Colors.textSecondary, marginTop: 4 },
   ingredient: { fontSize: 13, color: Colors.textSecondary, paddingLeft: 4, lineHeight: 20 },
