@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import { AchievementStats, DailyEntry, DailyTotals, Meal, MealPlan, Recipe, UserProfile, WeightEntry } from './types';
 import { ALL_ACHIEVEMENTS } from './achievements';
 import { getLocalDateString } from './utils';
+import { calcFullProfile } from './nutrition';
 
 let _db: SQLite.SQLiteDatabase | null = null;
 let _activeProfileId: string | null = null;
@@ -494,6 +495,38 @@ export async function deleteWeightEntry(date: string): Promise<void> {
   await db.runAsync('DELETE FROM weight_log WHERE date = ? AND profile_id = ?', [date, profileId]);
 }
 
+export async function recalculateTargetsAfterWeighIn(newWeight: number): Promise<void> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  const row = await db.getFirstAsync<any>(
+    'SELECT * FROM user_profile WHERE profile_id = ?', [profileId]
+  );
+  if (!row) return;
+  const updated = calcFullProfile({
+    name: row.name,
+    age: row.age,
+    gender: row.gender,
+    weight_current: newWeight,
+    weight_target: row.weight_target,
+    height: row.height,
+    activity_level: row.activity_level,
+    goal: row.goal,
+    target_date: row.target_date,
+  });
+  await db.runAsync(
+    `UPDATE user_profile SET weight_current=?, tdee=?, calorie_target=?, protein_target=?,
+     carbs_target=?, fat_target=?, water_target=? WHERE profile_id=?`,
+    [newWeight, updated.tdee, updated.calorie_target, updated.protein_target,
+     updated.carbs_target, updated.fat_target, updated.water_target, profileId]
+  );
+}
+
+export async function checkAllAchievements(): Promise<string[]> {
+  const profile = await getProfile();
+  if (!profile) return [];
+  return checkAndUnlockAchievements(profile);
+}
+
 // ─── Weekly data ─────────────────────────────────────────────────────────────
 
 export async function getWeeklyData(startDate: string, endDate: string): Promise<DailyEntry[]> {
@@ -747,7 +780,7 @@ export async function checkAndUnlockAchievements(profile: UserProfile): Promise<
       newlyUnlocked.push(achievement.id);
     } else if (!passes && current && !current.lost_at) {
       await db.runAsync(
-        'UPDATE achievements SET lost_at = ? WHERE id = ? AND profile_id = ?',
+        'UPDATE achievements SET unlocked_at = NULL, lost_at = ? WHERE id = ? AND profile_id = ?',
         [new Date().toISOString(), achievement.id, profileId]
       );
     }

@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
-  Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  Alert, Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { VictoryAxis, VictoryChart, VictoryLine, VictoryScatter } from 'victory-native';
 import { router, useFocusEffect } from 'expo-router';
@@ -8,9 +8,14 @@ import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
-import { getProfile, getWeightHistory, updateWeightEntry } from '@/lib/db';
+import KeyboardAwareModal from '@/components/KeyboardAwareModal';
+import {
+  getProfile, getWeightHistory, updateWeightEntry, deleteWeightEntry,
+  recalculateTargetsAfterWeighIn, checkAllAchievements,
+} from '@/lib/db';
 import { getLocalDateString } from '@/lib/utils';
 import { useBackHandler } from '@/lib/useBackHandler';
+import { useStore } from '@/lib/store';
 import { calcProjection } from '@/lib/nutrition';
 import { UserProfile, WeightEntry } from '@/lib/types';
 
@@ -112,8 +117,18 @@ export default function Projection() {
     profile.target_date
   );
 
-  const historyData = weightHistory.map(e => ({ x: new Date(e.date), y: e.weight }));
-  const projectionData = projectionPoints.map(p => ({ x: new Date(p.date), y: p.weight }));
+  const historyData = weightHistory
+    .map(w => ({ x: new Date(w.date + 'T00:00:00'), y: w.weight }))
+    .sort((a, b) => a.x.getTime() - b.x.getTime());
+  const projectionData = projectionPoints.map(p => ({ x: new Date(p.date + 'T00:00:00'), y: p.weight }));
+
+  const allWeights = [
+    ...historyData.map(d => d.y),
+    ...projectionData.map(d => d.y),
+    profile.weight_target,
+  ].filter(w => w > 0);
+  const yMin = allWeights.length > 0 ? Math.max(Math.floor(Math.min(...allWeights)) - 2, 0) : 0;
+  const yMax = allWeights.length > 0 ? Math.ceil(Math.max(...allWeights)) + 2 : 120;
 
   const latestWeight = weightHistory.length > 0
     ? weightHistory[weightHistory.length - 1].weight
@@ -147,15 +162,16 @@ export default function Projection() {
             width={Dimensions.get('window').width - 32}
             height={220}
             scale={{ x: 'time' }}
+            domain={{ y: [yMin, yMax] }}
           >
             <VictoryAxis
               tickValues={
                 historyData.length > 0
                   ? historyData.map(d => d.x)
-                  : projectionData.filter((_, i) => i % 30 === 0).map(d => d.x)
+                  : projectionData.filter((_, i) => i % 14 === 0).map(d => d.x)
               }
               tickFormat={d => format(new Date(d), 'dd/MM', { locale: fr })}
-              style={{ tickLabels: { fontSize: 9, fill: '#94a3b8', angle: -30 } }}
+              style={{ tickLabels: { fontSize: 9, fill: '#94a3b8', angle: -20 } }}
             />
             <VictoryAxis
               dependentAxis
@@ -280,58 +296,92 @@ export default function Projection() {
         })}
       </View>
 
-      <View style={{ height: 40 }} />
+      <View style={{ height: 90 }} />
 
       {/* Weight entry modal */}
-      <Modal visible={weightModalVisible} transparent animationType="slide"
-        onRequestClose={() => setWeightModalVisible(false)}
+      <KeyboardAwareModal
+        visible={weightModalVisible}
+        onClose={() => { setWeightModalVisible(false); setNewWeightInput(''); }}
       >
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
-          <View style={{ backgroundColor: '#1e293b', borderRadius: 20, padding: 24, paddingBottom: 40 }}>
-            <Text style={{ color: '#f1f5f9', fontWeight: '700', fontSize: 18, marginBottom: 4 }}>
-              ⚖️ Enregistrer mon poids
-            </Text>
-            <Text style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>
-              {selectedWeighInDate
-                ? format(new Date(selectedWeighInDate + 'T00:00:00'), 'EEEE dd MMMM yyyy', { locale: fr })
-                : ''}
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f172a', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-              <TextInput
-                value={newWeightInput}
-                onChangeText={setNewWeightInput}
-                keyboardType="decimal-pad"
-                placeholder="Ex: 108.5"
-                placeholderTextColor="#475569"
-                style={{ flex: 1, color: '#f1f5f9', fontSize: 28, fontWeight: '700' }}
-                autoFocus
-              />
-              <Text style={{ color: '#64748b', fontSize: 18 }}>kg</Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <TouchableOpacity
-                onPress={() => setWeightModalVisible(false)}
-                style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#334155', alignItems: 'center' }}
-              >
-                <Text style={{ color: '#94a3b8' }}>Annuler</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={async () => {
-                  const w = parseFloat(newWeightInput.replace(',', '.'));
-                  if (isNaN(w) || w < 20 || w > 500) return;
-                  await updateWeightEntry(selectedWeighInDate, w);
-                  setWeightModalVisible(false);
-                  setNewWeightInput('');
-                  loadData();
-                }}
-                style={{ flex: 2, padding: 14, borderRadius: 12, backgroundColor: '#10b981', alignItems: 'center' }}
-              >
-                <Text style={{ color: '#fff', fontWeight: '700' }}>Enregistrer</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+        <Text style={{ color: '#f1f5f9', fontWeight: '700', fontSize: 18, marginBottom: 4 }}>
+          ⚖️ Enregistrer mon poids
+        </Text>
+        <Text style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>
+          {selectedWeighInDate
+            ? format(new Date(selectedWeighInDate + 'T00:00:00'), 'EEEE dd MMMM yyyy', { locale: fr })
+            : ''}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f172a', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <TextInput
+            value={newWeightInput}
+            onChangeText={setNewWeightInput}
+            keyboardType="decimal-pad"
+            placeholder="Ex: 108.5"
+            placeholderTextColor="#475569"
+            style={{ flex: 1, color: '#f1f5f9', fontSize: 28, fontWeight: '700' }}
+            autoFocus
+          />
+          <Text style={{ color: '#64748b', fontSize: 18 }}>kg</Text>
         </View>
-      </Modal>
+        {/* Bouton suppression — visible uniquement si pesée existante */}
+        {weighInDates.some(d => {
+          const recorded = weightHistory.find(w => Math.abs(new Date(w.date).getTime() - d.getTime()) < 2 * 24 * 60 * 60 * 1000);
+          return recorded && getLocalDateString(d) === selectedWeighInDate;
+        }) && (
+          <TouchableOpacity
+            onPress={() => Alert.alert(
+              'Supprimer cette pesée',
+              `Supprimer le poids du ${selectedWeighInDate ? format(new Date(selectedWeighInDate + 'T00:00:00'), 'dd MMMM yyyy', { locale: fr }) : ''} ?`,
+              [
+                { text: 'Annuler', style: 'cancel' },
+                {
+                  text: 'Supprimer', style: 'destructive',
+                  onPress: async () => {
+                    setWeightModalVisible(false);
+                    setNewWeightInput('');
+                    await deleteWeightEntry(selectedWeighInDate);
+                    const remaining = await getWeightHistory(365);
+                    const prevWeight = remaining.length > 0 ? remaining[0].weight : profile?.weight_current ?? 0;
+                    await recalculateTargetsAfterWeighIn(prevWeight);
+                    const upd = await getProfile();
+                    if (upd) useStore.getState().setProfile(upd);
+                    await checkAllAchievements();
+                    loadData();
+                  },
+                },
+              ]
+            )}
+            style={{ padding: 14, borderRadius: 12, backgroundColor: '#7f1d1d', alignItems: 'center', marginBottom: 10 }}
+          >
+            <Text style={{ color: '#fca5a5', fontWeight: '600' }}>🗑️ Supprimer cette pesée</Text>
+          </TouchableOpacity>
+        )}
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity
+            onPress={() => { setWeightModalVisible(false); setNewWeightInput(''); }}
+            style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#334155', alignItems: 'center' }}
+          >
+            <Text style={{ color: '#94a3b8' }}>Annuler</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={async () => {
+              const w = parseFloat(newWeightInput.replace(',', '.'));
+              if (isNaN(w) || w < 20 || w > 500) return;
+              await updateWeightEntry(selectedWeighInDate, w);
+              await recalculateTargetsAfterWeighIn(w);
+              const upd = await getProfile();
+              if (upd) useStore.getState().setProfile(upd);
+              await checkAllAchievements();
+              setWeightModalVisible(false);
+              setNewWeightInput('');
+              loadData();
+            }}
+            style={{ flex: 2, padding: 14, borderRadius: 12, backgroundColor: '#10b981', alignItems: 'center' }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700' }}>Enregistrer</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAwareModal>
 
       {/* Celebration modal */}
       <Modal visible={showCelebration} transparent animationType="none">
