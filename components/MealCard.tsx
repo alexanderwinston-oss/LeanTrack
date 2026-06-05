@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
-  Alert, BackHandler, Modal, ScrollView, StyleSheet, Text,
+  Alert, Modal, ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View, ViewStyle,
 } from 'react-native';
+import { useBackHandler } from '@/lib/useBackHandler';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
@@ -44,14 +45,10 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
   const [showPortionCalc, setShowPortionCalc] = useState<boolean>(false);
   const [customPortionText, setCustomPortionText] = useState<string>('');
 
-  useEffect(() => {
-    const onBackPress = () => {
-      if (editing) { setEditing(false); return true; }
-      if (detailVisible) { setDetailVisible(false); return true; }
-      return false;
-    };
-    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-    return () => sub.remove();
+  useBackHandler(() => {
+    if (editing) { setEditing(false); return true; }
+    if (detailVisible) { setDetailVisible(false); return true; }
+    return false;
   }, [editing, detailVisible]);
 
   function openDetail() {
@@ -64,7 +61,14 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
     setEditFat(String(Math.round(meal.fat)));
     setEditType(meal.meal_type);
     setEditNotes(meal.notes ?? '');
-    setOriginalMeal({ ...meal });
+    setOriginalMeal({
+      ...meal,
+      calories: meal.base_calories ?? meal.calories,
+      protein: meal.base_protein ?? meal.protein,
+      carbs: meal.base_carbs ?? meal.carbs,
+      fat: meal.base_fat ?? meal.fat,
+      quantity_g: meal.base_quantity_g ?? meal.quantity_g,
+    });
     setShowPortionCalc(false);
     setCustomPortionText('');
     setDetailVisible(true);
@@ -197,7 +201,14 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
                   ) : null}
                   <View style={styles.actionBtns}>
                     <TouchableOpacity style={styles.editBtn} onPress={() => {
-                      setOriginalMeal({ ...meal });
+                      setOriginalMeal({
+                        ...meal,
+                        calories: meal.base_calories ?? meal.calories,
+                        protein: meal.base_protein ?? meal.protein,
+                        carbs: meal.base_carbs ?? meal.carbs,
+                        fat: meal.base_fat ?? meal.fat,
+                        quantity_g: meal.base_quantity_g ?? meal.quantity_g,
+                      });
                       setShowPortionCalc(false);
                       setCustomPortionText('');
                       setEditName(meal.food_name);

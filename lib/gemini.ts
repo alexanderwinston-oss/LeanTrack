@@ -193,6 +193,9 @@ Pour respecter ce budget :
 
 RÈGLE NOM (STRICTE ET NON NÉGOCIABLE) : Le champ "nom" = noms des aliments uniquement, 2-4 mots max. Exemples valides : "Fromage blanc amandes", "Oeufs brouillés pain". Exemples invalides : "Petit-déjeuner campagnard", tout adjectif qualitatif.
 
+RÈGLE QUANTITÉS (OBLIGATOIRE) : Chaque ingrédient DOIT avoir une quantité précise en grammes ou ml ou unités.
+Format : "[quantité][unité] [nom]". Exemples corrects : "80g flocons d'avoine", "200ml lait demi-écrémé", "150g blanc de poulet émincé", "1 œuf entier (60g)", "30g fromage blanc 0%". JAMAIS un ingrédient sans quantité.
+
 Retourne UNIQUEMENT ce JSON sans markdown :
 {
   "plan": [
@@ -208,7 +211,7 @@ Retourne UNIQUEMENT ce JSON sans markdown :
           "proteines_g": number,
           "glucides_g": number,
           "lipides_g": number,
-          "ingredients": ["string"]
+          "ingredients": ["string avec quantité OBLIGATOIRE ex: '80g flocons d\\'avoine'"]
         }
       ]
     }

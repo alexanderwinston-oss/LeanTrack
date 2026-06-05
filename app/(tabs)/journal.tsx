@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
-  Alert, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet,
+  Alert, Animated, FlatList, KeyboardAvoidingView, Modal, Platform,
+  Pressable, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -17,6 +18,7 @@ import { useStore } from '@/lib/store';
 import { searchFood } from '@/lib/openfoodfacts';
 import { analyzeFoodPhoto } from '@/lib/gemini';
 import { getLocalDateString, showGeminiError } from '@/lib/utils';
+import { useBackHandler } from '@/lib/useBackHandler';
 import { FoodItem, Meal, MealType } from '@/lib/types';
 
 const SECTIONS: { type: MealType; label: string; emoji: string }[] = [
@@ -73,6 +75,11 @@ export default function Journal() {
       refreshDailyData(getLocalDateString());
     }, [])
   );
+
+  useBackHandler(() => {
+    if (modalVisible) { setModalVisible(false); return true; }
+    return false;
+  }, [modalVisible]);
 
   function showToast(message: string) {
     setToastMessage(message);
@@ -310,6 +317,7 @@ export default function Journal() {
 
       {/* Add food modal */}
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
+        <KeyboardAvoidingView behavior={Platform.OS === 'android' ? 'height' : 'padding'} style={{ flex: 1 }}>
         <View style={styles.modal}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Ajouter un aliment</Text>
@@ -441,6 +449,7 @@ export default function Journal() {
             </ScrollView>
           )}
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
     </ScreenContainer>
@@ -516,7 +525,7 @@ const styles = StyleSheet.create({
   modeTabText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
   modeTabTextActive: { color: Colors.accent },
   modalList: { flex: 1 },
-  modalListContent: { padding: 16 },
+  modalListContent: { padding: 16, paddingBottom: 100 },
   searchRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   searchInput: {
     flex: 1, backgroundColor: Colors.bgSurface, borderRadius: Colors.radius,

@@ -10,19 +10,20 @@ import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { getProfile, getWeightHistory, updateWeightEntry } from '@/lib/db';
 import { getLocalDateString } from '@/lib/utils';
+import { useBackHandler } from '@/lib/useBackHandler';
 import { calcProjection } from '@/lib/nutrition';
 import { UserProfile, WeightEntry } from '@/lib/types';
 
 const shownMilestonesThisSession = new Set<number>();
 
-function getWeighInSchedule(startDate: Date, count = 10): Date[] {
+function getWeighInSchedule(startDate: Date, endDate: Date): Date[] {
   const schedule: Date[] = [];
   const d = new Date(startDate);
   const dayOfWeek = d.getDay();
   const daysUntilTuesday = dayOfWeek <= 2 ? 2 - dayOfWeek : 9 - dayOfWeek;
   d.setDate(d.getDate() + daysUntilTuesday);
   d.setHours(0, 0, 0, 0);
-  for (let i = 0; i < count; i++) {
+  while (d <= endDate) {
     schedule.push(new Date(d));
     d.setDate(d.getDate() + 14);
   }
@@ -46,6 +47,11 @@ export default function Projection() {
   const [weightModalVisible, setWeightModalVisible] = useState(false);
   const [selectedWeighInDate, setSelectedWeighInDate] = useState('');
   const [newWeightInput, setNewWeightInput] = useState('');
+
+  useBackHandler(() => {
+    if (weightModalVisible) { setWeightModalVisible(false); return true; }
+    return false;
+  }, [weightModalVisible]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -119,7 +125,10 @@ export default function Projection() {
     : '—';
 
   const celebContent = getCelebrationContent(celebrationPercent);
-  const weighInDates = getWeighInSchedule(new Date(), 8);
+  const targetDate = profile?.target_date
+    ? new Date(profile.target_date + 'T00:00:00')
+    : new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
+  const weighInDates = getWeighInSchedule(new Date(), targetDate);
   const todayStr = getLocalDateString();
 
   return (

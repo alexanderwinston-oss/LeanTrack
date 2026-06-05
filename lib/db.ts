@@ -81,7 +81,12 @@ export async function initDB(): Promise<void> {
       fat REAL NOT NULL,
       source TEXT NOT NULL DEFAULT 'manual',
       photo_uri TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+      base_calories REAL DEFAULT NULL,
+      base_protein REAL DEFAULT NULL,
+      base_carbs REAL DEFAULT NULL,
+      base_fat REAL DEFAULT NULL,
+      base_quantity_g REAL DEFAULT NULL
     );
 
     CREATE TABLE IF NOT EXISTS water_log (
@@ -134,6 +139,11 @@ export async function initDB(): Promise<void> {
   const migrations: [string, string, string][] = [
     ['meals', 'notes', "TEXT DEFAULT ''"],
     ['meals', 'profile_id', "TEXT NOT NULL DEFAULT 'default'"],
+    ['meals', 'base_calories', 'REAL DEFAULT NULL'],
+    ['meals', 'base_protein', 'REAL DEFAULT NULL'],
+    ['meals', 'base_carbs', 'REAL DEFAULT NULL'],
+    ['meals', 'base_fat', 'REAL DEFAULT NULL'],
+    ['meals', 'base_quantity_g', 'REAL DEFAULT NULL'],
     ['water_log', 'profile_id', "TEXT NOT NULL DEFAULT 'default'"],
     ['weight_log', 'profile_id', "TEXT NOT NULL DEFAULT 'default'"],
     // achievements schema migrated via achievements_pk_v2 below
@@ -335,12 +345,14 @@ export async function addMeal(meal: Meal): Promise<void> {
   const profileId = await getCurrentProfileId();
   await db.runAsync(
     `INSERT INTO meals
-      (date, meal_type, food_name, quantity_g, calories, protein, carbs, fat, source, photo_uri, notes, profile_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (date, meal_type, food_name, quantity_g, calories, protein, carbs, fat, source, photo_uri, notes, profile_id,
+       base_calories, base_protein, base_carbs, base_fat, base_quantity_g)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       meal.date, meal.meal_type, meal.food_name, meal.quantity_g,
       meal.calories, meal.protein, meal.carbs, meal.fat,
       meal.source, meal.photo_uri ?? null, meal.notes ?? '', profileId,
+      meal.calories, meal.protein, meal.carbs, meal.fat, meal.quantity_g,
     ]
   );
 }

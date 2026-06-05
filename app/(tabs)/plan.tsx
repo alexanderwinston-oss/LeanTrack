@@ -72,7 +72,10 @@ function PlanMealCard({
           ) : null}
           <Text style={styles.ingredientsTitle}>Ingrédients :</Text>
           {meal.ingredients.map((ing, i) => (
-            <Text key={i} style={styles.ingredient}>• {ing}</Text>
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 2 }}>
+              <Text style={{ color: Colors.accent, fontSize: 12, marginRight: 4 }}>•</Text>
+              <Text style={[styles.ingredient, { flex: 1 }]}>{ing}</Text>
+            </View>
           ))}
           <TouchableOpacity style={styles.addToJournalBtn} onPress={onAdd}>
             <Text style={styles.addToJournalText}>+ Ajouter au journal</Text>
@@ -142,6 +145,8 @@ ${weeklyBudget ? `- CONTRAINTE BUDGET : coût de ce repas max ${(parseFloat(week
 
 RÈGLE NOM (STRICTE ET NON NÉGOCIABLE) : Le champ "nom" = noms des aliments uniquement, 2-4 mots max. Exemples valides : "Fromage blanc amandes", "Oeufs brouillés pain". Exemples invalides : "Déjeuner du midi", tout adjectif qualitatif.
 
+RÈGLE QUANTITÉS (OBLIGATOIRE) : Chaque ingrédient DOIT avoir une quantité précise. Format : "[quantité][unité] [nom]". Exemples : "80g flocons d'avoine", "200ml lait", "150g poulet". JAMAIS sans quantité.
+
 Retourne UNIQUEMENT ce JSON sans markdown :
 {
   "type": "${mealType}",
@@ -151,7 +156,7 @@ Retourne UNIQUEMENT ce JSON sans markdown :
   "proteines_g": number,
   "glucides_g": number,
   "lipides_g": number,
-  "ingredients": ["string avec quantité"]
+  "ingredients": ["string avec quantité OBLIGATOIRE"]
 }`,
           }],
         }],

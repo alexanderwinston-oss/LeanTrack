@@ -41,6 +41,11 @@ export interface Meal {
   source: 'photo' | 'search' | 'manual' | 'plan';
   photo_uri?: string;
   notes?: string;
+  base_calories?: number;
+  base_protein?: number;
+  base_carbs?: number;
+  base_fat?: number;
+  base_quantity_g?: number;
 }
 
 export interface DailyTotals {
