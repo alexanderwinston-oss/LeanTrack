@@ -154,14 +154,17 @@ export interface AchievementStats {
   totalWaterEntries: number;
   waterGoalDaysCount: number;
   waterGoalStreak: number;
+  bestWaterGoalStreak: number;
   totalMeals: number;
   photoMeals: number;
   loggingDays: number;
   calorieGoalDays: number;
   calorieStreak: number;
+  bestCalorieStreak: number;
   lowCarbDays: number;
   weightEntries: number;
   weightLost: number;
   progressPercent: number;
   appStreak: number;
+  bestAppStreak: number;
 }

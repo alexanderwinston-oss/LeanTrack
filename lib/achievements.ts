@@ -27,13 +27,13 @@ export const ALL_ACHIEVEMENTS: AchievementDef[] = [
     id: 'water_goal_7', emoji: '🏄', label: 'Hydro Warrior',
     description: 'Atteins ton objectif eau 7 jours consécutifs',
     category: 'Hydratation',
-    check: (s) => s.waterGoalStreak >= 7,
+    check: (s) => Math.max(s.waterGoalStreak, s.bestWaterGoalStreak) >= 7,
   },
   {
     id: 'water_goal_30', emoji: '🏆', label: 'Hydro Master',
     description: 'Atteins ton objectif eau 30 jours consécutifs',
     category: 'Hydratation',
-    check: (s) => s.waterGoalStreak >= 30,
+    check: (s) => Math.max(s.waterGoalStreak, s.bestWaterGoalStreak) >= 30,
   },
   // Nutrition
   {
@@ -64,13 +64,13 @@ export const ALL_ACHIEVEMENTS: AchievementDef[] = [
     id: 'calorie_goal_7', emoji: '🔥', label: 'Semaine parfaite',
     description: 'Respecte ton objectif 7 jours consécutifs',
     category: 'Nutrition',
-    check: (s) => s.calorieStreak >= 7,
+    check: (s) => Math.max(s.calorieStreak, s.bestCalorieStreak) >= 7,
   },
   {
     id: 'calorie_goal_30', emoji: '💫', label: 'Mois de discipline',
     description: 'Respecte ton objectif 30 jours consécutifs',
     category: 'Nutrition',
-    check: (s) => s.calorieStreak >= 30,
+    check: (s) => Math.max(s.calorieStreak, s.bestCalorieStreak) >= 30,
   },
   {
     id: 'no_sugar_week', emoji: '🥗', label: 'Clean Week',
@@ -120,18 +120,18 @@ export const ALL_ACHIEVEMENTS: AchievementDef[] = [
     id: 'streak_3', emoji: '⚡', label: '3 jours de suite',
     description: 'Utilise l\'app 3 jours consécutifs',
     category: 'Régularité',
-    check: (s) => s.appStreak >= 3,
+    check: (s) => Math.max(s.appStreak, s.bestAppStreak) >= 3,
   },
   {
     id: 'streak_7', emoji: '🌟', label: 'Une semaine !',
     description: 'Utilise l\'app 7 jours consécutifs',
     category: 'Régularité',
-    check: (s) => s.appStreak >= 7,
+    check: (s) => Math.max(s.appStreak, s.bestAppStreak) >= 7,
   },
   {
     id: 'streak_30', emoji: '👑', label: '30 jours !',
     description: 'Utilise l\'app 30 jours consécutifs',
     category: 'Régularité',
-    check: (s) => s.appStreak >= 30,
+    check: (s) => Math.max(s.appStreak, s.bestAppStreak) >= 30,
   },
 ];

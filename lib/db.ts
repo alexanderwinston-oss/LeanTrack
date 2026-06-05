@@ -552,6 +552,19 @@ export async function getAchievementsStatus(): Promise<
   );
 }
 
+function computeMaxStreak(datesDesc: string[]): number {
+  if (!datesDesc.length) return 0;
+  let max = 1, cur = 1;
+  for (let i = 0; i < datesDesc.length - 1; i++) {
+    const d1 = new Date(datesDesc[i] + 'T00:00:00');
+    const d2 = new Date(datesDesc[i + 1] + 'T00:00:00');
+    const diff = Math.round((d1.getTime() - d2.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff === 1) { cur++; max = Math.max(max, cur); }
+    else cur = 1;
+  }
+  return max;
+}
+
 function computeStreakFromDates(datesDesc: string[]): number {
   if (!datesDesc.length) return 0;
   let streak = 0;
@@ -613,7 +626,15 @@ export async function getAchievementStats(profile: UserProfile): Promise<Achieve
   ]);
 
   const waterGoalStreak = computeStreakFromDates(waterGoalDays.map((r) => r.date));
+  const bestWaterGoalStreak = computeMaxStreak(waterGoalDays.map((r) => r.date));
   const calorieStreak = computeStreakFromDates(calorieGoalDays.map((r) => r.date));
+  const bestCalorieStreak = computeMaxStreak(calorieGoalDays.map((r) => r.date));
+
+  const appDays = await db.getAllAsync<{ date: string }>(
+    'SELECT DISTINCT date FROM meals WHERE profile_id = ? ORDER BY date DESC',
+    [profileId]
+  );
+  const bestAppStreak = computeMaxStreak(appDays.map((r) => r.date));
 
   let weightLost = 0;
   let progressPercent = 0;
@@ -638,16 +659,19 @@ export async function getAchievementStats(profile: UserProfile): Promise<Achieve
     totalWaterEntries: waterEntryRow?.c ?? 0,
     waterGoalDaysCount: waterGoalDays.length,
     waterGoalStreak,
+    bestWaterGoalStreak,
     totalMeals: mealCountRow?.c ?? 0,
     photoMeals: photoMealRow?.c ?? 0,
     loggingDays: loggingDaysRow?.c ?? 0,
     calorieGoalDays: calorieGoalDays.length,
     calorieStreak,
+    bestCalorieStreak,
     lowCarbDays: lowCarbRow?.c ?? 0,
     weightEntries: weightCountRow?.c ?? 0,
     weightLost,
     progressPercent,
     appStreak: await getStreakDays(),
+    bestAppStreak,
   };
 }
 

@@ -4,7 +4,7 @@ import { Stack, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { initDB, getProfile } from '@/lib/db';
+import { initDB, getProfile, checkAndUnlockAchievements } from '@/lib/db';
 import { useStore } from '@/lib/store';
 import { getLocalDateString } from '@/lib/utils';
 
@@ -32,6 +32,7 @@ export default function RootLayout() {
           setProfile(profile);
           const today = getLocalDateString();
           await refreshDailyData(today);
+          checkAndUnlockAchievements(profile).catch(() => {});
         }
         setReady(true);
         await SplashScreen.hideAsync();

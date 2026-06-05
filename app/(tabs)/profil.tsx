@@ -62,7 +62,7 @@ export default function Profil() {
             setCelebrationId(newOnes[0]);
             getUnlockedAchievements().then(setUnlockedIds);
           }
-        });
+        }).catch(() => {});
       }
     }, [profile])
   );
