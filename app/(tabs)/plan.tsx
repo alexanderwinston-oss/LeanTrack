@@ -274,19 +274,33 @@ Retourne UNIQUEMENT ce JSON sans markdown :
           <Text style={styles.title}>📅 Mon plan alimentaire</Text>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} bounces={false} style={styles.dayTabs} contentContainerStyle={styles.dayTabsContent}>
-          {DAY_LABELS.map((day, i) => (
-            <Pressable
-              key={day}
-              style={[styles.dayTab, selectedDay === i && styles.dayTabActive]}
-              onPress={() => setSelectedDay(i)}
-            >
-              <Text style={[styles.dayTabText, selectedDay === i && styles.dayTabTextActive]}>
-                {day.slice(0, 3)}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+        <View style={{ borderBottomWidth: 1, borderBottomColor: Colors.border }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            bounces={false}
+            overScrollMode="never"
+            contentContainerStyle={{
+              paddingLeft: 16,
+              paddingRight: 32,
+              paddingVertical: 10,
+              gap: 8,
+              flexDirection: 'row',
+            }}
+          >
+            {DAY_LABELS.map((day, i) => (
+              <Pressable
+                key={day}
+                style={[styles.dayTab, selectedDay === i && styles.dayTabActive]}
+                onPress={() => setSelectedDay(i)}
+              >
+                <Text style={[styles.dayTabText, selectedDay === i && styles.dayTabTextActive]}>
+                  {day.slice(0, 3)}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
 
         <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 110 }]}>
           {currentDay && (
@@ -383,8 +397,6 @@ const styles = StyleSheet.create({
     padding: 14, alignItems: 'center', marginTop: 4,
   },
   recipesBtnText: { color: Colors.textSecondary, fontSize: 14, fontWeight: '600' },
-  dayTabs: { flexGrow: 0, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  dayTabsContent: { paddingLeft: 16, paddingRight: 32, paddingVertical: 10, gap: 8, flexDirection: 'row' },
   dayTab: {
     paddingHorizontal: 16, paddingVertical: 6,
     borderRadius: Colors.radiusPill,

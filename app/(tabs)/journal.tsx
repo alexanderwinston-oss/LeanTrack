@@ -46,7 +46,7 @@ export default function Journal() {
   const [modalVisible, setModalVisible] = useState(false);
   const [activeMealType, setActiveMealType] = useState<MealType>('dejeuner');
   const [toastMessage, setToastMessage] = useState('');
-  const toastAnim = useRef(new Animated.Value(80)).current;
+  const toastAnim = useRef(new Animated.Value(200)).current;
 
   // Search state
   const [query, setQuery] = useState('');
@@ -76,12 +76,12 @@ export default function Journal() {
 
   function showToast(message: string) {
     setToastMessage(message);
-    toastAnim.setValue(80);
+    toastAnim.setValue(200);
     Animated.sequence([
       Animated.spring(toastAnim, { toValue: 0, friction: 8, useNativeDriver: true }),
       Animated.delay(2000),
-      Animated.timing(toastAnim, { toValue: 80, duration: 250, useNativeDriver: true }),
-    ]).start();
+      Animated.timing(toastAnim, { toValue: 200, duration: 250, useNativeDriver: true }),
+    ]).start(() => setToastMessage(''));
   }
 
   async function pickFromGalleryAndAnalyse() {
@@ -299,12 +299,14 @@ export default function Journal() {
       </ScrollView>
 
       {/* Toast notification */}
-      <Animated.View
-        style={[styles.toast, { transform: [{ translateY: toastAnim }] }]}
-        pointerEvents="none"
-      >
-        <Text style={styles.toastText}>{toastMessage}</Text>
-      </Animated.View>
+      {toastMessage !== '' && (
+        <Animated.View
+          style={[styles.toast, { transform: [{ translateY: toastAnim }] }]}
+          pointerEvents="none"
+        >
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </Animated.View>
+      )}
 
       {/* Add food modal */}
       <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
