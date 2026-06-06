@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { createProfile, deleteProfile, getAllProfiles } from '@/lib/db';
 import { useStore } from '@/lib/store';
 import { UserProfile } from '@/lib/types';
+import { useBackHandler } from '@/lib/useBackHandler';
 import { normalizeText } from '@/lib/utils';
 
 const EMOJI_COLORS = [
@@ -40,6 +41,12 @@ export default function Profiles() {
   }, []);
 
   useEffect(() => { loadProfiles(); }, [loadProfiles]);
+
+  useBackHandler(() => {
+    if (deleteTarget) { setDeleteTarget(null); setDeleteConfirmText(''); return true; }
+    if (createVisible) { setCreateVisible(false); return true; }
+    return false;
+  }, [deleteTarget, createVisible]);
 
   async function handleSwitch(profileId: string) {
     if (profileId === currentProfile?.profile_id) return;

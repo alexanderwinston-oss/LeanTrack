@@ -125,16 +125,17 @@ export default function Projection() {
   const allWeights = [
     ...historyData.map(d => d.y),
     ...projectionData.map(d => d.y),
-    profile.weight_target,
   ].filter(w => w > 0);
-  const yMin = allWeights.length > 0 ? Math.max(Math.floor(Math.min(...allWeights)) - 2, 0) : 0;
-  const yMax = allWeights.length > 0 ? Math.ceil(Math.max(...allWeights)) + 2 : 120;
+  const yMin = allWeights.length > 0 ? Math.max(Math.floor(Math.min(...allWeights)) - 3, 0) : 80;
+  const yMax = allWeights.length > 0 ? Math.ceil(Math.max(...allWeights)) + 3 : 120;
 
-  const latestWeight = weightHistory.length > 0
+  const latestWeight: number | null = weightHistory.length > 0
     ? weightHistory[weightHistory.length - 1].weight
-    : profile.weight_current;
+    : null;
 
-  const ecartRestant = Math.abs(latestWeight - profile.weight_target).toFixed(1);
+  const ecartRestant = latestWeight !== null
+    ? Math.abs(latestWeight - profile.weight_target).toFixed(1)
+    : '—';
   const estimatedDateStr = projectionPoints.length > 0
     ? format(parseISO(projectionPoints[projectionPoints.length - 1].date), 'dd MMMM yyyy', { locale: fr })
     : '—';
@@ -181,18 +182,18 @@ export default function Projection() {
               data={projectionData}
               style={{ data: { stroke: '#475569', strokeDasharray: '5,5', strokeWidth: 1.5 } }}
             />
-            {historyData.length > 0 && (
-              <>
-                <VictoryLine
-                  data={historyData}
-                  style={{ data: { stroke: '#10b981', strokeWidth: 2.5 } }}
-                />
-                <VictoryScatter
-                  data={historyData}
-                  size={5}
-                  style={{ data: { fill: '#10b981' } }}
-                />
-              </>
+            {historyData.length >= 2 && (
+              <VictoryLine
+                data={historyData}
+                style={{ data: { stroke: '#10b981', strokeWidth: 2.5 } }}
+              />
+            )}
+            {historyData.length >= 1 && (
+              <VictoryScatter
+                data={historyData}
+                size={5}
+                style={{ data: { fill: '#10b981' } }}
+              />
             )}
           </VictoryChart>
           <View style={styles.legend}>
@@ -217,7 +218,7 @@ export default function Projection() {
       <View style={styles.statsGrid}>
         <Card style={styles.statCard}>
           <Text style={styles.statLabel}>Poids actuel</Text>
-          <Text style={styles.statNum}>{latestWeight} kg</Text>
+          <Text style={styles.statNum}>{latestWeight !== null ? `${latestWeight} kg` : '—'}</Text>
         </Card>
         <Card style={styles.statCard}>
           <Text style={styles.statLabel}>Objectif</Text>
@@ -234,13 +235,15 @@ export default function Projection() {
       </View>
 
       {/* Progress */}
-      <Card style={styles.progressCard}>
-        <Text style={styles.progressLabel}>Progression</Text>
-        <Text style={styles.progressNum}>{progressPercent}%</Text>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progressPercent}%` as any }]} />
-        </View>
-      </Card>
+      {latestWeight !== null && (
+        <Card style={styles.progressCard}>
+          <Text style={styles.progressLabel}>Progression</Text>
+          <Text style={styles.progressNum}>{progressPercent}%</Text>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progressPercent}%` as any }]} />
+          </View>
+        </Card>
+      )}
 
       {/* Plan de pesée */}
       <View style={{ backgroundColor: '#1e293b', borderRadius: 12, padding: 16 }}>

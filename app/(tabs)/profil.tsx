@@ -16,6 +16,7 @@ import {
 import { cancelAllNotifications, scheduleAllNotifications } from '@/lib/notifications';
 import { WeightEntry } from '@/lib/types';
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
+import { useBackHandler } from '@/lib/useBackHandler';
 import { getLocalDateString, getProfileName } from '@/lib/utils';
 
 const ACTIVITY_LABELS: Record<string, string> = {
@@ -51,6 +52,11 @@ export default function Profil() {
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
   const [celebrationId, setCelebrationId] = useState<string | null>(null);
+
+  useBackHandler(() => {
+    if (weightModal) { setWeightModal(false); return true; }
+    return false;
+  }, [weightModal]);
 
   useFocusEffect(
     useCallback(() => {

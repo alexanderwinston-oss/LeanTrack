@@ -54,8 +54,10 @@ export default function Journal() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<FoodItem[]>([]);
   const [searching, setSearching] = useState(false);
-  const [selected, setSelected] = useState<FoodItem | null>(null);
+  const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [quantity, setQuantity] = useState('100');
+  const [foodQuantity, setFoodQuantity] = useState('100');
+  const [foodBottomSheetVisible, setFoodBottomSheetVisible] = useState(false);
   const [page, setPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -77,9 +79,10 @@ export default function Journal() {
   );
 
   useBackHandler(() => {
+    if (foodBottomSheetVisible) { setFoodBottomSheetVisible(false); return true; }
     if (modalVisible) { setModalVisible(false); return true; }
     return false;
-  }, [modalVisible]);
+  }, [foodBottomSheetVisible, modalVisible]);
 
   function showToast(message: string) {
     setToastMessage(message);
@@ -125,8 +128,10 @@ export default function Journal() {
     setActiveMealType(type);
     setQuery('');
     setResults([]);
-    setSelected(null);
+    setSelectedFood(null);
     setQuantity('100');
+    setFoodQuantity('100');
+    setFoodBottomSheetVisible(false);
     setModalTab('search');
     setTextDescription('');
     setPage(1);
@@ -139,7 +144,7 @@ export default function Journal() {
     setSearching(true);
     setPage(1);
     setHasMore(true);
-    setSelected(null);
+    setSelectedFood(null);
     try {
       const r = await searchFood(query, 1);
       setResults(r);
@@ -169,7 +174,7 @@ export default function Journal() {
 
   async function addFromFood(food: FoodItem) {
     const today = getLocalDateString();
-    const q = parseFloat(quantity) || 100;
+    const q = parseFloat(foodQuantity) || 100;
     const factor = q / 100;
     const calories = Math.round(food.calories_100g * factor);
     const meal: Meal = {
@@ -186,6 +191,8 @@ export default function Journal() {
     try {
       await addMealToStore(meal);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setFoodBottomSheetVisible(false);
+      setSelectedFood(null);
       setModalVisible(false);
       showToast(`✅ ${food.name} ajouté · ${calories} kcal`);
     } catch {
@@ -258,18 +265,6 @@ export default function Journal() {
           <Text style={styles.searchBtnText}>{searching ? '...' : '🔍'}</Text>
         </TouchableOpacity>
       </View>
-      {selected && (
-        <Card style={styles.qtyCard}>
-          <Text style={styles.qtyLabel}>Quantité (g)</Text>
-          <TextInput
-            style={styles.qtyInput}
-            value={quantity}
-            onChangeText={setQuantity}
-            keyboardType="numeric"
-          />
-          <Button label="Ajouter au journal" onPress={() => addFromFood(selected)} />
-        </Card>
-      )}
     </View>
   );
 
@@ -384,8 +379,8 @@ export default function Journal() {
               ListHeaderComponent={searchHeader}
               renderItem={({ item: food }) => (
                 <Pressable
-                  style={[styles.foodItem, selected === food && styles.foodItemSelected]}
-                  onPress={() => setSelected(food)}
+                  style={[styles.foodItem, selectedFood === food && styles.foodItemSelected]}
+                  onPress={() => { setSelectedFood(food); setFoodQuantity('100'); setFoodBottomSheetVisible(true); }}
                 >
                   <Text style={styles.foodName}>{food.name}</Text>
                   {food.brand && <Text style={styles.foodBrand}>{food.brand}</Text>}
@@ -450,6 +445,94 @@ export default function Journal() {
           )}
         </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Food detail bottom sheet */}
+      <Modal
+        visible={foodBottomSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setFoodBottomSheetVisible(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
+          activeOpacity={1}
+          onPress={() => setFoodBottomSheetVisible(false)}
+        />
+        <View style={{
+          backgroundColor: '#1e293b',
+          borderTopLeftRadius: 20,
+          borderTopRightRadius: 20,
+          padding: 20,
+          paddingBottom: 48,
+        }}>
+          {selectedFood && (
+            <>
+              <Text style={{ color: '#f1f5f9', fontSize: 17, fontWeight: '700', marginBottom: 2 }}>
+                {selectedFood.name}
+              </Text>
+              {selectedFood.brand ? (
+                <Text style={{ color: '#64748b', fontSize: 13, marginBottom: 12 }}>
+                  {selectedFood.brand}
+                </Text>
+              ) : null}
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                {[
+                  { label: 'Kcal/100g', value: String(Math.round(selectedFood.calories_100g)) },
+                  { label: 'P', value: `${selectedFood.protein_100g}g` },
+                  { label: 'G', value: `${selectedFood.carbs_100g}g` },
+                  { label: 'L', value: `${selectedFood.fat_100g}g` },
+                ].map(item => (
+                  <View key={item.label} style={{
+                    flex: 1, backgroundColor: '#0f172a',
+                    borderRadius: 8, padding: 8, alignItems: 'center',
+                  }}>
+                    <Text style={{ color: '#10b981', fontSize: 14, fontWeight: '700' }}>{item.value}</Text>
+                    <Text style={{ color: '#64748b', fontSize: 10 }}>{item.label}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={{ color: '#94a3b8', fontSize: 13, marginBottom: 6 }}>Quantité (g)</Text>
+              <TextInput
+                value={foodQuantity}
+                onChangeText={setFoodQuantity}
+                keyboardType="numeric"
+                style={{
+                  backgroundColor: '#0f172a',
+                  borderRadius: 10,
+                  padding: 12,
+                  color: '#f1f5f9',
+                  fontSize: 18,
+                  fontWeight: '700',
+                  marginBottom: 8,
+                }}
+              />
+              {(() => {
+                const qty = parseFloat(foodQuantity) || 0;
+                const cal = Math.round(selectedFood.calories_100g * qty / 100);
+                const prot = Math.round(selectedFood.protein_100g * qty / 100 * 10) / 10;
+                const carbs = Math.round(selectedFood.carbs_100g * qty / 100 * 10) / 10;
+                const fat = Math.round(selectedFood.fat_100g * qty / 100 * 10) / 10;
+                return (
+                  <View style={{ backgroundColor: '#0f172a', borderRadius: 10, padding: 12, marginBottom: 16, alignItems: 'center' }}>
+                    <Text style={{ color: '#10b981', fontSize: 22, fontWeight: '800' }}>{cal} kcal</Text>
+                    <Text style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
+                      P:{prot}g · G:{carbs}g · L:{fat}g
+                    </Text>
+                  </View>
+                );
+              })()}
+              <TouchableOpacity
+                onPress={() => addFromFood(selectedFood)}
+                style={{ backgroundColor: '#10b981', borderRadius: 12, padding: 16, alignItems: 'center' }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
+                  Ajouter au journal
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </Modal>
     </View>
     </ScreenContainer>
