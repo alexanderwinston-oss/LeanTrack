@@ -7,7 +7,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { AchievementGrid, CelebrationModal } from '@/components/Achievements';
+import { AchievementGrid } from '@/components/Achievements';
 import { useStore } from '@/lib/store';
 import {
   checkAndUnlockAchievements, deleteWeightEntry, getAllWeightEntries,
@@ -48,10 +48,10 @@ export default function Profil() {
   const [weightModal, setWeightModal] = useState(false);
   const [weightDate, setWeightDate] = useState('');
   const [weightInput, setWeightInput] = useState('');
+  const setPendingBadge = useStore((s) => s.setPendingBadge);
   const [saving, setSaving] = useState(false);
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
-  const [celebrationId, setCelebrationId] = useState<string | null>(null);
 
   useBackHandler(() => {
     if (weightModal) { setWeightModal(false); return true; }
@@ -65,7 +65,7 @@ export default function Profil() {
       if (profile) {
         checkAndUnlockAchievements(profile).then((newOnes) => {
           if (newOnes.length > 0) {
-            setCelebrationId(newOnes[0]);
+            newOnes.forEach((b) => setPendingBadge(b));
             getUnlockedAchievements().then(setUnlockedIds);
           }
         }).catch(() => {});
@@ -145,7 +145,7 @@ export default function Profil() {
         setProfile(updated);
         const newOnes = await checkAndUnlockAchievements(updated);
         if (newOnes.length > 0) {
-          setCelebrationId(newOnes[0]);
+          newOnes.forEach((b) => setPendingBadge(b));
           getUnlockedAchievements().then(setUnlockedIds);
         }
       }
@@ -345,11 +345,6 @@ export default function Profil() {
         </Modal>
       </ScrollView>
 
-      {/* Achievement celebration modal */}
-      <CelebrationModal
-        achievementId={celebrationId}
-        onClose={() => setCelebrationId(null)}
-      />
     </ScreenContainer>
   );
 }

@@ -1,6 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import { AchievementStats, DailyEntry, DailyTotals, Meal, MealPlan, Recipe, UserProfile, WeightEntry } from './types';
-import { ALL_ACHIEVEMENTS } from './achievements';
+import { AchievementDef, ALL_ACHIEVEMENTS } from './achievements';
 import { getLocalDateString } from './utils';
 import { calcFullProfile } from './nutrition';
 
@@ -54,6 +54,7 @@ export async function initDB(): Promise<void> {
       name TEXT NOT NULL,
       age INTEGER NOT NULL,
       gender TEXT NOT NULL,
+      weight_initial REAL DEFAULT NULL,
       weight_current REAL NOT NULL,
       weight_target REAL NOT NULL,
       height REAL NOT NULL,
@@ -152,10 +153,15 @@ export async function initDB(): Promise<void> {
     ['user_profile', 'emoji_color', "TEXT DEFAULT '#10b981'"],
     ['user_profile', 'display_name', "TEXT DEFAULT ''"],
     ['user_profile', 'is_active', 'INTEGER DEFAULT 0'],
+    ['user_profile', 'weight_initial', 'REAL DEFAULT NULL'],
   ];
   for (const [table, col, def] of migrations) {
     await safeAlterAdd(db, table, col, def);
   }
+
+  await db.runAsync(
+    'UPDATE user_profile SET weight_initial = weight_current WHERE weight_initial IS NULL'
+  );
 
   // Migration : rebuild achievements table with composite PRIMARY KEY (id, profile_id)
   const achievementsMigrated = await db.getFirstAsync<{ value: string }>(
@@ -251,12 +257,14 @@ export async function saveProfile(data: UserProfile): Promise<void> {
   } else {
     await db.runAsync(
       `INSERT INTO user_profile
-        (profile_id, name, age, gender, weight_current, weight_target, height, activity_level,
+        (profile_id, name, age, gender, weight_initial, weight_current, weight_target, height, activity_level,
          goal, target_date, tdee, calorie_target, protein_target, carbs_target, fat_target,
          water_target, notifications_enabled, onboarding_completed, emoji_color, display_name, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        profileId, data.name, data.age, data.gender, data.weight_current, data.weight_target,
+        profileId, data.name, data.age, data.gender,
+        data.weight_initial ?? data.weight_current,
+        data.weight_current, data.weight_target,
         data.height, data.activity_level, data.goal, data.target_date,
         data.tdee, data.calorie_target, data.protein_target, data.carbs_target,
         data.fat_target, data.water_target,
@@ -277,15 +285,16 @@ function generateProfileId(): string {
 export async function createProfile(data: Partial<UserProfile>): Promise<string> {
   const db = await getDB();
   const profileId = generateProfileId();
+  const initWeight = data.weight_current ?? 70;
   await db.runAsync(
     `INSERT INTO user_profile
-      (profile_id, name, age, gender, weight_current, weight_target, height, activity_level,
+      (profile_id, name, age, gender, weight_initial, weight_current, weight_target, height, activity_level,
        goal, target_date, tdee, calorie_target, protein_target, carbs_target, fat_target,
        water_target, notifications_enabled, onboarding_completed, emoji_color, display_name, is_active)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       profileId, data.name ?? 'Nouveau profil', data.age ?? 25, data.gender ?? 'homme',
-      data.weight_current ?? 70, data.weight_target ?? 65, data.height ?? 170,
+      initWeight, initWeight, data.weight_target ?? 65, data.height ?? 170,
       data.activity_level ?? 'modere', data.goal ?? 'perte',
       data.target_date ?? '', data.tdee ?? 2000, data.calorie_target ?? 1800,
       data.protein_target ?? 150, data.carbs_target ?? 200, data.fat_target ?? 60,
@@ -521,7 +530,7 @@ export async function recalculateTargetsAfterWeighIn(newWeight: number): Promise
   );
 }
 
-export async function checkAllAchievements(): Promise<string[]> {
+export async function checkAllAchievements(): Promise<AchievementDef[]> {
   const profile = await getProfile();
   if (!profile) return [];
   return checkAndUnlockAchievements(profile);
@@ -713,18 +722,18 @@ export async function getAchievementStats(profile: UserProfile): Promise<Achieve
 
   let weightLost = 0;
   let progressPercent = 0;
-  if (firstWeightRow) {
-    const initial = firstWeightRow.weight;
+  if (firstWeightRow || profile.weight_initial) {
+    const initial = profile.weight_initial ?? firstWeightRow?.weight ?? profile.weight_current;
     const current = latestWeightRow?.weight ?? profile.weight_current;
     const target = profile.weight_target;
     if (profile.goal === 'perte') {
       weightLost = initial - current;
       const total = initial - target;
-      progressPercent = total > 0 ? Math.min((weightLost / total) * 100, 100) : 0;
+      progressPercent = total > 0 ? Math.min(Math.max((weightLost / total) * 100, 0), 100) : 0;
     } else if (profile.goal === 'prise') {
       weightLost = current - initial;
       const total = target - initial;
-      progressPercent = total > 0 ? Math.min((weightLost / total) * 100, 100) : 0;
+      progressPercent = total > 0 ? Math.min(Math.max((weightLost / total) * 100, 0), 100) : 0;
     } else {
       progressPercent = Math.abs(current - target) <= 1 ? 100 : 0;
     }
@@ -750,7 +759,7 @@ export async function getAchievementStats(profile: UserProfile): Promise<Achieve
   };
 }
 
-export async function checkAndUnlockAchievements(profile: UserProfile): Promise<string[]> {
+export async function checkAndUnlockAchievements(profile: UserProfile): Promise<AchievementDef[]> {
   const db = await getDB();
   const profileId = await getCurrentProfileId();
   const stats = await getAchievementStats(profile);
@@ -760,7 +769,7 @@ export async function checkAndUnlockAchievements(profile: UserProfile): Promise<
     [profileId]
   );
   const statusMap = new Map(rows.map((r) => [r.id, r]));
-  const newlyUnlocked: string[] = [];
+  const newlyUnlocked: AchievementDef[] = [];
 
   for (const achievement of ALL_ACHIEVEMENTS) {
     const passes = achievement.check(stats);
@@ -771,13 +780,13 @@ export async function checkAndUnlockAchievements(profile: UserProfile): Promise<
         'INSERT OR IGNORE INTO achievements (id, unlocked_at, profile_id) VALUES (?, ?, ?)',
         [achievement.id, new Date().toISOString(), profileId]
       );
-      newlyUnlocked.push(achievement.id);
+      newlyUnlocked.push(achievement);
     } else if (passes && current?.lost_at) {
       await db.runAsync(
         'UPDATE achievements SET lost_at = NULL, unlocked_at = ? WHERE id = ? AND profile_id = ?',
         [new Date().toISOString(), achievement.id, profileId]
       );
-      newlyUnlocked.push(achievement.id);
+      newlyUnlocked.push(achievement);
     } else if (!passes && current && !current.lost_at) {
       await db.runAsync(
         'UPDATE achievements SET unlocked_at = NULL, lost_at = ? WHERE id = ? AND profile_id = ?',

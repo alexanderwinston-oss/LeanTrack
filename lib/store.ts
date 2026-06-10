@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { DailyTotals, Meal, UserProfile } from './types';
+import { AchievementDef } from './achievements';
 import { addMeal as dbAddMeal, addWater as dbAddWater, getDailyTotals, getMealsForDate, getProfile, getWaterForDate, switchProfile } from './db';
 import { getLocalDateString } from './utils';
 
@@ -10,6 +11,8 @@ interface AppState {
   waterMl: number;
   pendingImageBase64: string | null;
   currentMealType: string;
+  badgeQueue: AchievementDef[];
+  isModalOpen: boolean;
   setProfile: (profile: UserProfile) => void;
   refreshDailyData: (date: string) => Promise<void>;
   addMealToStore: (meal: Meal) => Promise<void>;
@@ -17,6 +20,9 @@ interface AppState {
   setPendingImage: (b64: string | null) => void;
   setCurrentMealType: (type: string) => void;
   switchProfileInStore: (profileId: string) => Promise<void>;
+  setPendingBadge: (badge: AchievementDef) => void;
+  dequeueNextBadge: () => void;
+  setModalOpen: (open: boolean) => void;
 }
 
 const emptyTotals = (date: string): DailyTotals => ({
@@ -30,10 +36,15 @@ export const useStore = create<AppState>((set, get) => ({
   waterMl: 0,
   pendingImageBase64: null,
   currentMealType: 'dejeuner',
+  badgeQueue: [],
+  isModalOpen: false,
 
   setProfile: (profile) => set({ profile }),
   setPendingImage: (b64) => set({ pendingImageBase64: b64 }),
   setCurrentMealType: (type) => set({ currentMealType: type }),
+  setPendingBadge: (badge) => set((state) => ({ badgeQueue: [...state.badgeQueue, badge] })),
+  dequeueNextBadge: () => set((state) => ({ badgeQueue: state.badgeQueue.slice(1) })),
+  setModalOpen: (open) => set({ isModalOpen: open }),
 
   refreshDailyData: async (date: string) => {
     const [totals, meals, water] = await Promise.all([

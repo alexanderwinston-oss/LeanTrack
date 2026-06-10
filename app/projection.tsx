@@ -52,6 +52,7 @@ export default function Projection() {
   const [weightModalVisible, setWeightModalVisible] = useState(false);
   const [selectedWeighInDate, setSelectedWeighInDate] = useState('');
   const [newWeightInput, setNewWeightInput] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useBackHandler(() => {
     if (weightModalVisible) { setWeightModalVisible(false); return true; }
@@ -73,10 +74,10 @@ export default function Projection() {
 
     if (history.length > 0) {
       const latestWeight = history[history.length - 1].weight;
-      const totalToLose = p.weight_current - p.weight_target;
-      const lost = p.weight_current - latestWeight;
-      const percent = totalToLose > 0
-        ? Math.min(Math.round((lost / totalToLose) * 100), 100)
+      const weightInitial = p.weight_initial ?? p.weight_current ?? 0;
+      const denominator = weightInitial - (p.weight_target ?? 0);
+      const percent = denominator > 0
+        ? Math.min(Math.max(Math.round(((weightInitial - latestWeight) / denominator) * 100), 0), 100)
         : 0;
       setProgressPercent(percent);
 
@@ -348,7 +349,8 @@ export default function Projection() {
                     await recalculateTargetsAfterWeighIn(prevWeight);
                     const upd = await getProfile();
                     if (upd) useStore.getState().setProfile(upd);
-                    await checkAllAchievements();
+                    const newlyUnlocked = await checkAllAchievements();
+                    newlyUnlocked.forEach((b) => useStore.getState().setPendingBadge(b));
                     loadData();
                   },
                 },
@@ -367,21 +369,28 @@ export default function Projection() {
             <Text style={{ color: '#94a3b8' }}>Annuler</Text>
           </TouchableOpacity>
           <TouchableOpacity
+            disabled={isSaving}
             onPress={async () => {
               const w = parseFloat(newWeightInput.replace(',', '.'));
               if (isNaN(w) || w < 20 || w > 500) return;
-              await updateWeightEntry(selectedWeighInDate, w);
-              await recalculateTargetsAfterWeighIn(w);
-              const upd = await getProfile();
-              if (upd) useStore.getState().setProfile(upd);
-              await checkAllAchievements();
-              setWeightModalVisible(false);
-              setNewWeightInput('');
-              loadData();
+              setIsSaving(true);
+              try {
+                await updateWeightEntry(selectedWeighInDate, w);
+                await recalculateTargetsAfterWeighIn(w);
+                const upd = await getProfile();
+                if (upd) useStore.getState().setProfile(upd);
+                const newlyUnlocked = await checkAllAchievements();
+                newlyUnlocked.forEach((b) => useStore.getState().setPendingBadge(b));
+                setWeightModalVisible(false);
+                setNewWeightInput('');
+                loadData();
+              } finally {
+                setIsSaving(false);
+              }
             }}
-            style={{ flex: 2, padding: 14, borderRadius: 12, backgroundColor: '#10b981', alignItems: 'center' }}
+            style={{ flex: 2, padding: 14, borderRadius: 12, backgroundColor: '#10b981', alignItems: 'center', opacity: isSaving ? 0.5 : 1 }}
           >
-            <Text style={{ color: '#fff', fontWeight: '700' }}>Enregistrer</Text>
+            <Text style={{ color: '#fff', fontWeight: '700' }}>{isSaving ? '...' : 'Enregistrer'}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAwareModal>

@@ -9,7 +9,7 @@ import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { useStore } from '@/lib/store';
-import { deleteWaterEntry, getWaterLogsForDate } from '@/lib/db';
+import { checkAllAchievements, deleteWaterEntry, getWaterLogsForDate } from '@/lib/db';
 import { getLocalDateString, utcToLocalTimeString } from '@/lib/utils';
 
 const RING_SIZE = 220;
@@ -62,6 +62,8 @@ export default function Eau() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       const newLogs = await getWaterLogsForDate(today);
       setLogs(newLogs);
+      const newlyUnlocked = await checkAllAchievements();
+      newlyUnlocked.forEach((b) => useStore.getState().setPendingBadge(b));
     } catch {
       Alert.alert('Erreur', 'Impossible d\'enregistrer l\'eau. Réessaie.');
     }
@@ -73,6 +75,8 @@ export default function Eau() {
     await refreshDailyData(today);
     const newLogs = await getWaterLogsForDate(today);
     setLogs(newLogs);
+    const newlyUnlocked = await checkAllAchievements();
+    newlyUnlocked.forEach((b) => useStore.getState().setPendingBadge(b));
   }
 
   const percent = Math.round(ratio * 100);

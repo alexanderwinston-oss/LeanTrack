@@ -12,6 +12,7 @@ export interface UserProfile {
   name: string;
   age: number;
   gender: Gender;
+  weight_initial?: number;
   weight_current: number;
   weight_target: number;
   height: number;

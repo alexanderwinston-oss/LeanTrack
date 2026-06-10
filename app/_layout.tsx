@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initDB, getProfile, checkAndUnlockAchievements } from '@/lib/db';
 import { useStore } from '@/lib/store';
 import { getLocalDateString } from '@/lib/utils';
+import BadgeCelebration from '@/components/BadgeCelebration';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -14,6 +15,9 @@ export default function RootLayout() {
   const [ready, setReady] = useState(false);
   const setProfile = useStore((s) => s.setProfile);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
+  const badgeQueue = useStore((s) => s.badgeQueue);
+  const dequeueNextBadge = useStore((s) => s.dequeueNextBadge);
+  const setPendingBadge = useStore((s) => s.setPendingBadge);
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
@@ -32,7 +36,9 @@ export default function RootLayout() {
           setProfile(profile);
           const today = getLocalDateString();
           await refreshDailyData(today);
-          checkAndUnlockAchievements(profile).catch(() => {});
+          checkAndUnlockAchievements(profile).then((newOnes) => {
+            newOnes.forEach((b) => setPendingBadge(b));
+          }).catch(() => {});
         }
         setReady(true);
         await SplashScreen.hideAsync();
@@ -63,6 +69,7 @@ export default function RootLayout() {
         <Stack.Screen name="profiles" />
         <Stack.Screen name="recettes" />
       </Stack>
+      <BadgeCelebration badge={badgeQueue[0] ?? null} onClose={dequeueNextBadge} />
     </SafeAreaProvider>
   );
 }
