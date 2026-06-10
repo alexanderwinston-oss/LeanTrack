@@ -504,6 +504,15 @@ export async function deleteWeightEntry(date: string): Promise<void> {
   await db.runAsync('DELETE FROM weight_log WHERE date = ? AND profile_id = ?', [date, profileId]);
 }
 
+export async function updateWeightInitial(weight: number): Promise<void> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  await db.runAsync(
+    'UPDATE user_profile SET weight_initial = ? WHERE profile_id = ?',
+    [weight, profileId]
+  );
+}
+
 export async function recalculateTargetsAfterWeighIn(newWeight: number): Promise<void> {
   const db = await getDB();
   const profileId = await getCurrentProfileId();

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Alert, Modal, ScrollView, StyleSheet, Text,
+  Alert, KeyboardAvoidingView, Modal, ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View, ViewStyle,
 } from 'react-native';
 import { useBackHandler } from '@/lib/useBackHandler';
@@ -167,9 +167,11 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
   function renderModal() {
     return (
       <Modal visible={detailVisible} transparent animationType="slide"
+        statusBarTranslucent
         onRequestClose={() => { if (editing) setEditing(false); else setDetailVisible(false); }}
       >
         <View style={styles.modalBackdrop}>
+          <KeyboardAvoidingView behavior="padding" style={{ width: '100%' }}>
           <View style={styles.modalSheet}>
             <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               {!editing ? (
@@ -357,6 +359,7 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
               </TouchableOpacity>
             </ScrollView>
           </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     );

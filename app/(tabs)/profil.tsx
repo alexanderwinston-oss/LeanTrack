@@ -11,8 +11,10 @@ import { AchievementGrid } from '@/components/Achievements';
 import { useStore } from '@/lib/store';
 import {
   checkAndUnlockAchievements, deleteWeightEntry, getAllWeightEntries,
-  getUnlockedAchievements, resetAllData, saveProfile, updateWeightEntry,
+  getProfile, getUnlockedAchievements, resetAllData, saveProfile,
+  updateWeightEntry, updateWeightInitial,
 } from '@/lib/db';
+import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import { cancelAllNotifications, scheduleAllNotifications } from '@/lib/notifications';
 import { WeightEntry } from '@/lib/types';
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
@@ -52,6 +54,8 @@ export default function Profil() {
   const [saving, setSaving] = useState(false);
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
+  const [editWeightInitialVisible, setEditWeightInitialVisible] = useState(false);
+  const [editWeightInitialInput, setEditWeightInitialInput] = useState('');
 
   useBackHandler(() => {
     if (weightModal) { setWeightModal(false); return true; }
@@ -239,6 +243,22 @@ export default function Profil() {
           <InfoRow label="Poids cible" value={`${profile.weight_target} kg`} />
           <View style={styles.divider} />
           <InfoRow label="Date cible" value={profile.target_date} />
+          <View style={styles.divider} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Poids de départ</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={styles.infoValue}>{profile.weight_initial ?? profile.weight_current} kg</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setEditWeightInitialInput(String(profile.weight_initial ?? profile.weight_current));
+                  setEditWeightInitialVisible(true);
+                }}
+                style={styles.editInitialBtn}
+              >
+                <Text style={styles.editInitialBtnText}>Modifier</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </Card>
 
         {/* Weight tracking */}
@@ -345,6 +365,58 @@ export default function Profil() {
         </Modal>
       </ScrollView>
 
+      {/* Poids de départ modal */}
+      <KeyboardAwareModal
+        visible={editWeightInitialVisible}
+        onClose={() => setEditWeightInitialVisible(false)}
+      >
+        <Text style={{ color: '#f1f5f9', fontWeight: '700', fontSize: 18, marginBottom: 8 }}>
+          🏁 Poids de départ
+        </Text>
+        <Text style={{ color: '#64748b', fontSize: 13, marginBottom: 16 }}>
+          Ton poids au début de LeanTrack. Sert à calculer ta progression réelle.
+        </Text>
+        <TextInput
+          style={[styles.weightInput, { fontSize: 28, fontWeight: '700', textAlign: 'center', marginBottom: 20 }]}
+          value={editWeightInitialInput}
+          onChangeText={setEditWeightInitialInput}
+          keyboardType="decimal-pad"
+          placeholder="Ex: 110"
+          placeholderTextColor={Colors.textMuted}
+          autoFocus
+        />
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity
+            onPress={() => setEditWeightInitialVisible(false)}
+            style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#334155', alignItems: 'center' }}
+          >
+            <Text style={{ color: '#94a3b8' }}>Annuler</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            disabled={saving}
+            onPress={async () => {
+              const w = parseFloat(editWeightInitialInput.replace(',', '.'));
+              if (isNaN(w) || w < 20 || w > 500) return;
+              setSaving(true);
+              try {
+                await updateWeightInitial(w);
+                const updated = await getProfile();
+                if (updated) {
+                  setProfile(updated);
+                  useStore.getState().setProfile(updated);
+                }
+                setEditWeightInitialVisible(false);
+              } finally {
+                setSaving(false);
+              }
+            }}
+            style={{ flex: 2, padding: 14, borderRadius: 12, backgroundColor: '#10b981', alignItems: 'center', opacity: saving ? 0.5 : 1 }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? '...' : 'Enregistrer'}</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAwareModal>
+
     </ScreenContainer>
   );
 }
@@ -414,6 +486,12 @@ const styles = StyleSheet.create({
   toggleOn: { backgroundColor: Colors.accent },
   toggleThumb: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#fff' },
   toggleThumbOn: { alignSelf: 'flex-end' },
+  editInitialBtn: {
+    backgroundColor: Colors.accentSubtle, borderRadius: Colors.radiusPill,
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderWidth: 1, borderColor: Colors.accent,
+  },
+  editInitialBtnText: { color: Colors.accent, fontSize: 12, fontWeight: '600' },
   actions: { gap: 10 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center' },
   weightCard: { width: '85%', gap: 16 },

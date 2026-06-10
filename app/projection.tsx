@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert, Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/Card';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import {
   getProfile, getWeightHistory, updateWeightEntry, deleteWeightEntry,
-  recalculateTargetsAfterWeighIn, checkAllAchievements,
+  recalculateTargetsAfterWeighIn, checkAllAchievements, updateWeightInitial,
 } from '@/lib/db';
 import { getLocalDateString } from '@/lib/utils';
 import { useBackHandler } from '@/lib/useBackHandler';
@@ -24,11 +24,10 @@ const shownMilestonesThisSession = new Set<number>();
 function getWeighInSchedule(startDate: Date, endDate: Date): Date[] {
   const schedule: Date[] = [];
   const d = new Date(startDate);
-  const dayOfWeek = d.getDay();
-  const daysUntilTuesday = dayOfWeek <= 2 ? 2 - dayOfWeek : 9 - dayOfWeek;
+  const daysUntilTuesday = (2 - d.getDay() + 7) % 7;
   d.setDate(d.getDate() + daysUntilTuesday);
   d.setHours(0, 0, 0, 0);
-  while (d <= endDate) {
+  while (d <= endDate && schedule.length < 60) {
     schedule.push(new Date(d));
     d.setDate(d.getDate() + 14);
   }
@@ -53,6 +52,25 @@ export default function Projection() {
   const [selectedWeighInDate, setSelectedWeighInDate] = useState('');
   const [newWeightInput, setNewWeightInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [healRan, setHealRan] = useState(false);
+
+  useEffect(() => {
+    if (healRan || !profile) return;
+    setHealRan(true);
+    if (!profile.weight_initial || profile.weight_initial === 0) {
+      getWeightHistory(365).then(hist => {
+        const startWeight = hist.length > 0
+          ? Math.max(...hist.map(w => w.weight))
+          : profile.weight_current;
+        updateWeightInitial(startWeight).then(() => {
+          getProfile().then(updated => {
+            if (updated) useStore.getState().setProfile(updated);
+            loadData();
+          });
+        });
+      });
+    }
+  }, [profile?.id]);
 
   useBackHandler(() => {
     if (weightModalVisible) { setWeightModalVisible(false); return true; }
@@ -74,7 +92,11 @@ export default function Projection() {
 
     if (history.length > 0) {
       const latestWeight = history[history.length - 1].weight;
-      const weightInitial = p.weight_initial ?? p.weight_current ?? 0;
+      const weightInitial = Math.max(
+        p.weight_initial ?? 0,
+        ...(history.map(w => w.weight)),
+        p.weight_current ?? 0
+      );
       const denominator = weightInitial - (p.weight_target ?? 0);
       const percent = denominator > 0
         ? Math.min(Math.max(Math.round(((weightInitial - latestWeight) / denominator) * 100), 0), 100)
@@ -145,7 +167,21 @@ export default function Projection() {
   const targetDate = profile?.target_date
     ? new Date(profile.target_date + 'T00:00:00')
     : new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
-  const weighInDates = getWeighInSchedule(new Date(), targetDate);
+
+  const scheduleStart = useMemo(() => {
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const firstLogDate = weightHistory.length > 0
+      ? new Date(weightHistory[0].date + 'T00:00:00')
+      : new Date();
+    return firstLogDate > ninetyDaysAgo ? firstLogDate : ninetyDaysAgo;
+  }, [weightHistory[0]?.date]);
+
+  const weighInDates = useMemo(
+    () => getWeighInSchedule(scheduleStart, targetDate),
+    [scheduleStart.toDateString(), targetDate.toDateString()]
+  );
+
   const todayStr = getLocalDateString();
 
   return (
@@ -259,8 +295,8 @@ export default function Projection() {
           const isPast = date < new Date() && dateStr !== todayStr;
           const isToday = dateStr === todayStr;
           const recorded = weightHistory.find((w) => {
-            const diffMs = Math.abs(new Date(w.date).getTime() - date.getTime());
-            return diffMs < 2 * 24 * 60 * 60 * 1000;
+            const diffMs = Math.abs(new Date(w.date + 'T00:00:00').getTime() - date.getTime());
+            return diffMs < 4 * 24 * 60 * 60 * 1000;
           });
           return (
             <TouchableOpacity
@@ -329,7 +365,7 @@ export default function Projection() {
         </View>
         {/* Bouton suppression — visible uniquement si pesée existante */}
         {weighInDates.some(d => {
-          const recorded = weightHistory.find(w => Math.abs(new Date(w.date).getTime() - d.getTime()) < 2 * 24 * 60 * 60 * 1000);
+          const recorded = weightHistory.find(w => Math.abs(new Date(w.date + 'T00:00:00').getTime() - d.getTime()) < 4 * 24 * 60 * 60 * 1000);
           return recorded && getLocalDateString(d) === selectedWeighInDate;
         }) && (
           <TouchableOpacity

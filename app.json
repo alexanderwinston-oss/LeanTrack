@@ -10,6 +10,7 @@
     "android": {
       "package": "com.alexander.leantrack",
       "versionCode": 1,
+      "softwareKeyboardLayoutMode": "pan",
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
