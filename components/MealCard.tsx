@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
-  Alert, KeyboardAvoidingView, Modal, ScrollView, StyleSheet, Text,
+  Alert, StyleSheet, Text,
   TextInput, TouchableOpacity, View, ViewStyle,
 } from 'react-native';
 import { useBackHandler } from '@/lib/useBackHandler';
+import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
@@ -166,14 +167,10 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
 
   function renderModal() {
     return (
-      <Modal visible={detailVisible} transparent animationType="slide"
-        statusBarTranslucent
-        onRequestClose={() => { if (editing) setEditing(false); else setDetailVisible(false); }}
+      <KeyboardAwareModal
+        visible={detailVisible}
+        onClose={() => { if (editing) setEditing(false); else setDetailVisible(false); }}
       >
-        <View style={styles.modalBackdrop}>
-          <KeyboardAvoidingView behavior="padding" style={{ width: '100%' }}>
-          <View style={styles.modalSheet}>
-            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               {!editing ? (
                 <>
                   <Text style={styles.detailName}>{meal.food_name}</Text>
@@ -354,14 +351,10 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
                   </View>
                 </>
               )}
-              <TouchableOpacity style={styles.closeRow} onPress={() => setDetailVisible(false)}>
-                <Text style={styles.closeText}>Fermer</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-          </KeyboardAvoidingView>
-        </View>
-      </Modal>
+      <TouchableOpacity style={styles.closeRow} onPress={() => setDetailVisible(false)}>
+        <Text style={styles.closeText}>Fermer</Text>
+      </TouchableOpacity>
+      </KeyboardAwareModal>
     );
   }
 }

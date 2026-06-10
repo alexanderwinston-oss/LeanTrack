@@ -21,13 +21,16 @@ import { UserProfile, WeightEntry } from '@/lib/types';
 
 const shownMilestonesThisSession = new Set<number>();
 
-function getWeighInSchedule(startDate: Date, endDate: Date): Date[] {
-  const schedule: Date[] = [];
-  const d = new Date(startDate);
-  const daysUntilTuesday = (2 - d.getDay() + 7) % 7;
-  d.setDate(d.getDate() + daysUntilTuesday);
+function getWeighInSchedule(start: Date, end: Date): Date[] {
+  const cap = new Date();
+  cap.setDate(cap.getDate() - 90);
+  const effective = start < cap ? cap : start;
+  const d = new Date(effective);
+  const daysToTue = (2 - d.getDay() + 7) % 7;
+  d.setDate(d.getDate() + daysToTue);
   d.setHours(0, 0, 0, 0);
-  while (d <= endDate && schedule.length < 60) {
+  const schedule: Date[] = [];
+  while (d <= end && schedule.length < 60) {
     schedule.push(new Date(d));
     d.setDate(d.getDate() + 14);
   }
@@ -81,6 +84,28 @@ export default function Projection() {
     React.useCallback(() => {
       loadData();
     }, [])
+  );
+
+  const targetDate = useMemo(() => {
+    if (profile?.target_date)
+      return new Date(profile.target_date + 'T00:00:00');
+    const d = new Date();
+    d.setMonth(d.getMonth() + 6);
+    return d;
+  }, [profile?.target_date]);
+
+  const scheduleStart = useMemo(() => {
+    const cap = new Date();
+    cap.setDate(cap.getDate() - 90);
+    const firstLogDate = weightHistory.length > 0
+      ? new Date(weightHistory[0].date + 'T00:00:00')
+      : new Date();
+    return firstLogDate > cap ? firstLogDate : cap;
+  }, [weightHistory[0]?.date]);
+
+  const weighInDates = useMemo(
+    () => getWeighInSchedule(scheduleStart, targetDate),
+    [scheduleStart.toDateString(), targetDate.toDateString()]
   );
 
   async function loadData() {
@@ -164,23 +189,6 @@ export default function Projection() {
     : '—';
 
   const celebContent = getCelebrationContent(celebrationPercent);
-  const targetDate = profile?.target_date
-    ? new Date(profile.target_date + 'T00:00:00')
-    : new Date(Date.now() + 180 * 24 * 60 * 60 * 1000);
-
-  const scheduleStart = useMemo(() => {
-    const ninetyDaysAgo = new Date();
-    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    const firstLogDate = weightHistory.length > 0
-      ? new Date(weightHistory[0].date + 'T00:00:00')
-      : new Date();
-    return firstLogDate > ninetyDaysAgo ? firstLogDate : ninetyDaysAgo;
-  }, [weightHistory[0]?.date]);
-
-  const weighInDates = useMemo(
-    () => getWeighInSchedule(scheduleStart, targetDate),
-    [scheduleStart.toDateString(), targetDate.toDateString()]
-  );
 
   const todayStr = getLocalDateString();
 
