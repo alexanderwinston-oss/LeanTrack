@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  Animated, Modal, StyleSheet, Text, TouchableOpacity, View,
+  Animated, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { AchievementDef, ALL_ACHIEVEMENTS } from '@/lib/achievements';
 
@@ -50,31 +50,40 @@ export default function BadgeCelebration({ badge, onClose }: Props) {
       <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
         <TouchableOpacity activeOpacity={1}>
           <Animated.View style={[styles.card, { transform: [{ scale: scaleAnim }] }]}>
-            <Text style={styles.newLabel}>🎉 Badge débloqué !</Text>
-            <Text style={styles.emoji}>{badge.emoji}</Text>
-            <Text style={styles.name}>{badge.label}</Text>
-            <Text style={styles.desc}>{badge.description}</Text>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+              style={{ width: '100%' }}
+              contentContainerStyle={{ alignItems: 'center', paddingBottom: 8 }}
+            >
+              <Text style={styles.newLabel}>🎉 Badge débloqué !</Text>
+              <Text style={styles.emoji}>{badge.emoji}</Text>
+              <Text style={styles.name}>{badge.label}</Text>
+              <Text style={styles.desc}>{badge.description}</Text>
 
-            <View style={styles.encourageBox}>
-              <Text style={styles.encourageText}>{encouragement}</Text>
-            </View>
+              <View style={styles.encourageBox}>
+                <Text style={styles.encourageText}>{encouragement}</Text>
+              </View>
 
-            {nextBadge && (
-              <View style={styles.nextBox}>
-                <Text style={styles.nextTitle}>Prochain objectif</Text>
-                <View style={styles.nextRow}>
-                  <Text style={styles.nextEmoji}>{nextBadge.emoji}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.nextName}>{nextBadge.label}</Text>
-                    <Text style={styles.nextDesc}>{nextBadge.description}</Text>
+              {nextBadge && (
+                <View style={styles.nextBox}>
+                  <Text style={styles.nextTitle}>Prochain objectif</Text>
+                  <View style={styles.nextRow}>
+                    <Text style={styles.nextEmoji}>{nextBadge.emoji}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.nextName}>{nextBadge.label}</Text>
+                      <Text style={styles.nextDesc}>{nextBadge.description}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
-            )}
+              )}
+            </ScrollView>
 
+            {/* CTA hors du ScrollView — toujours visible */}
             <TouchableOpacity onPress={onClose} style={styles.btn}>
               <Text style={styles.btnText}>Continuer 🚀</Text>
             </TouchableOpacity>
+            <View style={{ height: 20 }} />
           </Animated.View>
         </TouchableOpacity>
       </TouchableOpacity>
@@ -93,9 +102,12 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#1e293b',
     borderRadius: 24,
-    padding: 24,
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingBottom: 0,
     alignItems: 'center',
     width: '100%',
+    maxHeight: '88%',
     borderWidth: 1,
     borderColor: '#10b98155',
   },
@@ -106,14 +118,14 @@ const styles = StyleSheet.create({
   encourageBox: { backgroundColor: '#0f172a', borderRadius: 12, padding: 12, marginBottom: 16, width: '100%' },
   encourageText: { color: '#10b981', fontSize: 13, textAlign: 'center', fontWeight: '600', lineHeight: 18 },
   nextBox: {
-    backgroundColor: '#0f172a', borderRadius: 12, padding: 12, marginBottom: 20, width: '100%',
+    backgroundColor: '#0f172a', borderRadius: 12, padding: 12, marginBottom: 16, width: '100%',
     borderWidth: 1, borderColor: '#334155',
   },
   nextTitle: { color: '#64748b', fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: 8, textTransform: 'uppercase' },
-  nextRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  nextRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   nextEmoji: { fontSize: 28, opacity: 0.5 },
   nextName: { color: '#94a3b8', fontSize: 13, fontWeight: '600' },
-  nextDesc: { color: '#64748b', fontSize: 11, marginTop: 2 },
-  btn: { backgroundColor: '#10b981', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, width: '100%', alignItems: 'center' },
+  nextDesc: { color: '#64748b', fontSize: 11, marginTop: 2, lineHeight: 16, flexShrink: 1 },
+  btn: { backgroundColor: '#10b981', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, width: '100%', alignItems: 'center', marginTop: 8 },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
