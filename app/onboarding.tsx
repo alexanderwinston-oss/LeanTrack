@@ -4,7 +4,7 @@ import {
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -55,6 +55,8 @@ function Input({ label, value, onChangeText, keyboardType = 'default', placehold
 
 export default function Onboarding() {
   const setProfile = useStore((s) => s.setProfile);
+  const params = useLocalSearchParams();
+  const isNewProfile = params.mode === 'new_profile';
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
 
@@ -119,7 +121,7 @@ export default function Onboarding() {
         await requestPermissions();
         await scheduleAllNotifications({ notifications_enabled: true });
       }
-      router.replace('/(tabs)');
+      router.replace(isNewProfile ? '/profiles' : '/(tabs)');
     } finally {
       setSaving(false);
     }

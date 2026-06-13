@@ -7,17 +7,12 @@ import { router } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { createProfile, deleteProfile, getAllProfiles } from '@/lib/db';
+import { deleteProfile, getAllProfiles } from '@/lib/db';
 import { useStore } from '@/lib/store';
 import { UserProfile } from '@/lib/types';
 import { registerModal } from '@/lib/useModalManager';
 import { normalizeText } from '@/lib/utils';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
-
-const EMOJI_COLORS = [
-  '#10b981', '#3b82f6', '#f59e0b', '#ef4444',
-  '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
-];
 
 const DELETE_PHRASE = 'je veux supprimer ce profil';
 
@@ -26,15 +21,9 @@ export default function Profiles() {
   const currentProfile = useStore((s) => s.profile);
 
   const [profiles, setProfiles] = useState<UserProfile[]>([]);
-  const [createVisible, setCreateVisible] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<UserProfile | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleting, setDeleting] = useState(false);
-  const [creating, setCreating] = useState(false);
-
-  const [newName, setNewName] = useState('');
-  const [newGender, setNewGender] = useState<'homme' | 'femme'>('homme');
-  const [newColor, setNewColor] = useState(EMOJI_COLORS[0]);
 
   const loadProfiles = useCallback(async () => {
     const list = await getAllProfiles();
@@ -44,35 +33,11 @@ export default function Profiles() {
   useEffect(() => { loadProfiles(); }, [loadProfiles]);
 
   registerModal('profilesDelete', !!deleteTarget, () => { setDeleteTarget(null); setDeleteConfirmText(''); }, 10);
-  registerModal('profilesCreate', createVisible, () => setCreateVisible(false), 5);
 
   async function handleSwitch(profileId: string) {
     if (profileId === currentProfile?.profile_id) return;
     await switchProfileInStore(profileId);
     await loadProfiles();
-  }
-
-  async function handleCreate() {
-    if (!newName.trim()) {
-      Alert.alert('Erreur', 'Le nom du profil est requis.');
-      return;
-    }
-    setCreating(true);
-    try {
-      await createProfile({
-        name: newName.trim(),
-        display_name: newName.trim(),
-        gender: newGender,
-        emoji_color: newColor,
-      });
-      setCreateVisible(false);
-      setNewName('');
-      setNewGender('homme');
-      setNewColor(EMOJI_COLORS[0]);
-      await loadProfiles();
-    } finally {
-      setCreating(false);
-    }
   }
 
   async function handleDelete() {
@@ -121,7 +86,7 @@ export default function Profiles() {
             <Card style={[styles.profileCard, isActive && styles.profileCardActive] as any}>
               <View style={[styles.colorDot, { backgroundColor: p.emoji_color ?? Colors.accent }]} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.profileName}>{p.display_name ?? p.name}</Text>
+                <Text style={styles.profileName}>{p.display_name || p.name || 'Mon profil'}</Text>
                 <Text style={styles.profileSub}>
                   {p.gender === 'homme' ? '♂ Homme' : '♀ Femme'} · {p.calorie_target} kcal/j
                 </Text>
@@ -141,86 +106,45 @@ export default function Profiles() {
         );
       })}
 
-      <Button label="➕ Nouveau profil" onPress={() => setCreateVisible(true)} />
-
-      {/* Create modal */}
-      <KeyboardAwareModal visible={createVisible} onClose={() => setCreateVisible(false)}>
-        <Text style={styles.modalTitle}>Nouveau profil</Text>
-
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>Nom</Text>
-          <TextInput
-            style={styles.fieldInput}
-            value={newName}
-            onChangeText={setNewName}
-            placeholder="Ex: Marie, Travail..."
-            placeholderTextColor={Colors.textMuted}
-          />
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>Genre</Text>
-          <View style={styles.genderRow}>
-            {(['homme', 'femme'] as const).map((g) => (
-              <TouchableOpacity
-                key={g}
-                style={[styles.genderBtn, newGender === g && styles.genderBtnActive]}
-                onPress={() => setNewGender(g)}
-              >
-                <Text style={[styles.genderBtnText, newGender === g && styles.genderBtnTextActive]}>
-                  {g === 'homme' ? '♂ Homme' : '♀ Femme'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.field}>
-          <Text style={styles.fieldLabel}>Couleur du profil</Text>
-          <View style={styles.colorRow}>
-            {EMOJI_COLORS.map((c) => (
-              <TouchableOpacity
-                key={c}
-                style={[styles.colorSwatch, { backgroundColor: c }, newColor === c && styles.colorSwatchActive]}
-                onPress={() => setNewColor(c)}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.modalBtns}>
-          <Button label="Annuler" onPress={() => setCreateVisible(false)} variant="ghost" />
-          <View style={{ flex: 1 }}>
-            <Button label="Créer" onPress={handleCreate} loading={creating} />
-          </View>
-        </View>
-      </KeyboardAwareModal>
+      <Button label="➕ Nouveau profil" onPress={() => router.push({ pathname: '/onboarding', params: { mode: 'new_profile' } })} />
 
       {/* Delete confirmation modal */}
       <KeyboardAwareModal visible={!!deleteTarget} onClose={() => { setDeleteTarget(null); setDeleteConfirmText(''); }}>
-        <Text style={styles.modalTitle}>⚠️ Supprimer le profil</Text>
-        <Text style={styles.deleteWarning}>
-          Toutes les données de <Text style={{ color: Colors.danger, fontWeight: '700' }}>
-            {deleteTarget?.display_name ?? deleteTarget?.name}
-          </Text> seront supprimées définitivement.
+        <Text style={styles.deleteTitle}>⚠️ Supprimer le profil</Text>
+        <Text style={styles.deleteDesc}>
+          Toutes les données de{' '}
+          <Text style={{ color: '#ef4444', fontWeight: '700' }}>
+            {deleteTarget?.display_name || deleteTarget?.name || 'ce profil'}
+          </Text>
+          {' '}seront supprimées définitivement.
         </Text>
-        <Text style={styles.deleteInstruction}>
-          Pour confirmer, tape exactement :
-        </Text>
+        <Text style={styles.deleteHint}>Pour confirmer, tape exactement :</Text>
         <Text style={styles.deletePhrase}>{DELETE_PHRASE}</Text>
         <TextInput
-          style={[styles.fieldInput, styles.deleteInput]}
           value={deleteConfirmText}
           onChangeText={setDeleteConfirmText}
           placeholder="Tape la phrase ici..."
-          placeholderTextColor={Colors.textMuted}
+          placeholderTextColor="#475569"
           autoCapitalize="none"
+          autoCorrect={false}
+          style={styles.deleteInput}
         />
-        <View style={styles.modalBtns}>
-          <Button label="Annuler" onPress={() => { setDeleteTarget(null); setDeleteConfirmText(''); }} variant="ghost" />
-          <View style={{ flex: 1 }}>
-            <Button label="Supprimer" onPress={handleDelete} loading={deleting} />
-          </View>
+        <View style={styles.deleteButtons}>
+          <TouchableOpacity
+            onPress={() => { setDeleteTarget(null); setDeleteConfirmText(''); }}
+            style={styles.cancelBtn}
+          >
+            <Text style={styles.cancelText}>Annuler</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            disabled={normalizeText(deleteConfirmText) !== DELETE_PHRASE || deleting}
+            style={[styles.deleteActionBtn, {
+              opacity: normalizeText(deleteConfirmText) !== DELETE_PHRASE || deleting ? 0.4 : 1,
+            }]}
+            onPress={handleDelete}
+          >
+            <Text style={styles.deleteActionText}>Supprimer</Text>
+          </TouchableOpacity>
         </View>
       </KeyboardAwareModal>
     </ScrollView>
@@ -249,34 +173,18 @@ const styles = StyleSheet.create({
   activeBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   deleteBtn: { padding: 8 },
   deleteBtnText: { fontSize: 18 },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: '#1e293b', borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    padding: 24, gap: 16,
+  deleteTitle: { color: '#f1f5f9', fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  deleteDesc: { color: '#94a3b8', fontSize: 13, marginBottom: 12, lineHeight: 18 },
+  deleteHint: { color: '#64748b', fontSize: 12, marginBottom: 4 },
+  deletePhrase: { color: '#ef4444', fontSize: 13, fontWeight: '600', marginBottom: 12 },
+  deleteInput: {
+    backgroundColor: '#0f172a', borderRadius: 10, padding: 14,
+    color: '#f1f5f9', fontSize: 14, marginBottom: 16,
+    borderWidth: 1, borderColor: '#334155',
   },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
-  field: { gap: 6 },
-  fieldLabel: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
-  fieldInput: {
-    backgroundColor: Colors.bgElevated, borderRadius: Colors.radius,
-    borderWidth: 1, borderColor: Colors.border,
-    color: Colors.textPrimary, fontSize: 15, padding: 12,
-  },
-  genderRow: { flexDirection: 'row', gap: 10 },
-  genderBtn: {
-    flex: 1, padding: 10, borderRadius: Colors.radius,
-    borderWidth: 1.5, borderColor: Colors.border, alignItems: 'center',
-    backgroundColor: Colors.bgSurface,
-  },
-  genderBtnActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
-  genderBtnText: { fontSize: 14, color: Colors.textSecondary, fontWeight: '500' },
-  genderBtnTextActive: { color: Colors.accent },
-  colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  colorSwatch: { width: 32, height: 32, borderRadius: 16 },
-  colorSwatchActive: { borderWidth: 3, borderColor: Colors.textPrimary },
-  modalBtns: { flexDirection: 'row', gap: 10 },
-  deleteWarning: { fontSize: 14, color: Colors.textSecondary, lineHeight: 20 },
-  deleteInstruction: { fontSize: 13, color: Colors.textMuted },
-  deletePhrase: { fontSize: 14, color: Colors.danger, fontWeight: '600' },
-  deleteInput: { marginTop: 4 },
+  deleteButtons: { flexDirection: 'row', gap: 12 },
+  cancelBtn: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#1e293b', alignItems: 'center' },
+  cancelText: { color: '#94a3b8', fontWeight: '600' },
+  deleteActionBtn: { flex: 2, padding: 14, borderRadius: 12, backgroundColor: '#ef4444', alignItems: 'center' },
+  deleteActionText: { color: '#fff', fontWeight: '700' },
 });

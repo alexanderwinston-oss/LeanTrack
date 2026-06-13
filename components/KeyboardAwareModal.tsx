@@ -60,10 +60,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e293b',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '85%',
+    maxHeight: '88%',
   },
   content: {
     padding: 20,
-    paddingBottom: 32,
+    paddingBottom: 48,
   },
 });

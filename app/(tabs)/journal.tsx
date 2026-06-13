@@ -314,7 +314,7 @@ export default function Journal() {
       )}
 
       {/* Add food modal */}
-      <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet">
+      <Modal visible={modalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalVisible(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'android' ? 'height' : 'padding'} style={{ flex: 1 }}>
         <View style={styles.modal}>
           <View style={styles.modalHeader}>
