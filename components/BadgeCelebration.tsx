@@ -19,9 +19,10 @@ const ENCOURAGEMENTS = [
 
 export default function BadgeCelebration({ badge, onClose }: Props) {
   const scaleAnim = useRef(new Animated.Value(0)).current;
+  const prevBadgeRef = useRef<AchievementDef | null>(null);
 
   useEffect(() => {
-    if (badge) {
+    if (badge && prevBadgeRef.current === null) {
       scaleAnim.setValue(0);
       Animated.spring(scaleAnim, {
         toValue: 1,
@@ -30,6 +31,7 @@ export default function BadgeCelebration({ badge, onClose }: Props) {
         useNativeDriver: true,
       }).start();
     }
+    prevBadgeRef.current = badge;
   }, [badge]);
 
   if (!badge) return null;
@@ -53,13 +55,13 @@ export default function BadgeCelebration({ badge, onClose }: Props) {
             <ScrollView
               showsVerticalScrollIndicator={false}
               bounces={false}
-              style={{ flex: 1, width: '100%' }}
+              style={{ width: '100%' }}
               contentContainerStyle={{ alignItems: 'center', paddingBottom: 8 }}
             >
               <Text style={styles.newLabel}>🎉 Badge débloqué !</Text>
               <Text style={styles.emoji}>{badge.emoji}</Text>
               <Text style={styles.name}>{badge.label}</Text>
-              <Text style={styles.desc}>{badge.description}</Text>
+              <Text style={[styles.desc, { alignSelf: 'stretch' }]}>{badge.description}</Text>
 
               <View style={styles.encourageBox}>
                 <Text style={styles.encourageText}>{encouragement}</Text>
@@ -114,7 +116,7 @@ const styles = StyleSheet.create({
   newLabel: { color: '#10b981', fontSize: 13, fontWeight: '700', letterSpacing: 0.5, marginBottom: 12 },
   emoji: { fontSize: 64, marginBottom: 8 },
   name: { color: '#f1f5f9', fontSize: 22, fontWeight: '800', marginBottom: 6, textAlign: 'center' },
-  desc: { color: '#94a3b8', fontSize: 13, textAlign: 'center', marginBottom: 16, lineHeight: 18 },
+  desc: { color: '#94a3b8', fontSize: 13, textAlign: 'center', marginBottom: 16, lineHeight: 18, flexWrap: 'wrap', width: '100%' },
   encourageBox: { backgroundColor: '#0f172a', borderRadius: 12, padding: 12, marginBottom: 16, width: '100%' },
   encourageText: { color: '#10b981', fontSize: 13, textAlign: 'center', fontWeight: '600', lineHeight: 18 },
   nextBox: {
@@ -122,7 +124,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#334155',
   },
   nextTitle: { color: '#64748b', fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: 8, textTransform: 'uppercase' },
-  nextRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  nextRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, width: '100%' },
   nextEmoji: { fontSize: 28, opacity: 0.5, width: 36, textAlign: 'center' },
   nextName: { color: '#94a3b8', fontSize: 13, fontWeight: '600' },
   nextDesc: { color: '#64748b', fontSize: 11, marginTop: 2, lineHeight: 16 },
