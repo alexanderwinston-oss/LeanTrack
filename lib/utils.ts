@@ -51,3 +51,21 @@ export function utcToLocalDateString(utcString: string): string {
   const date = new Date(utcString.replace(' ', 'T') + 'Z');
   return getLocalDateString(date);
 }
+
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  fallback: () => T,
+  retries = 1,
+  delayMs = 500
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (retries > 0) {
+      await new Promise(r => setTimeout(r, delayMs));
+      return withRetry(fn, fallback, retries - 1, delayMs);
+    }
+    console.warn('[withRetry] All retries exhausted:', err);
+    return fallback();
+  }
+}

@@ -6,6 +6,7 @@ import { calcFullProfile } from './nutrition';
 
 let _db: SQLite.SQLiteDatabase | null = null;
 let _activeProfileId: string | null = null;
+let _healRanThisSession = false;
 
 async function getDB(): Promise<SQLite.SQLiteDatabase> {
   if (!_db) {
@@ -35,6 +36,57 @@ async function safeAlterAdd(
   } catch {
     // Column already exists — ignore
   }
+}
+
+export async function healData(): Promise<void> {
+  if (_healRanThisSession) return;
+  _healRanThisSession = true;
+
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  const profile = await db.getFirstAsync<any>(
+    'SELECT * FROM user_profile WHERE profile_id = ?', [profileId]
+  );
+  if (!profile) return;
+
+  const fixes: Record<string, any> = {};
+
+  if (!profile.weight_initial || profile.weight_initial === 0) {
+    const logs = await db.getAllAsync<{ weight: number }>(
+      'SELECT weight FROM weight_log WHERE profile_id = ? ORDER BY date ASC', [profileId]
+    );
+    fixes.weight_initial = logs.length > 0
+      ? Math.max(...logs.map((l: any) => l.weight))
+      : profile.weight_current;
+  }
+
+  if (!profile.calorie_target || profile.calorie_target === 0
+      || !profile.tdee || profile.tdee === 0) {
+    const recalc = calcFullProfile({
+      name: profile.name,
+      age: profile.age,
+      gender: profile.gender,
+      weight_current: profile.weight_current,
+      weight_target: profile.weight_target,
+      height: profile.height,
+      activity_level: profile.activity_level,
+      goal: profile.goal,
+      target_date: profile.target_date || '',
+    });
+    fixes.calorie_target = recalc.calorie_target;
+    fixes.protein_target = recalc.protein_target;
+    fixes.carbs_target   = recalc.carbs_target;
+    fixes.fat_target     = recalc.fat_target;
+    fixes.water_target   = recalc.water_target;
+    fixes.tdee           = recalc.tdee;
+  }
+
+  if (Object.keys(fixes).length === 0) return;
+  const sets = Object.keys(fixes).map(k => `${k} = ?`).join(', ');
+  await db.runAsync(
+    `UPDATE user_profile SET ${sets} WHERE profile_id = ?`,
+    [...Object.values(fixes), profileId]
+  );
 }
 
 export async function initDB(): Promise<void> {
@@ -158,10 +210,6 @@ export async function initDB(): Promise<void> {
   for (const [table, col, def] of migrations) {
     await safeAlterAdd(db, table, col, def);
   }
-
-  await db.runAsync(
-    'UPDATE user_profile SET weight_initial = weight_current WHERE weight_initial IS NULL'
-  );
 
   // Migration : rebuild achievements table with composite PRIMARY KEY (id, profile_id)
   const achievementsMigrated = await db.getFirstAsync<{ value: string }>(

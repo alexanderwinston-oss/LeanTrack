@@ -4,7 +4,8 @@ import { Stack, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { initDB, getProfile, checkAndUnlockAchievements } from '@/lib/db';
+import { initDB, healData, getProfile, checkAndUnlockAchievements } from '@/lib/db';
+import { UserProfile } from '@/lib/types';
 import { useStore } from '@/lib/store';
 import { getLocalDateString } from '@/lib/utils';
 import BadgeCelebration from '@/components/BadgeCelebration';
@@ -29,28 +30,31 @@ export default function RootLayout() {
 
   useEffect(() => {
     (async () => {
+      try { await initDB(); } catch (e) { console.error('[startup] initDB', e); }
+      try { await healData(); } catch (e) { console.error('[startup] healData', e); }
+
+      let profile: UserProfile | null = null;
       try {
-        await initDB();
-        const profile = await getProfile();
-        if (profile) {
-          setProfile(profile);
-          const today = getLocalDateString();
-          await refreshDailyData(today);
-          checkAndUnlockAchievements(profile).then((newOnes) => {
-            newOnes.forEach((b) => setPendingBadge(b));
-          }).catch(() => {});
-        }
-        setReady(true);
-        await SplashScreen.hideAsync();
-        if (!profile || !profile.onboarding_completed) {
-          router.replace('/onboarding');
-        } else {
-          router.replace('/(tabs)');
-        }
-      } catch (e) {
-        console.error('Init error', e);
-        setReady(true);
-        await SplashScreen.hideAsync();
+        profile = await getProfile();
+        if (profile) setProfile(profile);
+      } catch (e) { console.error('[startup] getProfile', e); }
+
+      try {
+        if (profile) await refreshDailyData(getLocalDateString());
+      } catch (e) { console.error('[startup] refreshDailyData', e); }
+
+      if (profile) {
+        checkAndUnlockAchievements(profile)
+          .then((newOnes) => newOnes.forEach((b) => setPendingBadge(b)))
+          .catch(() => {});
+      }
+
+      setReady(true);
+      await SplashScreen.hideAsync();
+      if (!profile || !profile.onboarding_completed) {
+        router.replace('/onboarding');
+      } else {
+        router.replace('/(tabs)');
       }
     })();
   }, []);
