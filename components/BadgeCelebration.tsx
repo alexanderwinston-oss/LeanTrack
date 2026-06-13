@@ -123,9 +123,9 @@ const styles = StyleSheet.create({
   },
   nextTitle: { color: '#64748b', fontSize: 11, fontWeight: '600', letterSpacing: 0.5, marginBottom: 8, textTransform: 'uppercase' },
   nextRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  nextEmoji: { fontSize: 28, opacity: 0.5 },
-  nextName: { color: '#94a3b8', fontSize: 13, fontWeight: '600' },
-  nextDesc: { color: '#64748b', fontSize: 11, marginTop: 2, lineHeight: 16, flexShrink: 1 },
+  nextEmoji: { fontSize: 28, opacity: 0.5, width: 36, textAlign: 'center' },
+  nextName: { color: '#94a3b8', fontSize: 13, fontWeight: '600', flexWrap: 'wrap' },
+  nextDesc: { color: '#64748b', fontSize: 11, marginTop: 2, lineHeight: 16, flex: 1, flexShrink: 1, flexWrap: 'wrap' },
   btn: { backgroundColor: '#10b981', borderRadius: 14, paddingVertical: 14, paddingHorizontal: 32, width: '100%', alignItems: 'center', marginTop: 8 },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
