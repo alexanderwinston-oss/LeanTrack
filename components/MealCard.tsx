@@ -3,7 +3,7 @@ import {
   Alert, StyleSheet, Text,
   TextInput, TouchableOpacity, View, ViewStyle,
 } from 'react-native';
-import { useBackHandler } from '@/lib/useBackHandler';
+import { registerModal } from '@/lib/useModalManager';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/Colors';
@@ -46,11 +46,8 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
   const [showPortionCalc, setShowPortionCalc] = useState<boolean>(false);
   const [customPortionText, setCustomPortionText] = useState<string>('');
 
-  useBackHandler(() => {
-    if (editing) { setEditing(false); return true; }
-    if (detailVisible) { setDetailVisible(false); return true; }
-    return false;
-  }, [editing, detailVisible]);
+  registerModal('mealEdit', editing, () => setEditing(false), 10);
+  registerModal('mealDetail', detailVisible, () => setDetailVisible(false), 5);
 
   function openDetail() {
     setEditing(false);

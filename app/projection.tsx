@@ -14,7 +14,7 @@ import {
   recalculateTargetsAfterWeighIn, checkAllAchievements, updateWeightInitial,
 } from '@/lib/db';
 import { getLocalDateString } from '@/lib/utils';
-import { useBackHandler } from '@/lib/useBackHandler';
+import { registerModal } from '@/lib/useModalManager';
 import { useStore } from '@/lib/store';
 import { calcProjection } from '@/lib/nutrition';
 import { UserProfile, WeightEntry } from '@/lib/types';
@@ -75,10 +75,7 @@ export default function Projection() {
     }
   }, [profile?.id]);
 
-  useBackHandler(() => {
-    if (weightModalVisible) { setWeightModalVisible(false); return true; }
-    return false;
-  }, [weightModalVisible]);
+  registerModal('projectionWeight', weightModalVisible, () => setWeightModalVisible(false), 10);
 
   useFocusEffect(
     React.useCallback(() => {

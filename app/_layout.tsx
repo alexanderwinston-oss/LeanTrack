@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initDB, healData, getProfile, checkAndUnlockAchievements } from '@/lib/db';
 import { UserProfile } from '@/lib/types';
+import { useGlobalBackHandler } from '@/lib/useModalManager';
 import { useStore } from '@/lib/store';
 import { getLocalDateString } from '@/lib/utils';
 import BadgeCelebration from '@/components/BadgeCelebration';
@@ -19,6 +20,8 @@ export default function RootLayout() {
   const badgeQueue = useStore((s) => s.badgeQueue);
   const dequeueNextBadge = useStore((s) => s.dequeueNextBadge);
   const setPendingBadge = useStore((s) => s.setPendingBadge);
+
+  useGlobalBackHandler();
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {

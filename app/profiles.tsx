@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert, Modal, ScrollView, StyleSheet, Text,
+  Alert, ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -10,8 +10,9 @@ import { Button } from '@/components/ui/Button';
 import { createProfile, deleteProfile, getAllProfiles } from '@/lib/db';
 import { useStore } from '@/lib/store';
 import { UserProfile } from '@/lib/types';
-import { useBackHandler } from '@/lib/useBackHandler';
+import { registerModal } from '@/lib/useModalManager';
 import { normalizeText } from '@/lib/utils';
+import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 
 const EMOJI_COLORS = [
   '#10b981', '#3b82f6', '#f59e0b', '#ef4444',
@@ -42,11 +43,8 @@ export default function Profiles() {
 
   useEffect(() => { loadProfiles(); }, [loadProfiles]);
 
-  useBackHandler(() => {
-    if (deleteTarget) { setDeleteTarget(null); setDeleteConfirmText(''); return true; }
-    if (createVisible) { setCreateVisible(false); return true; }
-    return false;
-  }, [deleteTarget, createVisible]);
+  registerModal('profilesDelete', !!deleteTarget, () => { setDeleteTarget(null); setDeleteConfirmText(''); }, 10);
+  registerModal('profilesCreate', createVisible, () => setCreateVisible(false), 5);
 
   async function handleSwitch(profileId: string) {
     if (profileId === currentProfile?.profile_id) return;
@@ -146,93 +144,85 @@ export default function Profiles() {
       <Button label="➕ Nouveau profil" onPress={() => setCreateVisible(true)} />
 
       {/* Create modal */}
-      <Modal visible={createVisible} transparent animationType="slide">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Nouveau profil</Text>
+      <KeyboardAwareModal visible={createVisible} onClose={() => setCreateVisible(false)}>
+        <Text style={styles.modalTitle}>Nouveau profil</Text>
 
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Nom</Text>
-              <TextInput
-                style={styles.fieldInput}
-                value={newName}
-                onChangeText={setNewName}
-                placeholder="Ex: Marie, Travail..."
-                placeholderTextColor={Colors.textMuted}
-              />
-            </View>
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Nom</Text>
+          <TextInput
+            style={styles.fieldInput}
+            value={newName}
+            onChangeText={setNewName}
+            placeholder="Ex: Marie, Travail..."
+            placeholderTextColor={Colors.textMuted}
+          />
+        </View>
 
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Genre</Text>
-              <View style={styles.genderRow}>
-                {(['homme', 'femme'] as const).map((g) => (
-                  <TouchableOpacity
-                    key={g}
-                    style={[styles.genderBtn, newGender === g && styles.genderBtnActive]}
-                    onPress={() => setNewGender(g)}
-                  >
-                    <Text style={[styles.genderBtnText, newGender === g && styles.genderBtnTextActive]}>
-                      {g === 'homme' ? '♂ Homme' : '♀ Femme'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Couleur du profil</Text>
-              <View style={styles.colorRow}>
-                {EMOJI_COLORS.map((c) => (
-                  <TouchableOpacity
-                    key={c}
-                    style={[styles.colorSwatch, { backgroundColor: c }, newColor === c && styles.colorSwatchActive]}
-                    onPress={() => setNewColor(c)}
-                  />
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.modalBtns}>
-              <Button label="Annuler" onPress={() => setCreateVisible(false)} variant="ghost" />
-              <View style={{ flex: 1 }}>
-                <Button label="Créer" onPress={handleCreate} loading={creating} />
-              </View>
-            </View>
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Genre</Text>
+          <View style={styles.genderRow}>
+            {(['homme', 'femme'] as const).map((g) => (
+              <TouchableOpacity
+                key={g}
+                style={[styles.genderBtn, newGender === g && styles.genderBtnActive]}
+                onPress={() => setNewGender(g)}
+              >
+                <Text style={[styles.genderBtnText, newGender === g && styles.genderBtnTextActive]}>
+                  {g === 'homme' ? '♂ Homme' : '♀ Femme'}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
-      </Modal>
+
+        <View style={styles.field}>
+          <Text style={styles.fieldLabel}>Couleur du profil</Text>
+          <View style={styles.colorRow}>
+            {EMOJI_COLORS.map((c) => (
+              <TouchableOpacity
+                key={c}
+                style={[styles.colorSwatch, { backgroundColor: c }, newColor === c && styles.colorSwatchActive]}
+                onPress={() => setNewColor(c)}
+              />
+            ))}
+          </View>
+        </View>
+
+        <View style={styles.modalBtns}>
+          <Button label="Annuler" onPress={() => setCreateVisible(false)} variant="ghost" />
+          <View style={{ flex: 1 }}>
+            <Button label="Créer" onPress={handleCreate} loading={creating} />
+          </View>
+        </View>
+      </KeyboardAwareModal>
 
       {/* Delete confirmation modal */}
-      <Modal visible={!!deleteTarget} transparent animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>⚠️ Supprimer le profil</Text>
-            <Text style={styles.deleteWarning}>
-              Toutes les données de <Text style={{ color: Colors.danger, fontWeight: '700' }}>
-                {deleteTarget?.display_name ?? deleteTarget?.name}
-              </Text> seront supprimées définitivement.
-            </Text>
-            <Text style={styles.deleteInstruction}>
-              Pour confirmer, tape exactement :
-            </Text>
-            <Text style={styles.deletePhrase}>{DELETE_PHRASE}</Text>
-            <TextInput
-              style={[styles.fieldInput, styles.deleteInput]}
-              value={deleteConfirmText}
-              onChangeText={setDeleteConfirmText}
-              placeholder="Tape la phrase ici..."
-              placeholderTextColor={Colors.textMuted}
-              autoCapitalize="none"
-            />
-            <View style={styles.modalBtns}>
-              <Button label="Annuler" onPress={() => { setDeleteTarget(null); setDeleteConfirmText(''); }} variant="ghost" />
-              <View style={{ flex: 1 }}>
-                <Button label="Supprimer" onPress={handleDelete} loading={deleting} />
-              </View>
-            </View>
+      <KeyboardAwareModal visible={!!deleteTarget} onClose={() => { setDeleteTarget(null); setDeleteConfirmText(''); }}>
+        <Text style={styles.modalTitle}>⚠️ Supprimer le profil</Text>
+        <Text style={styles.deleteWarning}>
+          Toutes les données de <Text style={{ color: Colors.danger, fontWeight: '700' }}>
+            {deleteTarget?.display_name ?? deleteTarget?.name}
+          </Text> seront supprimées définitivement.
+        </Text>
+        <Text style={styles.deleteInstruction}>
+          Pour confirmer, tape exactement :
+        </Text>
+        <Text style={styles.deletePhrase}>{DELETE_PHRASE}</Text>
+        <TextInput
+          style={[styles.fieldInput, styles.deleteInput]}
+          value={deleteConfirmText}
+          onChangeText={setDeleteConfirmText}
+          placeholder="Tape la phrase ici..."
+          placeholderTextColor={Colors.textMuted}
+          autoCapitalize="none"
+        />
+        <View style={styles.modalBtns}>
+          <Button label="Annuler" onPress={() => { setDeleteTarget(null); setDeleteConfirmText(''); }} variant="ghost" />
+          <View style={{ flex: 1 }}>
+            <Button label="Supprimer" onPress={handleDelete} loading={deleting} />
           </View>
         </View>
-      </Modal>
+      </KeyboardAwareModal>
     </ScrollView>
   );
 }

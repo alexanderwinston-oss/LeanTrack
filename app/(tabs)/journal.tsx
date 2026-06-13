@@ -19,7 +19,8 @@ import { checkAllAchievements } from '@/lib/db';
 import { searchFood } from '@/lib/openfoodfacts';
 import { analyzeFoodPhoto } from '@/lib/gemini';
 import { getLocalDateString, showGeminiError } from '@/lib/utils';
-import { useBackHandler } from '@/lib/useBackHandler';
+import { registerModal } from '@/lib/useModalManager';
+import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import { FoodItem, Meal, MealType } from '@/lib/types';
 
 const SECTIONS: { type: MealType; label: string; emoji: string }[] = [
@@ -79,11 +80,8 @@ export default function Journal() {
     }, [])
   );
 
-  useBackHandler(() => {
-    if (foodBottomSheetVisible) { setFoodBottomSheetVisible(false); return true; }
-    if (modalVisible) { setModalVisible(false); return true; }
-    return false;
-  }, [foodBottomSheetVisible, modalVisible]);
+  registerModal('journalFoodSheet', foodBottomSheetVisible, () => setFoodBottomSheetVisible(false), 10);
+  registerModal('journalAddFood', modalVisible, () => setModalVisible(false), 5);
 
   function showToast(message: string) {
     setToastMessage(message);
@@ -453,92 +451,77 @@ export default function Journal() {
       </Modal>
 
       {/* Food detail bottom sheet */}
-      <Modal
+      <KeyboardAwareModal
         visible={foodBottomSheetVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setFoodBottomSheetVisible(false)}
+        onClose={() => setFoodBottomSheetVisible(false)}
       >
-        <TouchableOpacity
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}
-          activeOpacity={1}
-          onPress={() => setFoodBottomSheetVisible(false)}
-        />
-        <View style={{
-          backgroundColor: '#1e293b',
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          padding: 20,
-          paddingBottom: 48,
-        }}>
-          {selectedFood && (
-            <>
-              <Text style={{ color: '#f1f5f9', fontSize: 17, fontWeight: '700', marginBottom: 2 }}>
-                {selectedFood.name}
+        {selectedFood && (
+          <>
+            <Text style={{ color: '#f1f5f9', fontSize: 17, fontWeight: '700', marginBottom: 2 }}>
+              {selectedFood.name}
+            </Text>
+            {selectedFood.brand ? (
+              <Text style={{ color: '#64748b', fontSize: 13, marginBottom: 12 }}>
+                {selectedFood.brand}
               </Text>
-              {selectedFood.brand ? (
-                <Text style={{ color: '#64748b', fontSize: 13, marginBottom: 12 }}>
-                  {selectedFood.brand}
-                </Text>
-              ) : null}
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-                {[
-                  { label: 'Kcal/100g', value: String(Math.round(selectedFood.calories_100g)) },
-                  { label: 'P', value: `${selectedFood.protein_100g}g` },
-                  { label: 'G', value: `${selectedFood.carbs_100g}g` },
-                  { label: 'L', value: `${selectedFood.fat_100g}g` },
-                ].map(item => (
-                  <View key={item.label} style={{
-                    flex: 1, backgroundColor: '#0f172a',
-                    borderRadius: 8, padding: 8, alignItems: 'center',
-                  }}>
-                    <Text style={{ color: '#10b981', fontSize: 14, fontWeight: '700' }}>{item.value}</Text>
-                    <Text style={{ color: '#64748b', fontSize: 10 }}>{item.label}</Text>
-                  </View>
-                ))}
-              </View>
-              <Text style={{ color: '#94a3b8', fontSize: 13, marginBottom: 6 }}>Quantité (g)</Text>
-              <TextInput
-                value={foodQuantity}
-                onChangeText={setFoodQuantity}
-                keyboardType="numeric"
-                style={{
-                  backgroundColor: '#0f172a',
-                  borderRadius: 10,
-                  padding: 12,
-                  color: '#f1f5f9',
-                  fontSize: 18,
-                  fontWeight: '700',
-                  marginBottom: 8,
-                }}
-              />
-              {(() => {
-                const qty = parseFloat(foodQuantity) || 0;
-                const cal = Math.round(selectedFood.calories_100g * qty / 100);
-                const prot = Math.round(selectedFood.protein_100g * qty / 100 * 10) / 10;
-                const carbs = Math.round(selectedFood.carbs_100g * qty / 100 * 10) / 10;
-                const fat = Math.round(selectedFood.fat_100g * qty / 100 * 10) / 10;
-                return (
-                  <View style={{ backgroundColor: '#0f172a', borderRadius: 10, padding: 12, marginBottom: 16, alignItems: 'center' }}>
-                    <Text style={{ color: '#10b981', fontSize: 22, fontWeight: '800' }}>{cal} kcal</Text>
-                    <Text style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
-                      P:{prot}g · G:{carbs}g · L:{fat}g
-                    </Text>
-                  </View>
-                );
-              })()}
-              <TouchableOpacity
-                onPress={() => addFromFood(selectedFood)}
-                style={{ backgroundColor: '#10b981', borderRadius: 12, padding: 16, alignItems: 'center' }}
-              >
-                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
-                  Ajouter au journal
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-      </Modal>
+            ) : null}
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+              {[
+                { label: 'Kcal/100g', value: String(Math.round(selectedFood.calories_100g)) },
+                { label: 'P', value: `${selectedFood.protein_100g}g` },
+                { label: 'G', value: `${selectedFood.carbs_100g}g` },
+                { label: 'L', value: `${selectedFood.fat_100g}g` },
+              ].map(item => (
+                <View key={item.label} style={{
+                  flex: 1, backgroundColor: '#0f172a',
+                  borderRadius: 8, padding: 8, alignItems: 'center',
+                }}>
+                  <Text style={{ color: '#10b981', fontSize: 14, fontWeight: '700' }}>{item.value}</Text>
+                  <Text style={{ color: '#64748b', fontSize: 10 }}>{item.label}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={{ color: '#94a3b8', fontSize: 13, marginBottom: 6 }}>Quantité (g)</Text>
+            <TextInput
+              value={foodQuantity}
+              onChangeText={setFoodQuantity}
+              keyboardType="numeric"
+              style={{
+                backgroundColor: '#0f172a',
+                borderRadius: 10,
+                padding: 12,
+                color: '#f1f5f9',
+                fontSize: 18,
+                fontWeight: '700',
+                marginBottom: 8,
+              }}
+            />
+            {(() => {
+              const qty = parseFloat(foodQuantity) || 0;
+              const cal = Math.round(selectedFood.calories_100g * qty / 100);
+              const prot = Math.round(selectedFood.protein_100g * qty / 100 * 10) / 10;
+              const carbs = Math.round(selectedFood.carbs_100g * qty / 100 * 10) / 10;
+              const fat = Math.round(selectedFood.fat_100g * qty / 100 * 10) / 10;
+              return (
+                <View style={{ backgroundColor: '#0f172a', borderRadius: 10, padding: 12, marginBottom: 16, alignItems: 'center' }}>
+                  <Text style={{ color: '#10b981', fontSize: 22, fontWeight: '800' }}>{cal} kcal</Text>
+                  <Text style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
+                    P:{prot}g · G:{carbs}g · L:{fat}g
+                  </Text>
+                </View>
+              );
+            })()}
+            <TouchableOpacity
+              onPress={() => addFromFood(selectedFood)}
+              style={{ backgroundColor: '#10b981', borderRadius: 12, padding: 16, alignItems: 'center' }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
+                Ajouter au journal
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+      </KeyboardAwareModal>
     </View>
     </ScreenContainer>
   );

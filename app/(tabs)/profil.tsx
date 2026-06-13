@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
-  Alert, Modal, ScrollView, StyleSheet, Text,
+  Alert, ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
@@ -18,7 +18,7 @@ import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import { cancelAllNotifications, scheduleAllNotifications } from '@/lib/notifications';
 import { WeightEntry } from '@/lib/types';
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
-import { useBackHandler } from '@/lib/useBackHandler';
+import { registerModal } from '@/lib/useModalManager';
 import { getLocalDateString, getProfileName } from '@/lib/utils';
 
 const ACTIVITY_LABELS: Record<string, string> = {
@@ -57,10 +57,8 @@ export default function Profil() {
   const [editWeightInitialVisible, setEditWeightInitialVisible] = useState(false);
   const [editWeightInitialInput, setEditWeightInitialInput] = useState('');
 
-  useBackHandler(() => {
-    if (weightModal) { setWeightModal(false); return true; }
-    return false;
-  }, [weightModal]);
+  registerModal('profilWeight', weightModal, () => setWeightModal(false), 10);
+  registerModal('profilEditInitial', editWeightInitialVisible, () => setEditWeightInitialVisible(false), 5);
 
   useFocusEffect(
     useCallback(() => {
@@ -327,42 +325,38 @@ export default function Profil() {
         <View style={{ height: BOTTOM_SPACER_HEIGHT }} />
 
         {/* Weight modal */}
-        <Modal visible={weightModal} transparent animationType="fade">
-          <View style={styles.overlay}>
-            <Card style={styles.weightCard}>
-              <Text style={styles.weightTitle}>⚖️ Enregistrer un poids</Text>
-              <View style={styles.weightFormField}>
-                <Text style={styles.weightFormLabel}>Date (AAAA-MM-JJ)</Text>
-                <TextInput
-                  style={styles.weightInput}
-                  value={weightDate}
-                  onChangeText={setWeightDate}
-                  placeholder="2025-01-15"
-                  placeholderTextColor={Colors.textMuted}
-                  keyboardType="numbers-and-punctuation"
-                />
-              </View>
-              <View style={styles.weightFormField}>
-                <Text style={styles.weightFormLabel}>Poids (kg)</Text>
-                <TextInput
-                  style={styles.weightInput}
-                  value={weightInput}
-                  onChangeText={setWeightInput}
-                  keyboardType="decimal-pad"
-                  placeholder="72.5"
-                  placeholderTextColor={Colors.textMuted}
-                  autoFocus
-                />
-              </View>
-              <View style={styles.weightBtns}>
-                <Button label="Annuler" onPress={() => setWeightModal(false)} variant="ghost" />
-                <View style={{ flex: 1 }}>
-                  <Button label="Enregistrer" onPress={saveWeight} loading={saving} />
-                </View>
-              </View>
-            </Card>
+        <KeyboardAwareModal visible={weightModal} onClose={() => setWeightModal(false)}>
+          <Text style={styles.weightTitle}>⚖️ Enregistrer un poids</Text>
+          <View style={styles.weightFormField}>
+            <Text style={styles.weightFormLabel}>Date (AAAA-MM-JJ)</Text>
+            <TextInput
+              style={styles.weightInput}
+              value={weightDate}
+              onChangeText={setWeightDate}
+              placeholder="2025-01-15"
+              placeholderTextColor={Colors.textMuted}
+              keyboardType="numbers-and-punctuation"
+            />
           </View>
-        </Modal>
+          <View style={styles.weightFormField}>
+            <Text style={styles.weightFormLabel}>Poids (kg)</Text>
+            <TextInput
+              style={styles.weightInput}
+              value={weightInput}
+              onChangeText={setWeightInput}
+              keyboardType="decimal-pad"
+              placeholder="72.5"
+              placeholderTextColor={Colors.textMuted}
+              autoFocus
+            />
+          </View>
+          <View style={styles.weightBtns}>
+            <Button label="Annuler" onPress={() => setWeightModal(false)} variant="ghost" />
+            <View style={{ flex: 1 }}>
+              <Button label="Enregistrer" onPress={saveWeight} loading={saving} />
+            </View>
+          </View>
+        </KeyboardAwareModal>
       </ScrollView>
 
       {/* Poids de départ modal */}
