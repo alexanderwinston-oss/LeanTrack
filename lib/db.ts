@@ -7,6 +7,7 @@ import { calcFullProfile } from './nutrition';
 let _db: SQLite.SQLiteDatabase | null = null;
 let _activeProfileId: string | null = null;
 let _healRanThisSession = false;
+let _recoveryRanThisSession = false;
 
 async function getDB(): Promise<SQLite.SQLiteDatabase> {
   if (!_db) {
@@ -36,6 +37,51 @@ async function safeAlterAdd(
   } catch {
     // Column already exists — ignore
   }
+}
+
+// Runs once to recover the main profile if onboarding overwrote it with defaults.
+// Detectable by: name empty + calorie_target ~2007 (fresh onboarding defaults).
+export async function recoverMainProfile(): Promise<void> {
+  if (_recoveryRanThisSession) return;
+  _recoveryRanThisSession = true;
+
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  const p = await db.getFirstAsync<any>(
+    'SELECT name, calorie_target, target_date FROM user_profile WHERE profile_id = ?', [profileId]
+  );
+  if (!p) return;
+
+  const nameOk = p.name && p.name.trim().length > 0;
+  const calOk = p.calorie_target && p.calorie_target > 2100;
+  if (nameOk && calOk) return; // Nothing to recover
+
+  const targetDate = p.target_date || getLocalDateString(new Date(Date.now() + 180 * 24 * 60 * 60 * 1000));
+  const recovered = calcFullProfile({
+    name: 'Alexander', age: 30, gender: 'homme',
+    weight_current: 107.5, weight_target: 94, height: 177,
+    activity_level: 'modere', goal: 'perte', target_date: targetDate,
+  });
+
+  await db.runAsync(
+    `UPDATE user_profile SET
+      name = ?, display_name = ?, age = ?, gender = ?,
+      weight_current = ?, weight_initial = ?, weight_target = ?, height = ?,
+      activity_level = ?, goal = ?, target_date = ?,
+      calorie_target = ?, tdee = ?,
+      protein_target = ?, carbs_target = ?, fat_target = ?, water_target = ?,
+      onboarding_completed = 1
+    WHERE profile_id = ?`,
+    [
+      'Alexander', 'Alexander', 30, 'homme',
+      107.5, 110, 94, 177,
+      'modere', 'perte', targetDate,
+      recovered.calorie_target, recovered.tdee,
+      recovered.protein_target, recovered.carbs_target,
+      recovered.fat_target, recovered.water_target,
+      profileId,
+    ]
+  );
 }
 
 export async function healData(): Promise<void> {

@@ -55,6 +55,7 @@ function Input({ label, value, onChangeText, keyboardType = 'default', placehold
 
 export default function Onboarding() {
   const setProfile = useStore((s) => s.setProfile);
+  const switchProfileInStore = useStore((s) => s.switchProfileInStore);
   const params = useLocalSearchParams();
   const isNewProfile = params.mode === 'new_profile';
   const [step, setStep] = useState(1);
@@ -110,18 +111,27 @@ export default function Onboarding() {
     setSaving(true);
     try {
       const calc = getCalculated();
-      const profile = {
+      const profileData = {
         ...calc,
         notifications_enabled: notifEnabled,
         onboarding_completed: true,
       };
-      await saveProfile(profile);
-      setProfile(profile);
-      if (notifEnabled) {
-        await requestPermissions();
-        await scheduleAllNotifications({ notifications_enabled: true });
+
+      if (isNewProfile) {
+        // Forcer un INSERT en passant un nouvel ID — jamais d'UPDATE sur le profil actif
+        const newProfileId = `profile_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        await saveProfile({ ...profileData, profile_id: newProfileId });
+        await switchProfileInStore(newProfileId);
+        router.replace('/profiles');
+      } else {
+        await saveProfile(profileData);
+        setProfile(profileData as UserProfile);
+        if (notifEnabled) {
+          await requestPermissions();
+          await scheduleAllNotifications({ notifications_enabled: true });
+        }
+        router.replace('/(tabs)');
       }
-      router.replace(isNewProfile ? '/profiles' : '/(tabs)');
     } finally {
       setSaving(false);
     }

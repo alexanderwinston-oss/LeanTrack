@@ -4,7 +4,7 @@ import { Stack, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { initDB, healData, getProfile, checkAndUnlockAchievements } from '@/lib/db';
+import { initDB, healData, recoverMainProfile, getProfile, checkAndUnlockAchievements } from '@/lib/db';
 import { UserProfile } from '@/lib/types';
 import { useGlobalBackHandler } from '@/lib/useModalManager';
 import { useStore } from '@/lib/store';
@@ -34,6 +34,7 @@ export default function RootLayout() {
   useEffect(() => {
     (async () => {
       try { await initDB(); } catch (e) { console.error('[startup] initDB', e); }
+      try { await recoverMainProfile(); } catch (e) { console.error('[startup] recoverMainProfile', e); }
       try { await healData(); } catch (e) { console.error('[startup] healData', e); }
 
       let profile: UserProfile | null = null;
