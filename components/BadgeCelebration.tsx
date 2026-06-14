@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  Animated, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  Animated, Dimensions, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { AchievementDef, ALL_ACHIEVEMENTS } from '@/lib/achievements';
+
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 
 interface Props {
   badge: AchievementDef | null;
@@ -113,7 +115,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1e293b',
     borderRadius: 24,
     width: '100%',
-    maxHeight: '85%',
+    maxHeight: SCREEN_HEIGHT * 0.85,
     borderWidth: 1,
     borderColor: '#10b98155',
     overflow: 'hidden',
