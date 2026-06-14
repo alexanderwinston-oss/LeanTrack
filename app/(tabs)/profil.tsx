@@ -1,8 +1,10 @@
 import React, { useCallback, useState } from 'react';
 import {
-  Alert, Modal, ScrollView, StyleSheet, Text,
+  Alert, Dimensions, Modal, ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
 } from 'react-native';
+
+const SCREEN_H = Dimensions.get('window').height;
 import { router, useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
@@ -72,6 +74,7 @@ export default function Profil() {
   const [editWeightInitialVisible, setEditWeightInitialVisible] = useState(false);
   const [editWeightInitialInput, setEditWeightInitialInput] = useState('');
   const [levelsModalVisible, setLevelsModalVisible] = useState(false);
+  const [rewardsExpanded, setRewardsExpanded] = useState(false);
 
   registerModal('profilWeight', weightModal, () => setWeightModal(false), 10);
   registerModal('profilEditInitial', editWeightInitialVisible, () => setEditWeightInitialVisible(false), 5);
@@ -317,40 +320,51 @@ export default function Profil() {
               ? Math.min(Math.round((xpInLevel / xpNeeded) * 100), 100)
               : 100;
             return (
-              <>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={styles.sectionTitle}>Mes récompenses</Text>
+              <TouchableOpacity
+                onPress={() => setLevelsModalVisible(true)}
+                activeOpacity={0.75}
+                style={{ marginBottom: 8 }}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={{ color: '#10b981', fontSize: 13, fontWeight: '700' }}>
+                    Niveau {currentLevel.level} — {currentLevel.label} ›
+                  </Text>
                   <Text style={{ color: '#fbbf24', fontWeight: '700', fontSize: 16 }}>⚡ {totalXP} XP</Text>
                 </View>
-                <TouchableOpacity
-                  onPress={() => setLevelsModalVisible(true)}
-                  activeOpacity={0.75}
-                  style={{ marginBottom: 12 }}
-                >
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <Text style={{ color: '#10b981', fontSize: 13, fontWeight: '700' }}>
-                      Niveau {currentLevel.level} — {currentLevel.label} ›
-                    </Text>
-                    <Text style={{ color: '#64748b', fontSize: 11 }}>Voir tous les niveaux</Text>
-                  </View>
-                  <View style={{ height: 6, borderRadius: 3, backgroundColor: '#1e293b', overflow: 'hidden' }}>
-                    <View style={{ height: '100%', borderRadius: 3, width: `${levelPct}%` as any, backgroundColor: '#fbbf24' }} />
-                  </View>
-                  {nextLevel ? (
-                    <Text style={{ color: '#475569', fontSize: 10, marginTop: 4 }}>
-                      {xpInLevel} / {xpNeeded} XP → Niv. {nextLevel.level} {nextLevel.label}
-                    </Text>
-                  ) : (
-                    <Text style={{ color: '#fbbf24', fontSize: 10, marginTop: 4 }}>Niveau maximum atteint 🏆</Text>
-                  )}
-                </TouchableOpacity>
-              </>
+                <View style={{ height: 6, borderRadius: 3, backgroundColor: '#1e293b', overflow: 'hidden' }}>
+                  <View style={{ height: '100%', borderRadius: 3, width: `${levelPct}%` as any, backgroundColor: '#fbbf24' }} />
+                </View>
+                {nextLevel ? (
+                  <Text style={{ color: '#475569', fontSize: 10, marginTop: 4 }}>
+                    {xpInLevel} / {xpNeeded} XP → Niv. {nextLevel.level} {nextLevel.label}
+                  </Text>
+                ) : (
+                  <Text style={{ color: '#fbbf24', fontSize: 10, marginTop: 4 }}>Niveau maximum atteint 🏆</Text>
+                )}
+              </TouchableOpacity>
             );
           })()}
-          <Text style={styles.achievementsCount}>
-            {unlockedIds.length} / {ALL_ACHIEVEMENTS.length} badges débloqués
-          </Text>
-          <AchievementGrid unlockedIds={unlockedIds} stats={achievementStats} />
+
+          {/* Toggle accordéon */}
+          <TouchableOpacity
+            onPress={() => setRewardsExpanded((prev) => !prev)}
+            activeOpacity={0.75}
+            style={styles.rewardsToggle}
+          >
+            <Text style={styles.rewardsToggleLeft}>🏅 Mes récompenses</Text>
+            <View style={styles.rewardsToggleRight}>
+              <Text style={styles.rewardsToggleCount}>
+                {unlockedIds.length} / {ALL_ACHIEVEMENTS.length}
+              </Text>
+              <Text style={styles.rewardsToggleChevron}>{rewardsExpanded ? '▲' : '▼'}</Text>
+            </View>
+          </TouchableOpacity>
+
+          {rewardsExpanded && (
+            <View style={{ marginTop: 12 }}>
+              <AchievementGrid unlockedIds={unlockedIds} stats={achievementStats} />
+            </View>
+          )}
         </Card>
 
         {/* Notifications */}
@@ -432,7 +446,7 @@ export default function Profil() {
           onPress={() => setLevelsModalVisible(false)}
         >
           <TouchableOpacity activeOpacity={1}>
-            <View style={styles.levelsSheet}>
+            <View style={[styles.levelsSheet, { maxHeight: SCREEN_H * 0.82 }]}>
               <View style={styles.levelsHandle} />
               <Text style={styles.levelsTitle}>⚡ Tous les niveaux</Text>
               {(() => {
@@ -448,7 +462,7 @@ export default function Profil() {
                 return (
                   <>
                     <Text style={styles.levelsCurrentXp}>Tu as actuellement {totalXP} XP</Text>
-                    <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
                       {XP_LEVELS.map((lvl, i) => {
                         const isPast = totalXP > lvl.max;
                         const isCurrent = lvl.level === current.level;
@@ -642,7 +656,7 @@ const styles = StyleSheet.create({
     fontSize: 18, padding: 12, textAlign: 'center', fontWeight: '600',
   },
   weightBtns: { flexDirection: 'row', gap: 10 },
-  levelsSheet: { backgroundColor: '#1e293b', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  levelsSheet: { backgroundColor: '#1e293b', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 24 },
   levelsHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#334155', alignSelf: 'center', marginBottom: 16 },
   levelsTitle: { color: '#f1f5f9', fontWeight: '800', fontSize: 18, marginBottom: 4 },
   levelsCurrentXp: { color: '#64748b', fontSize: 12, marginBottom: 16 },
@@ -662,4 +676,9 @@ const styles = StyleSheet.create({
   levelCurrentProgress: { color: '#64748b', fontSize: 10, marginTop: 3 },
   levelsClose: { marginTop: 20, backgroundColor: '#10b981', borderRadius: 14, padding: 14, alignItems: 'center' },
   levelsCloseText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  rewardsToggle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: '#0f172a', borderRadius: 12, borderWidth: 1, borderColor: '#1e293b' },
+  rewardsToggleLeft: { color: '#f1f5f9', fontWeight: '700', fontSize: 14 },
+  rewardsToggleRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rewardsToggleCount: { color: '#64748b', fontSize: 12, fontWeight: '600' },
+  rewardsToggleChevron: { color: '#10b981', fontSize: 12, fontWeight: '700' },
 });
