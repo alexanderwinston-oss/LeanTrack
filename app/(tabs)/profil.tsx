@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert, Dimensions, Modal, ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, View,
@@ -100,6 +100,21 @@ export default function Profil() {
     const entries = await getAllWeightEntries();
     setWeightEntries(entries);
   }
+
+  const totalXP = useMemo(
+    () => ALL_ACHIEVEMENTS.filter((a) => unlockedIds.includes(a.id)).reduce((sum, a) => sum + a.xp, 0),
+    [unlockedIds]
+  );
+  const currentLevel = useMemo(() => getLevel(totalXP), [totalXP]);
+  const nextLevel = useMemo(
+    () => XP_LEVELS.find((l) => l.level === currentLevel.level + 1) ?? null,
+    [currentLevel]
+  );
+  const xpInLevel = totalXP - currentLevel.min;
+  const xpNeeded = nextLevel ? nextLevel.min - currentLevel.min : 1;
+  const levelPct = nextLevel
+    ? Math.min(Math.round((xpInLevel / xpNeeded) * 100), 100)
+    : 100;
 
   if (!profile) {
     return (
@@ -308,42 +323,28 @@ export default function Profil() {
 
         {/* Achievements */}
         <Card>
-          {(() => {
-            const totalXP = ALL_ACHIEVEMENTS
-              .filter((a) => unlockedIds.includes(a.id))
-              .reduce((sum, a) => sum + a.xp, 0);
-            const currentLevel = getLevel(totalXP);
-            const nextLevel = XP_LEVELS.find((l) => l.level === currentLevel.level + 1);
-            const xpInLevel = totalXP - currentLevel.min;
-            const xpNeeded = nextLevel ? nextLevel.min - currentLevel.min : 1;
-            const levelPct = nextLevel
-              ? Math.min(Math.round((xpInLevel / xpNeeded) * 100), 100)
-              : 100;
-            return (
-              <TouchableOpacity
-                onPress={() => setLevelsModalVisible(true)}
-                activeOpacity={0.75}
-                style={{ marginBottom: 8 }}
-              >
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <Text style={{ color: '#10b981', fontSize: 13, fontWeight: '700' }}>
-                    Niveau {currentLevel.level} — {currentLevel.label} ›
-                  </Text>
-                  <Text style={{ color: '#fbbf24', fontWeight: '700', fontSize: 16 }}>⚡ {totalXP} XP</Text>
-                </View>
-                <View style={{ height: 6, borderRadius: 3, backgroundColor: '#1e293b', overflow: 'hidden' }}>
-                  <View style={{ height: '100%', borderRadius: 3, width: `${levelPct}%` as any, backgroundColor: '#fbbf24' }} />
-                </View>
-                {nextLevel ? (
-                  <Text style={{ color: '#475569', fontSize: 10, marginTop: 4 }}>
-                    {xpInLevel} / {xpNeeded} XP → Niv. {nextLevel.level} {nextLevel.label}
-                  </Text>
-                ) : (
-                  <Text style={{ color: '#fbbf24', fontSize: 10, marginTop: 4 }}>Niveau maximum atteint 🏆</Text>
-                )}
-              </TouchableOpacity>
-            );
-          })()}
+          <TouchableOpacity
+            onPress={() => setLevelsModalVisible(true)}
+            activeOpacity={0.75}
+            style={{ marginBottom: 8 }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={{ color: '#10b981', fontSize: 13, fontWeight: '700' }}>
+                Niveau {currentLevel.level} — {currentLevel.label} ›
+              </Text>
+              <Text style={{ color: '#fbbf24', fontWeight: '700', fontSize: 16 }}>⚡ {totalXP} XP</Text>
+            </View>
+            <View style={{ height: 6, borderRadius: 3, backgroundColor: '#1e293b', overflow: 'hidden' }}>
+              <View style={{ height: '100%', borderRadius: 3, width: `${levelPct}%` as any, backgroundColor: '#fbbf24' }} />
+            </View>
+            {nextLevel ? (
+              <Text style={{ color: '#475569', fontSize: 10, marginTop: 4 }}>
+                {xpInLevel} / {xpNeeded} XP → Niv. {nextLevel.level} {nextLevel.label}
+              </Text>
+            ) : (
+              <Text style={{ color: '#fbbf24', fontSize: 10, marginTop: 4 }}>Niveau maximum atteint 🏆</Text>
+            )}
+          </TouchableOpacity>
 
           {/* Toggle accordéon */}
           <TouchableOpacity
@@ -449,66 +450,51 @@ export default function Profil() {
             <View style={[styles.levelsSheet, { maxHeight: SCREEN_H * 0.82 }]}>
               <View style={styles.levelsHandle} />
               <Text style={styles.levelsTitle}>⚡ Tous les niveaux</Text>
-              {(() => {
-                const totalXP = ALL_ACHIEVEMENTS
-                  .filter((a) => unlockedIds.includes(a.id))
-                  .reduce((sum, a) => sum + a.xp, 0);
-                const current = getLevel(totalXP);
-                const currentLvl = current;
-                const nextLvl = XP_LEVELS.find((l) => l.level === currentLvl.level + 1);
-                const xpInLvl = totalXP - currentLvl.min;
-                const xpNeededLvl = nextLvl ? nextLvl.min - currentLvl.min : 1;
-                const lvlPct = nextLvl ? Math.min(Math.round((xpInLvl / xpNeededLvl) * 100), 100) : 100;
-                return (
-                  <>
-                    <Text style={styles.levelsCurrentXp}>Tu as actuellement {totalXP} XP</Text>
-                    <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
-                      {XP_LEVELS.map((lvl, i) => {
-                        const isPast = totalXP > lvl.max;
-                        const isCurrent = lvl.level === current.level;
-                        const isFuture = lvl.min > totalXP;
-                        return (
-                          <View key={lvl.level} style={[styles.levelRow, isCurrent && styles.levelRowCurrent]}>
-                            <View style={[
-                              styles.levelDot,
-                              isPast && styles.levelDotPast,
-                              isCurrent && styles.levelDotCurrent,
-                              isFuture && styles.levelDotFuture,
-                            ]}>
-                              <Text style={{ fontSize: 12 }}>{isPast ? '✅' : isCurrent ? '⚡' : '🔒'}</Text>
+              <Text style={styles.levelsCurrentXp}>Tu as actuellement {totalXP} XP</Text>
+              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+                {XP_LEVELS.map((lvl, i) => {
+                  const isPast = totalXP > lvl.max;
+                  const isCurrent = lvl.level === currentLevel.level;
+                  const isFuture = lvl.min > totalXP;
+                  return (
+                    <View key={lvl.level} style={[styles.levelRow, isCurrent && styles.levelRowCurrent]}>
+                      <View style={[
+                        styles.levelDot,
+                        isPast && styles.levelDotPast,
+                        isCurrent && styles.levelDotCurrent,
+                        isFuture && styles.levelDotFuture,
+                      ]}>
+                        <Text style={{ fontSize: 12 }}>{isPast ? '✅' : isCurrent ? '⚡' : '🔒'}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={[
+                            styles.levelName,
+                            isPast && styles.levelNamePast,
+                            isCurrent && styles.levelNameCurrent,
+                            isFuture && styles.levelNameFuture,
+                          ]}>
+                            Niv. {lvl.level} — {lvl.label}
+                          </Text>
+                          <Text style={[styles.levelXpRange, isCurrent && { color: '#fbbf24' }, isPast && { color: '#10b981' }]}>
+                            {lvl.level < 7 ? `${lvl.min} XP` : `${lvl.min}+ XP`}
+                          </Text>
+                        </View>
+                        {isCurrent && (
+                          <View style={{ marginTop: 6 }}>
+                            <View style={styles.levelCurrentBar}>
+                              <View style={[styles.levelCurrentFill, { width: `${levelPct}%` as any }]} />
                             </View>
-                            <View style={{ flex: 1 }}>
-                              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Text style={[
-                                  styles.levelName,
-                                  isPast && styles.levelNamePast,
-                                  isCurrent && styles.levelNameCurrent,
-                                  isFuture && styles.levelNameFuture,
-                                ]}>
-                                  Niv. {lvl.level} — {lvl.label}
-                                </Text>
-                                <Text style={[styles.levelXpRange, isCurrent && { color: '#fbbf24' }, isPast && { color: '#10b981' }]}>
-                                  {lvl.level < 7 ? `${lvl.min} XP` : `${lvl.min}+ XP`}
-                                </Text>
-                              </View>
-                              {isCurrent && (
-                                <View style={{ marginTop: 6 }}>
-                                  <View style={styles.levelCurrentBar}>
-                                    <View style={[styles.levelCurrentFill, { width: `${lvlPct}%` as any }]} />
-                                  </View>
-                                  <Text style={styles.levelCurrentProgress}>
-                                    {xpInLvl} / {xpNeededLvl} XP vers {XP_LEVELS[i + 1]?.label ?? '🏆'}
-                                  </Text>
-                                </View>
-                              )}
-                            </View>
+                            <Text style={styles.levelCurrentProgress}>
+                              {xpInLevel} / {xpNeeded} XP vers {XP_LEVELS[i + 1]?.label ?? '🏆'}
+                            </Text>
                           </View>
-                        );
-                      })}
-                    </ScrollView>
-                  </>
-                );
-              })()}
+                        )}
+                      </View>
+                    </View>
+                  );
+                })}
+              </ScrollView>
               <TouchableOpacity onPress={() => setLevelsModalVisible(false)} style={styles.levelsClose}>
                 <Text style={styles.levelsCloseText}>Fermer</Text>
               </TouchableOpacity>
