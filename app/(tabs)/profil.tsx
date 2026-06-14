@@ -11,12 +11,26 @@ import { AchievementGrid, ALL_ACHIEVEMENTS } from '@/components/Achievements';
 import { useStore } from '@/lib/store';
 import {
   checkAndUnlockAchievements, deleteWeightEntry, getAllWeightEntries,
-  getProfile, getUnlockedAchievements, resetAllData, saveProfile,
+  getAchievementStats, getProfile, getUnlockedAchievements, resetAllData, saveProfile,
   updateWeightEntry, updateWeightInitial,
 } from '@/lib/db';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import { cancelAllNotifications, scheduleAllNotifications } from '@/lib/notifications';
-import { WeightEntry } from '@/lib/types';
+import { AchievementStats, WeightEntry } from '@/lib/types';
+
+const XP_LEVELS = [
+  { level: 1, label: 'Débutant',   min: 0,    max: 149   },
+  { level: 2, label: 'En route',   min: 150,  max: 399   },
+  { level: 3, label: 'Régulier',   min: 400,  max: 799   },
+  { level: 4, label: 'Confirmé',   min: 800,  max: 1499  },
+  { level: 5, label: 'Discipliné', min: 1500, max: 2499  },
+  { level: 6, label: 'Expert',     min: 2500, max: 3999  },
+  { level: 7, label: 'Élite',      min: 4000, max: 99999 },
+];
+
+function getLevel(xp: number) {
+  return XP_LEVELS.find((l) => xp >= l.min && xp <= l.max) ?? XP_LEVELS[XP_LEVELS.length - 1];
+}
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { registerModal } from '@/lib/useModalManager';
 import { getLocalDateString, getProfileName } from '@/lib/utils';
@@ -54,6 +68,7 @@ export default function Profil() {
   const [saving, setSaving] = useState(false);
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
+  const [achievementStats, setAchievementStats] = useState<AchievementStats | null>(null);
   const [editWeightInitialVisible, setEditWeightInitialVisible] = useState(false);
   const [editWeightInitialInput, setEditWeightInitialInput] = useState('');
 
@@ -65,6 +80,7 @@ export default function Profil() {
       getUnlockedAchievements().then(setUnlockedIds);
       loadWeightEntries();
       if (profile) {
+        getAchievementStats(profile).then(setAchievementStats).catch(() => {});
         checkAndUnlockAchievements(profile).then((newOnes) => {
           if (newOnes.length > 0) {
             newOnes.forEach((b) => setPendingBadge(b));
@@ -287,16 +303,47 @@ export default function Profil() {
 
         {/* Achievements */}
         <Card>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <Text style={styles.sectionTitle}>Mes récompenses</Text>
-            <Text style={{ color: '#fbbf24', fontWeight: '700', fontSize: 15 }}>
-              ⚡ {ALL_ACHIEVEMENTS.filter((a) => unlockedIds.includes(a.id)).reduce((sum, a) => sum + a.xp, 0)} XP
-            </Text>
-          </View>
+          {(() => {
+            const totalXP = ALL_ACHIEVEMENTS
+              .filter((a) => unlockedIds.includes(a.id))
+              .reduce((sum, a) => sum + a.xp, 0);
+            const currentLevel = getLevel(totalXP);
+            const nextLevel = XP_LEVELS.find((l) => l.level === currentLevel.level + 1);
+            const xpInLevel = totalXP - currentLevel.min;
+            const xpNeeded = nextLevel ? nextLevel.min - currentLevel.min : 1;
+            const levelPct = nextLevel
+              ? Math.min(Math.round((xpInLevel / xpNeeded) * 100), 100)
+              : 100;
+            return (
+              <>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <View>
+                    <Text style={styles.sectionTitle}>Mes récompenses</Text>
+                    <Text style={{ color: '#10b981', fontSize: 11, fontWeight: '700', marginTop: -8 }}>
+                      Niveau {currentLevel.level} — {currentLevel.label}
+                    </Text>
+                  </View>
+                  <Text style={{ color: '#fbbf24', fontWeight: '700', fontSize: 16 }}>⚡ {totalXP} XP</Text>
+                </View>
+                <View style={{ marginBottom: 12 }}>
+                  <View style={{ height: 6, borderRadius: 3, backgroundColor: '#1e293b', overflow: 'hidden' }}>
+                    <View style={{ height: '100%', borderRadius: 3, width: `${levelPct}%` as any, backgroundColor: '#fbbf24' }} />
+                  </View>
+                  {nextLevel ? (
+                    <Text style={{ color: '#475569', fontSize: 10, marginTop: 4 }}>
+                      {xpInLevel} / {xpNeeded} XP → Niv. {nextLevel.level} {nextLevel.label}
+                    </Text>
+                  ) : (
+                    <Text style={{ color: '#fbbf24', fontSize: 10, marginTop: 4 }}>Niveau maximum atteint 🏆</Text>
+                  )}
+                </View>
+              </>
+            );
+          })()}
           <Text style={styles.achievementsCount}>
             {unlockedIds.length} / {ALL_ACHIEVEMENTS.length} badges débloqués
           </Text>
-          <AchievementGrid unlockedIds={unlockedIds} />
+          <AchievementGrid unlockedIds={unlockedIds} stats={achievementStats} />
         </Card>
 
         {/* Notifications */}
