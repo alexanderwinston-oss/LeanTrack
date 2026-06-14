@@ -3,7 +3,7 @@ import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpac
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
-import { ALL_ACHIEVEMENTS, AchievementDef } from '@/lib/achievements';
+import { ALL_ACHIEVEMENTS, AchievementCategory, AchievementDef } from '@/lib/achievements';
 
 export { ALL_ACHIEVEMENTS };
 
@@ -17,7 +17,29 @@ interface AchievementGridProps {
   statusMap?: Map<string, AchievementStatus>;
 }
 
-function Badge({
+const CATEGORY_ORDER: AchievementCategory[] = [
+  'Nutrition', 'Hydratation', 'Poids', 'Régularité',
+  'Résilience', 'Fidélité', 'Volume', 'Secret',
+];
+
+const CATEGORY_LABELS: Record<AchievementCategory, string> = {
+  Nutrition: '🍽️ Nutrition',
+  Hydratation: '💧 Hydratation',
+  Poids: '⚖️ Poids',
+  Régularité: '📅 Régularité',
+  Résilience: '🔄 Résilience',
+  Fidélité: '🗓️ Fidélité',
+  Volume: '📊 Volume',
+  Secret: '🔐 Secret',
+};
+
+const TIER_COLORS: Record<string, string> = {
+  bronze: '#cd7f32',
+  silver: '#94a3b8',
+  gold: '#fbbf24',
+};
+
+function BadgeItem({
   def,
   unlocked,
   lost,
@@ -28,30 +50,34 @@ function Badge({
   lost: boolean;
   onPress: () => void;
 }) {
+  const tierColor = def.tier ? TIER_COLORS[def.tier] : null;
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[styles.badge, unlocked && !lost && styles.badgeUnlocked, lost && styles.badgeLost]}
+      style={[
+        styles.badge,
+        unlocked && !lost && styles.badgeUnlocked,
+        lost && styles.badgeLost,
+        tierColor && unlocked ? { borderColor: tierColor } : null,
+      ]}
       activeOpacity={0.75}
     >
-      <Text style={[styles.badgeEmoji, !unlocked && styles.badgeLocked]}>{def.emoji}</Text>
+      <Text style={[styles.badgeEmoji, !unlocked && styles.badgeLocked]}>
+        {unlocked ? def.emoji : '🔒'}
+      </Text>
       {lost && <Text style={styles.lostIcon}>🔒</Text>}
       <Text style={[styles.badgeLabel, !unlocked && styles.textLocked]} numberOfLines={2}>
-        {def.label}
+        {unlocked ? def.label : '???'}
       </Text>
+      {unlocked && def.xp > 0 && (
+        <Text style={styles.badgeXp}>+{def.xp} XP</Text>
+      )}
     </TouchableOpacity>
   );
 }
 
 export function AchievementGrid({ unlockedIds, statusMap = new Map() }: AchievementGridProps) {
   const [selected, setSelected] = useState<AchievementDef | null>(null);
-
-  const categories: { key: AchievementDef['category']; label: string }[] = [
-    { key: 'Hydratation', label: '💧 Hydratation' },
-    { key: 'Nutrition', label: '🍽️ Nutrition' },
-    { key: 'Poids', label: '⚖️ Poids' },
-    { key: 'Régularité', label: '📅 Régularité' },
-  ];
 
   function getStatus(id: string) {
     const status = statusMap.get(id);
@@ -63,28 +89,34 @@ export function AchievementGrid({ unlockedIds, statusMap = new Map() }: Achievem
   return (
     <>
       <View style={styles.grid}>
-        {categories.map(({ key, label }) => (
-          <View key={key} style={styles.category}>
-            <Text style={styles.categoryLabel}>{label}</Text>
-            <View style={styles.badgeRow}>
-              {ALL_ACHIEVEMENTS.filter((d) => d.category === key).map((def) => {
-                const { unlocked, lost } = getStatus(def.id);
-                return (
-                  <Badge
-                    key={def.id}
-                    def={def}
-                    unlocked={unlocked}
-                    lost={lost}
-                    onPress={() => setSelected(def)}
-                  />
-                );
-              })}
+        {CATEGORY_ORDER.map((cat) => {
+          const badges = ALL_ACHIEVEMENTS.filter((a) => a.category === cat);
+          const visible = badges.filter(
+            (a) => !a.secret || unlockedIds.includes(a.id)
+          );
+          if (visible.length === 0) return null;
+          return (
+            <View key={cat} style={styles.category}>
+              <Text style={styles.categoryLabel}>{CATEGORY_LABELS[cat]}</Text>
+              <View style={styles.badgeRow}>
+                {visible.map((def) => {
+                  const { unlocked, lost } = getStatus(def.id);
+                  return (
+                    <BadgeItem
+                      key={def.id}
+                      def={def}
+                      unlocked={unlocked}
+                      lost={lost}
+                      onPress={() => setSelected(def)}
+                    />
+                  );
+                })}
+              </View>
             </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
 
-      {/* Achievement tap detail modal */}
       <Modal visible={!!selected} transparent animationType="fade">
         <TouchableOpacity
           style={styles.tapOverlay}
@@ -93,12 +125,18 @@ export function AchievementGrid({ unlockedIds, statusMap = new Map() }: Achievem
         >
           {selected && (() => {
             const { unlocked, status } = getStatus(selected.id);
+            const tierColor = selected.tier ? TIER_COLORS[selected.tier] : Colors.accent;
             return (
-              <View style={[styles.tapCard, { borderColor: unlocked ? Colors.accent : Colors.border }]}>
-                <Text style={styles.tapEmoji}>{selected.emoji}</Text>
-                <Text style={styles.tapLabel}>{selected.label}</Text>
-                <Text style={styles.tapDesc}>{selected.description}</Text>
+              <View style={[styles.tapCard, { borderColor: unlocked ? tierColor : Colors.border }]}>
+                <Text style={styles.tapEmoji}>{unlocked ? selected.emoji : '🔒'}</Text>
+                <Text style={styles.tapLabel}>{unlocked ? selected.label : '???'}</Text>
+                <Text style={styles.tapDesc}>
+                  {unlocked ? selected.description : 'Badge secret — continue tes efforts !'}
+                </Text>
                 <Text style={styles.tapCategory}>{selected.category}</Text>
+                {unlocked && selected.xp > 0 && (
+                  <Text style={styles.tapXp}>⚡ +{selected.xp} XP</Text>
+                )}
                 {unlocked && status?.unlocked_at ? (
                   <Text style={styles.tapUnlockedAt}>
                     ✅ Débloqué le {format(new Date(status.unlocked_at), 'dd MMM yyyy', { locale: fr })}
@@ -114,6 +152,8 @@ export function AchievementGrid({ unlockedIds, statusMap = new Map() }: Achievem
     </>
   );
 }
+
+export { AchievementGrid as AllAchievementsGrid };
 
 interface CelebrationModalProps {
   achievementId: string | null;
@@ -146,6 +186,9 @@ export function CelebrationModal({ achievementId, onClose }: CelebrationModalPro
           <Text style={styles.celebTitle}>Palier débloqué !</Text>
           <Text style={styles.celebLabel}>{def.label}</Text>
           <Text style={styles.celebDesc}>{def.description}</Text>
+          {def.xp > 0 && (
+            <Text style={styles.celebXp}>⚡ +{def.xp} XP</Text>
+          )}
           <Pressable style={styles.celebBtn} onPress={onClose}>
             <Text style={styles.celebBtnText}>Super ! 🎉</Text>
           </Pressable>
@@ -172,6 +215,7 @@ const styles = StyleSheet.create({
   lostIcon: { position: 'absolute', top: 4, right: 4, fontSize: 10 },
   badgeLabel: { fontSize: 10, fontWeight: '600', color: Colors.textPrimary, textAlign: 'center', lineHeight: 13 },
   textLocked: { color: Colors.textMuted },
+  badgeXp: { color: '#fbbf24', fontSize: 9, fontWeight: '700' },
   tapOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.75)',
     alignItems: 'center', justifyContent: 'center',
@@ -185,6 +229,7 @@ const styles = StyleSheet.create({
   tapLabel: { color: Colors.textPrimary, fontSize: 20, fontWeight: '700', marginTop: 12, textAlign: 'center' },
   tapDesc: { color: Colors.textSecondary, fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 20 },
   tapCategory: { color: Colors.textMuted, fontSize: 12, marginTop: 6 },
+  tapXp: { color: '#fbbf24', fontSize: 14, fontWeight: '700', marginTop: 8 },
   tapUnlockedAt: { color: Colors.accent, fontSize: 12, marginTop: 12 },
   tapLocked: { color: Colors.textMuted, fontSize: 12, marginTop: 12, textAlign: 'center' },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center' },
@@ -197,6 +242,7 @@ const styles = StyleSheet.create({
   celebTitle: { fontSize: 16, color: Colors.textSecondary, fontWeight: '500' },
   celebLabel: { fontSize: 22, fontWeight: '800', color: Colors.accent, textAlign: 'center' },
   celebDesc: { fontSize: 14, color: Colors.textSecondary, textAlign: 'center', lineHeight: 20 },
+  celebXp: { color: '#fbbf24', fontSize: 16, fontWeight: '700' },
   celebBtn: {
     marginTop: 8, backgroundColor: Colors.accent,
     borderRadius: Colors.radiusPill, paddingVertical: 12, paddingHorizontal: 28,

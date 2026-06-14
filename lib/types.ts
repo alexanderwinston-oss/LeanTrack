@@ -173,4 +173,14 @@ export interface AchievementStats {
   progressPercent: number;
   appStreak: number;
   bestAppStreak: number;
+  loggingStreak: number;
+  bestLoggingStreak: number;
+  proteinGoalStreak: number;
+  bestProteinGoalStreak: number;
+  consecutiveWeightDeclines: number;
+  daysUsingApp: number;
+  hasReturnedAfterAbsence: boolean;
+  hasLoggedDespiteOvereating: boolean;
+  hasLoggedLateNight: boolean;
+  hasLoggedEarlyMorning: boolean;
 }

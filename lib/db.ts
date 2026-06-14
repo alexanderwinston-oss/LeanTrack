@@ -788,7 +788,7 @@ export async function getAchievementStats(profile: UserProfile): Promise<Achieve
         SELECT date, SUM(calories) as total FROM meals WHERE profile_id = ?
         GROUP BY date HAVING total >= ? AND total <= ?
       ) ORDER BY date DESC`,
-      [profileId, profile.calorie_target * 0.8, profile.calorie_target * 1.1]
+      [profileId, profile.calorie_target * 0.9, profile.calorie_target * 1.1]
     ),
     db.getFirstAsync<{ c: number }>(
       `SELECT COUNT(*) as c FROM (
@@ -842,6 +842,80 @@ export async function getAchievementStats(profile: UserProfile): Promise<Achieve
     }
   }
 
+  // ── New stats ─────────────────────────────────────────────────────────────────
+
+  const mealDates = await db.getAllAsync<{ date: string }>(
+    'SELECT DISTINCT date FROM meals WHERE profile_id = ? ORDER BY date DESC',
+    [profileId]
+  );
+  const loggingStreak = computeStreakFromDates(mealDates.map((r) => r.date));
+  const bestLoggingStreak = computeMaxStreak(mealDates.map((r) => r.date));
+
+  const proteinGoalDays = await db.getAllAsync<{ date: string }>(
+    `SELECT date FROM (
+      SELECT date, SUM(protein) as total FROM meals
+      WHERE profile_id = ?
+      GROUP BY date HAVING total >= ? AND total <= ?
+    ) ORDER BY date DESC`,
+    [profileId, profile.protein_target * 0.9, profile.protein_target * 1.1]
+  );
+  const proteinGoalStreak = computeStreakFromDates(proteinGoalDays.map((r) => r.date));
+  const bestProteinGoalStreak = computeMaxStreak(proteinGoalDays.map((r) => r.date));
+
+  const recentWeights = await db.getAllAsync<{ weight: number; date: string }>(
+    'SELECT weight, date FROM weight_log WHERE profile_id = ? ORDER BY date DESC LIMIT 10',
+    [profileId]
+  );
+  let consecutiveWeightDeclines = 0;
+  for (let i = 0; i < recentWeights.length - 1; i++) {
+    if (recentWeights[i].weight < recentWeights[i + 1].weight) consecutiveWeightDeclines++;
+    else break;
+  }
+
+  const daysUsingApp = appDays.length;
+
+  const allActivityDates = appDays.map((r) => r.date).slice().sort();
+  let hasReturnedAfterAbsence = false;
+  for (let i = 1; i < allActivityDates.length; i++) {
+    const gap = Math.round(
+      (new Date(allActivityDates[i]).getTime() - new Date(allActivityDates[i - 1]).getTime())
+      / (1000 * 60 * 60 * 24)
+    );
+    if (gap >= 3 && gap <= 5) { hasReturnedAfterAbsence = true; break; }
+  }
+
+  const overeatingRow = await db.getFirstAsync<{ c: number }>(
+    `SELECT COUNT(*) as c FROM (
+      SELECT date FROM meals WHERE profile_id = ?
+      GROUP BY date HAVING SUM(calories) > ?
+    )`,
+    [profileId, profile.calorie_target * 1.2]
+  );
+  const hasLoggedDespiteOvereating = (overeatingRow?.c ?? 0) >= 1;
+
+  const mealsSchema = await db.getFirstAsync<{ sql: string }>(
+    "SELECT sql FROM sqlite_master WHERE type='table' AND name='meals'"
+  );
+  const hasCreatedAt = mealsSchema?.sql?.includes('created_at');
+  const hasLoggedAt = mealsSchema?.sql?.includes('logged_at');
+  let hasLoggedLateNight = false;
+  let hasLoggedEarlyMorning = false;
+  if (hasCreatedAt || hasLoggedAt) {
+    const timeField = hasCreatedAt ? 'created_at' : 'logged_at';
+    const lateRow = await db.getFirstAsync<{ c: number }>(
+      `SELECT COUNT(*) as c FROM meals WHERE profile_id = ?
+       AND CAST(strftime('%H', ${timeField}) AS INTEGER) >= 23`,
+      [profileId]
+    );
+    const earlyRow = await db.getFirstAsync<{ c: number }>(
+      `SELECT COUNT(*) as c FROM meals WHERE profile_id = ?
+       AND CAST(strftime('%H', ${timeField}) AS INTEGER) < 6`,
+      [profileId]
+    );
+    hasLoggedLateNight = (lateRow?.c ?? 0) >= 1;
+    hasLoggedEarlyMorning = (earlyRow?.c ?? 0) >= 1;
+  }
+
   return {
     totalWaterEntries: waterEntryRow?.c ?? 0,
     waterGoalDaysCount: waterGoalDays.length,
@@ -859,6 +933,16 @@ export async function getAchievementStats(profile: UserProfile): Promise<Achieve
     progressPercent,
     appStreak,
     bestAppStreak,
+    loggingStreak,
+    bestLoggingStreak,
+    proteinGoalStreak,
+    bestProteinGoalStreak,
+    consecutiveWeightDeclines,
+    daysUsingApp,
+    hasReturnedAfterAbsence,
+    hasLoggedDespiteOvereating,
+    hasLoggedLateNight,
+    hasLoggedEarlyMorning,
   };
 }
 

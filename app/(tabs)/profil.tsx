@@ -7,7 +7,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { AchievementGrid } from '@/components/Achievements';
+import { AchievementGrid, ALL_ACHIEVEMENTS } from '@/components/Achievements';
 import { useStore } from '@/lib/store';
 import {
   checkAndUnlockAchievements, deleteWeightEntry, getAllWeightEntries,
@@ -287,9 +287,14 @@ export default function Profil() {
 
         {/* Achievements */}
         <Card>
-          <Text style={styles.sectionTitle}>Mes récompenses</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <Text style={styles.sectionTitle}>Mes récompenses</Text>
+            <Text style={{ color: '#fbbf24', fontWeight: '700', fontSize: 15 }}>
+              ⚡ {ALL_ACHIEVEMENTS.filter((a) => unlockedIds.includes(a.id)).reduce((sum, a) => sum + a.xp, 0)} XP
+            </Text>
+          </View>
           <Text style={styles.achievementsCount}>
-            {unlockedIds.length} / 10 paliers débloqués
+            {unlockedIds.length} / {ALL_ACHIEVEMENTS.length} badges débloqués
           </Text>
           <AchievementGrid unlockedIds={unlockedIds} />
         </Card>
