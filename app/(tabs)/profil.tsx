@@ -448,7 +448,7 @@ export default function Profil() {
           onPress={() => setLevelsModalVisible(false)}
         >
           <TouchableOpacity activeOpacity={1}>
-            <View style={[styles.levelsSheet, { maxHeight: SCREEN_H * 0.82 }]}>
+            <View style={[styles.levelsSheet, { maxHeight: SCREEN_H * 0.72 }]}>
               <View style={styles.levelsHandle} />
               <Text style={styles.levelsTitle}>⚡ Tous les niveaux</Text>
               <Text style={styles.levelsCurrentXp}>Tu as actuellement {totalXP} XP</Text>
@@ -643,7 +643,7 @@ const styles = StyleSheet.create({
     fontSize: 18, padding: 12, textAlign: 'center', fontWeight: '600',
   },
   weightBtns: { flexDirection: 'row', gap: 10 },
-  levelsSheet: { backgroundColor: '#1e293b', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 24 },
+  levelsSheet: { backgroundColor: '#1e293b', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 48 },
   levelsHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#334155', alignSelf: 'center', marginBottom: 16 },
   levelsTitle: { color: '#f1f5f9', fontWeight: '800', fontSize: 18, marginBottom: 4 },
   levelsCurrentXp: { color: '#64748b', fontSize: 12, marginBottom: 16 },
