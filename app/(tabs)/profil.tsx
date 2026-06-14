@@ -452,7 +452,7 @@ export default function Profil() {
               <View style={styles.levelsHandle} />
               <Text style={styles.levelsTitle}>⚡ Tous les niveaux</Text>
               <Text style={styles.levelsCurrentXp}>Tu as actuellement {totalXP} XP</Text>
-              <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
+              <ScrollView style={{ maxHeight: SCREEN_H * 0.55 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 8 }}>
                 {XP_LEVELS.map((lvl, i) => {
                   const isPast = totalXP > lvl.max;
                   const isCurrent = lvl.level === currentLevel.level;
