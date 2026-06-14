@@ -4,7 +4,6 @@ import {
   TextInput, TouchableOpacity, View,
 } from 'react-native';
 
-const SCREEN_H = Dimensions.get('window').height;
 import { router, useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
@@ -36,6 +35,8 @@ function getLevel(xp: number) {
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { registerModal } from '@/lib/useModalManager';
 import { getLocalDateString, getProfileName } from '@/lib/utils';
+
+const SCREEN_H = Dimensions.get('window').height;
 
 const ACTIVITY_LABELS: Record<string, string> = {
   sedentaire: 'Sédentaire',
