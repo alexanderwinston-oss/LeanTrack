@@ -51,27 +51,42 @@ function BadgeItem({
   onPress: () => void;
 }) {
   const tierColor = def.tier ? TIER_COLORS[def.tier] : null;
+
+  if (!unlocked && def.secret) {
+    return (
+      <TouchableOpacity onPress={onPress} style={[styles.badge, { opacity: 0.35 }]} activeOpacity={0.75}>
+        <Text style={styles.badgeEmoji}>🔒</Text>
+        <Text style={[styles.badgeLabel, styles.textLocked]} numberOfLines={2}>???</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  if (!unlocked) {
+    return (
+      <TouchableOpacity onPress={onPress} style={[styles.badge, { opacity: 0.6 }]} activeOpacity={0.75}>
+        <Text style={styles.badgeEmoji}>🔒</Text>
+        <Text style={[styles.badgeLabel, { color: '#64748b', fontSize: 9, lineHeight: 12 }]} numberOfLines={3}>
+          {def.description}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <TouchableOpacity
       onPress={onPress}
       style={[
         styles.badge,
-        unlocked && !lost && styles.badgeUnlocked,
+        styles.badgeUnlocked,
         lost && styles.badgeLost,
-        tierColor && unlocked ? { borderColor: tierColor } : null,
+        tierColor ? { borderColor: tierColor } : null,
       ]}
       activeOpacity={0.75}
     >
-      <Text style={[styles.badgeEmoji, !unlocked && styles.badgeLocked]}>
-        {unlocked ? def.emoji : '🔒'}
-      </Text>
+      <Text style={styles.badgeEmoji}>{def.emoji}</Text>
       {lost && <Text style={styles.lostIcon}>🔒</Text>}
-      <Text style={[styles.badgeLabel, !unlocked && styles.textLocked]} numberOfLines={2}>
-        {unlocked ? def.label : '???'}
-      </Text>
-      {unlocked && def.xp > 0 && (
-        <Text style={styles.badgeXp}>+{def.xp} XP</Text>
-      )}
+      <Text style={styles.badgeLabel} numberOfLines={2}>{def.label}</Text>
+      {def.xp > 0 && <Text style={styles.badgeXp}>+{def.xp} XP</Text>}
     </TouchableOpacity>
   );
 }
@@ -126,23 +141,53 @@ export function AchievementGrid({ unlockedIds, statusMap = new Map() }: Achievem
           {selected && (() => {
             const { unlocked, status } = getStatus(selected.id);
             const tierColor = selected.tier ? TIER_COLORS[selected.tier] : Colors.accent;
+            const borderColor = unlocked ? tierColor : Colors.border;
+
+            if (!unlocked && selected.secret) {
+              return (
+                <View style={[styles.tapCard, { borderColor }]}>
+                  <Text style={styles.tapEmoji}>🔒</Text>
+                  <Text style={styles.tapLabel}>???</Text>
+                  <Text style={styles.tapDesc}>Badge secret — continue tes efforts !</Text>
+                  <Text style={styles.tapCategory}>{selected.category}</Text>
+                  <Text style={styles.tapLocked}>🔒 Non débloqué — Continue tes efforts !</Text>
+                </View>
+              );
+            }
+
+            if (!unlocked) {
+              return (
+                <View style={[styles.tapCard, { borderColor }]}>
+                  <Text style={styles.tapEmoji}>🔒</Text>
+                  <Text style={styles.tapLabel}>Badge verrouillé</Text>
+                  <Text style={styles.tapDesc}>{selected.description}</Text>
+                  <Text style={styles.tapCategory}>{selected.category}</Text>
+                  <View style={styles.objectifBox}>
+                    <Text style={styles.objectifLabel}>🎯 Objectif</Text>
+                    <Text style={styles.objectifText}>{selected.description}</Text>
+                  </View>
+                  {selected.xp > 0 && (
+                    <Text style={styles.rewardText}>Récompense : ⚡ {selected.xp} XP</Text>
+                  )}
+                </View>
+              );
+            }
+
             return (
-              <View style={[styles.tapCard, { borderColor: unlocked ? tierColor : Colors.border }]}>
-                <Text style={styles.tapEmoji}>{unlocked ? selected.emoji : '🔒'}</Text>
-                <Text style={styles.tapLabel}>{unlocked ? selected.label : '???'}</Text>
-                <Text style={styles.tapDesc}>
-                  {unlocked ? selected.description : 'Badge secret — continue tes efforts !'}
-                </Text>
+              <View style={[styles.tapCard, { borderColor }]}>
+                <Text style={styles.tapEmoji}>{selected.emoji}</Text>
+                <Text style={styles.tapLabel}>{selected.label}</Text>
+                <Text style={styles.tapDesc}>{selected.description}</Text>
                 <Text style={styles.tapCategory}>{selected.category}</Text>
-                {unlocked && selected.xp > 0 && (
+                {selected.xp > 0 && (
                   <Text style={styles.tapXp}>⚡ +{selected.xp} XP</Text>
                 )}
-                {unlocked && status?.unlocked_at ? (
+                {status?.unlocked_at ? (
                   <Text style={styles.tapUnlockedAt}>
                     ✅ Débloqué le {format(new Date(status.unlocked_at), 'dd MMM yyyy', { locale: fr })}
                   </Text>
                 ) : (
-                  <Text style={styles.tapLocked}>🔒 Non débloqué — Continue tes efforts !</Text>
+                  <Text style={styles.tapUnlockedAt}>✅ Débloqué</Text>
                 )}
               </View>
             );
@@ -232,6 +277,13 @@ const styles = StyleSheet.create({
   tapXp: { color: '#fbbf24', fontSize: 14, fontWeight: '700', marginTop: 8 },
   tapUnlockedAt: { color: Colors.accent, fontSize: 12, marginTop: 12 },
   tapLocked: { color: Colors.textMuted, fontSize: 12, marginTop: 12, textAlign: 'center' },
+  objectifBox: {
+    backgroundColor: '#0f172a', borderRadius: 10, padding: 12,
+    marginTop: 12, width: '100%', borderWidth: 1, borderColor: '#334155',
+  },
+  objectifLabel: { color: '#10b981', fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  objectifText: { color: '#94a3b8', fontSize: 13, lineHeight: 18 },
+  rewardText: { color: '#fbbf24', fontSize: 13, fontWeight: '600', marginTop: 8 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center' },
   celebCard: {
     backgroundColor: Colors.bgSurface, borderRadius: 20,
