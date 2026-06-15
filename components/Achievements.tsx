@@ -35,11 +35,35 @@ const CATEGORY_LABELS: Record<AchievementCategory, string> = {
   Secret: '🔐 Secret',
 };
 
-const TIER_COLORS: Record<string, string> = {
-  bronze: '#cd7f32',
-  silver: '#94a3b8',
-  gold: '#fbbf24',
-};
+function tierEmoji(tier?: string) {
+  if (tier === 'bronze') return '🥉';
+  if (tier === 'silver') return '🥈';
+  if (tier === 'gold') return '🥇';
+  return null;
+}
+
+// ── AchievementsLegend ────────────────────────────────────────────────────────
+
+function AchievementsLegend() {
+  return (
+    <View style={styles.legendContainer}>
+      <View style={styles.legendRow}>
+        <View style={[styles.legendDot, { backgroundColor: '#10b981' }]} />
+        <Text style={styles.legendText}>Débloqué</Text>
+        <View style={[styles.legendDot, { backgroundColor: '#f97316' }]} />
+        <Text style={styles.legendText}>{'Proche (>80%)'}</Text>
+        <View style={[styles.legendDot, { backgroundColor: '#334155' }]} />
+        <Text style={styles.legendText}>À débloquer</Text>
+      </View>
+      <View style={styles.legendRow}>
+        <Text style={styles.legendTier}>🥉 Bronze</Text>
+        <Text style={styles.legendTier}>🥈 Argent</Text>
+        <Text style={styles.legendTier}>🥇 Or</Text>
+        <Text style={styles.legendTierDesc}>— niveaux de difficulté</Text>
+      </View>
+    </View>
+  );
+}
 
 // ── EnCoursSection ────────────────────────────────────────────────────────────
 
@@ -75,12 +99,12 @@ function EnCoursSection({
           <View style={styles.enCoursContent}>
             <View style={styles.enCoursHeader}>
               <Text style={styles.enCoursLabel} numberOfLines={1}>{def.description}</Text>
-              <Text style={[styles.enCoursPct, pct >= 80 && { color: '#fbbf24' }]}>{pct}%</Text>
+              <Text style={[styles.enCoursPct, pct >= 80 && { color: '#f97316' }]}>{pct}%</Text>
             </View>
             <View style={styles.enCoursBg}>
               <View style={[styles.enCoursFill, {
                 width: `${pct}%` as any,
-                backgroundColor: pct >= 80 ? '#fbbf24' : '#10b981',
+                backgroundColor: pct >= 80 ? '#f97316' : '#10b981',
               }]} />
             </View>
             <Text style={styles.enCoursCount}>{prog.current} / {prog.total}</Text>
@@ -108,10 +132,27 @@ function BadgeItem({
 }) {
   const prog = stats && def.progress ? def.progress(stats) : null;
   const pct = prog ? Math.min(Math.round((prog.current / prog.total) * 100), 100) : null;
-  const isNearlyDone = !unlocked && pct !== null && pct >= 80;
-  const tierColor = def.tier ? TIER_COLORS[def.tier] : null;
 
-  if (!unlocked && def.secret) {
+  // ── Débloqué ──
+  if (unlocked) {
+    const te = tierEmoji(def.tier);
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        style={[styles.badge, styles.badgeUnlocked, lost && styles.badgeLost]}
+        activeOpacity={0.75}
+      >
+        {te && <Text style={styles.tierBadge}>{te}</Text>}
+        {lost && <Text style={styles.lostIcon}>🔒</Text>}
+        <Text style={styles.badgeEmoji}>{def.emoji}</Text>
+        <Text style={styles.badgeLabel} numberOfLines={2}>{def.label}</Text>
+        {def.xp > 0 && <Text style={styles.badgeXp}>+{def.xp} XP</Text>}
+      </TouchableOpacity>
+    );
+  }
+
+  // ── Secret verrouillé ──
+  if (def.secret) {
     return (
       <TouchableOpacity onPress={onPress} style={[styles.badge, { opacity: 0.35 }]} activeOpacity={0.75}>
         <Text style={styles.badgeEmoji}>🔒</Text>
@@ -120,54 +161,32 @@ function BadgeItem({
     );
   }
 
-  if (!unlocked) {
-    return (
-      <TouchableOpacity
-        onPress={onPress}
-        style={[
-          styles.badge,
-          { opacity: 0.75 },
-          isNearlyDone && { borderColor: '#fbbf24', borderWidth: 1.5, backgroundColor: 'rgba(251,191,36,0.06)' },
-        ]}
-        activeOpacity={0.75}
-      >
-        {isNearlyDone && <Text style={styles.nearlyDoneIcon}>🔥</Text>}
-        <Text style={styles.badgeEmoji}>🔒</Text>
-        <Text style={[styles.badgeLabel, { color: '#64748b', fontSize: 9, lineHeight: 12 }]} numberOfLines={3}>
-          {def.description}
-        </Text>
-        {pct !== null && (
-          <View style={styles.progressContainer}>
-            <View style={styles.progressBg}>
-              <View style={[styles.progressFill, {
-                width: `${pct}%` as any,
-                backgroundColor: isNearlyDone ? '#fbbf24' : '#10b981',
-              }]} />
-            </View>
-            <Text style={[styles.progressLabel, isNearlyDone && { color: '#fbbf24' }]}>
-              {prog!.current}/{prog!.total}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
-    );
-  }
-
+  // ── Normal verrouillé ──
+  const isNearlyDone = pct !== null && pct >= 80;
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[
-        styles.badge,
-        styles.badgeUnlocked,
-        lost && styles.badgeLost,
-        tierColor ? { borderColor: tierColor } : null,
-      ]}
+      style={[styles.badge, { opacity: 0.75 }, isNearlyDone && styles.badgeNearMiss]}
       activeOpacity={0.75}
     >
-      <Text style={styles.badgeEmoji}>{def.emoji}</Text>
-      {lost && <Text style={styles.lostIcon}>🔒</Text>}
-      <Text style={styles.badgeLabel} numberOfLines={2}>{def.label}</Text>
-      {def.xp > 0 && <Text style={styles.badgeXp}>+{def.xp} XP</Text>}
+      {isNearlyDone && <Text style={styles.nearlyDoneIcon}>🔥</Text>}
+      <Text style={styles.badgeEmoji}>🔒</Text>
+      <Text style={[styles.badgeLabel, { color: '#64748b', fontSize: 9, lineHeight: 12 }]} numberOfLines={3}>
+        {def.description}
+      </Text>
+      {pct !== null && (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBg}>
+            <View style={[styles.progressFill, {
+              width: `${pct}%` as any,
+              backgroundColor: isNearlyDone ? '#f97316' : '#10b981',
+            }]} />
+          </View>
+          <Text style={[styles.progressLabel, isNearlyDone && { color: '#f97316' }]}>
+            {prog!.current}/{prog!.total}
+          </Text>
+        </View>
+      )}
     </TouchableOpacity>
   );
 }
@@ -186,6 +205,7 @@ export function AchievementGrid({ unlockedIds, statusMap = new Map(), stats }: A
 
   return (
     <>
+      <AchievementsLegend />
       <EnCoursSection unlockedIds={unlockedIds} stats={stats} />
 
       <View style={styles.grid}>
@@ -220,8 +240,7 @@ export function AchievementGrid({ unlockedIds, statusMap = new Map(), stats }: A
         <TouchableOpacity style={styles.tapOverlay} activeOpacity={1} onPress={() => setSelected(null)}>
           {selected && (() => {
             const { unlocked, status } = getStatus(selected.id);
-            const tierColor = selected.tier ? TIER_COLORS[selected.tier] : Colors.accent;
-            const borderColor = unlocked ? tierColor : Colors.border;
+            const borderColor = unlocked ? Colors.accent : Colors.border;
 
             if (!unlocked && selected.secret) {
               return (
@@ -248,12 +267,12 @@ export function AchievementGrid({ unlockedIds, statusMap = new Map(), stats }: A
                     <View style={styles.modalProgressBox}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                         <Text style={styles.objectifLabel}>📈 Progression</Text>
-                        <Text style={[styles.objectifLabel, { color: pct >= 80 ? '#fbbf24' : '#10b981' }]}>{pct}%</Text>
+                        <Text style={[styles.objectifLabel, { color: pct >= 80 ? '#f97316' : '#10b981' }]}>{pct}%</Text>
                       </View>
                       <View style={styles.modalProgressBg}>
                         <View style={[styles.modalProgressFill, {
                           width: `${pct}%` as any,
-                          backgroundColor: pct >= 80 ? '#fbbf24' : '#10b981',
+                          backgroundColor: pct >= 80 ? '#f97316' : '#10b981',
                         }]} />
                       </View>
                       <Text style={{ color: '#64748b', fontSize: 12, marginTop: 6, textAlign: 'center' }}>
@@ -274,10 +293,12 @@ export function AchievementGrid({ unlockedIds, statusMap = new Map(), stats }: A
               );
             }
 
+            const te = tierEmoji(selected.tier);
             return (
               <View style={[styles.tapCard, { borderColor }]}>
                 <Text style={styles.tapEmoji}>{selected.emoji}</Text>
                 <Text style={styles.tapLabel}>{selected.label}</Text>
+                {te && <Text style={{ fontSize: 20, marginTop: 2 }}>{te}</Text>}
                 <Text style={styles.tapDesc}>{selected.description}</Text>
                 <Text style={styles.tapCategory}>{selected.category}</Text>
                 {selected.xp > 0 && <Text style={styles.tapXp}>⚡ +{selected.xp} XP</Text>}
@@ -345,6 +366,17 @@ export function CelebrationModal({ achievementId, onClose }: CelebrationModalPro
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  // Legend
+  legendContainer: {
+    backgroundColor: '#0f172a', borderRadius: 10, padding: 10,
+    marginBottom: 14, gap: 6, borderWidth: 1, borderColor: '#1e293b',
+  },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  legendText: { color: '#64748b', fontSize: 11, marginRight: 8 },
+  legendTier: { color: '#94a3b8', fontSize: 11, marginRight: 4 },
+  legendTierDesc: { color: '#475569', fontSize: 10 },
+
   // Grid
   grid: { gap: 16 },
   category: { gap: 8 },
@@ -359,15 +391,17 @@ const styles = StyleSheet.create({
   },
   badgeUnlocked: { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
   badgeLost: { borderColor: Colors.warning, backgroundColor: 'rgba(245,158,11,0.08)', opacity: 0.7 },
+  badgeNearMiss: { borderColor: '#f97316', borderWidth: 1.5, backgroundColor: 'rgba(249,115,22,0.06)' },
   badgeEmoji: { fontSize: 28 },
   badgeLocked: { opacity: 0.3 },
   lostIcon: { position: 'absolute', top: 4, right: 4, fontSize: 10 },
+  tierBadge: { position: 'absolute', top: 4, right: 4, fontSize: 11 },
   badgeLabel: { fontSize: 10, fontWeight: '600', color: Colors.textPrimary, textAlign: 'center', lineHeight: 13 },
   textLocked: { color: Colors.textMuted },
   badgeXp: { color: '#fbbf24', fontSize: 9, fontWeight: '700' },
 
   // Progress bar (tile)
-  nearlyDoneIcon: { position: 'absolute', top: 4, right: 4, fontSize: 10 },
+  nearlyDoneIcon: { position: 'absolute', top: 4, left: 4, fontSize: 10 },
   progressContainer: { width: '100%', alignItems: 'center', gap: 2 },
   progressBg: { width: '100%', height: 3, borderRadius: 2, backgroundColor: '#1e293b', overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 2 },
