@@ -45,6 +45,14 @@
         {
           "cameraPermission": "Autoriser l acc\u00e8s \u00e0 la cam\u00e9ra pour analyser vos repas."
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Autoriser l acc\u00e8s \u00e0 vos photos.",
+          "savePhotosPermission": "Autoriser l enregistrement de vos photos de repas dans la galerie.",
+          "isAccessMediaLocationEnabled": true
+        }
       ]
     ]
   }

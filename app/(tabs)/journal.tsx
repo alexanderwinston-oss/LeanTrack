@@ -18,6 +18,7 @@ import { useStore } from '@/lib/store';
 import { checkAllAchievements } from '@/lib/db';
 import { searchFood } from '@/lib/openfoodfacts';
 import { analyzeFoodPhoto } from '@/lib/gemini';
+import { saveToLeanTrackAlbum } from '@/lib/media';
 import { getLocalDateString, showGeminiError } from '@/lib/utils';
 import { registerModal } from '@/lib/useModalManager';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
@@ -116,6 +117,7 @@ export default function Journal() {
     }
     const res = await ImagePicker.launchCameraAsync({ quality: 0.8, base64: true });
     if (!res.canceled && res.assets[0]?.base64) {
+      saveToLeanTrackAlbum(res.assets[0].uri);
       setPendingImage(res.assets[0].base64);
       setCurrentMealType(activeMealType);
       setModalVisible(false);

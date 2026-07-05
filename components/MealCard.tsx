@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Alert, StyleSheet, Text,
+  Alert, Image, Modal, StyleSheet, Text,
   TextInput, TouchableOpacity, View, ViewStyle,
 } from 'react-native';
 import { registerModal } from '@/lib/useModalManager';
@@ -30,6 +30,7 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
   const [detailVisible, setDetailVisible] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [photoFullVisible, setPhotoFullVisible] = useState(false);
 
   // Edit form state
   const [editName, setEditName] = useState(meal.food_name);
@@ -48,6 +49,7 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
 
   registerModal('mealEdit', editing, () => setEditing(false), 10);
   registerModal('mealDetail', detailVisible, () => setDetailVisible(false), 5);
+  registerModal('mealPhotoFull', photoFullVisible, () => setPhotoFullVisible(false), 20);
 
   function openDetail() {
     setEditing(false);
@@ -128,7 +130,7 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
             <Text style={styles.compactType} numberOfLines={1}>
               {MEAL_TYPE_OPTIONS.find(m => m.key === meal.meal_type)?.label ?? meal.meal_type}
             </Text>
-            <Text style={styles.compactName} numberOfLines={2}>{meal.food_name}</Text>
+            <Text style={styles.compactName} numberOfLines={2}>{meal.food_name}{meal.photo_uri ? ' 📷' : ''}</Text>
             <Text style={styles.compactCal}>{Math.round(meal.calories)} kcal</Text>
             <Text style={styles.compactMacros}>
               P:{Math.round(meal.protein)}g G:{Math.round(meal.carbs)}g L:{Math.round(meal.fat)}g
@@ -146,7 +148,7 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
         <Card style={StyleSheet.flatten([styles.mealItem, style]) as ViewStyle}>
           <View style={styles.mealRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.mealName}>{meal.food_name}</Text>
+              <Text style={styles.mealName}>{meal.food_name}{meal.photo_uri ? ' 📷' : ''}</Text>
               <Text style={styles.mealDetails}>
                 {meal.quantity_g}g · P:{Math.round(meal.protein)}g G:{Math.round(meal.carbs)}g L:{Math.round(meal.fat)}g
               </Text>
@@ -164,6 +166,7 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
 
   function renderModal() {
     return (
+      <>
       <KeyboardAwareModal
         visible={detailVisible}
         onClose={() => { if (editing) setEditing(false); else setDetailVisible(false); }}
@@ -174,6 +177,12 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
                   <Text style={styles.detailSub}>
                     {MEAL_TYPE_OPTIONS.find(m => m.key === meal.meal_type)?.label} · {meal.quantity_g}g
                   </Text>
+                  {meal.photo_uri && (
+                    <TouchableOpacity onPress={() => setPhotoFullVisible(true)} activeOpacity={0.85}>
+                      <Image source={{ uri: meal.photo_uri }} style={styles.detailPhoto} resizeMode="cover" />
+                      <Text style={styles.detailPhotoHint}>Appuie pour agrandir</Text>
+                    </TouchableOpacity>
+                  )}
                   <Text style={styles.detailCal}>{Math.round(meal.calories)} kcal</Text>
                   <View style={styles.macroRow}>
                     <View style={styles.macroBox}>
@@ -352,6 +361,26 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
         <Text style={styles.closeText}>Fermer</Text>
       </TouchableOpacity>
       </KeyboardAwareModal>
+
+      {meal.photo_uri && (
+        <Modal
+          visible={photoFullVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPhotoFullVisible(false)}
+          statusBarTranslucent
+        >
+          <TouchableOpacity
+            style={styles.photoFullBackdrop}
+            activeOpacity={1}
+            onPress={() => setPhotoFullVisible(false)}
+          >
+            <Image source={{ uri: meal.photo_uri }} style={styles.photoFullImage} resizeMode="contain" />
+            <Text style={styles.photoFullHint}>Appuie pour fermer</Text>
+          </TouchableOpacity>
+        </Modal>
+      )}
+      </>
     );
   }
 }
@@ -377,6 +406,14 @@ const styles = StyleSheet.create({
   detailName: { color: Colors.textPrimary, fontSize: 20, fontWeight: '700' },
   detailSub: { color: Colors.textSecondary, fontSize: 13, marginTop: 4 },
   detailCal: { color: '#10b981', fontSize: 42, fontWeight: '800', marginVertical: 12 },
+  detailPhoto: { width: '100%', aspectRatio: 1, borderRadius: 12, marginTop: 12 },
+  detailPhotoHint: { color: Colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: 6 },
+  photoFullBackdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  photoFullImage: { width: '90%', aspectRatio: 1, borderRadius: 16 },
+  photoFullHint: { color: Colors.textSecondary, fontSize: 12, marginTop: 12 },
   macroRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
   macroBox: {
     flex: 1, backgroundColor: '#0f172a',

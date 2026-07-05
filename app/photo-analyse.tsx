@@ -11,6 +11,7 @@ import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { analyzeFoodPhoto } from '@/lib/gemini';
+import { saveToLeanTrackAlbum } from '@/lib/media';
 import { addWater } from '@/lib/db';
 import { getLocalDateString, showGeminiError } from '@/lib/utils';
 import { useStore } from '@/lib/store';
@@ -46,6 +47,10 @@ export default function PhotoAnalyse() {
   const [mealType, setMealType] = useState<MealType>((currentMealType as MealType) || 'dejeuner');
   const [adjustedVolume, setAdjustedVolume] = useState(250);
   const [showMealTypeSelector, setShowMealTypeSelector] = useState(false);
+  const [photoQueue, setPhotoQueue] = useState<{ uri: string; result: FoodAnalysisResult }[]>([]);
+  const [queueIndex, setQueueIndex] = useState(0);
+  const [isBatchAnalyzing, setIsBatchAnalyzing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
 
   const displayCalories = baseResult ? Math.round(baseResult.calories_estimees * multiplier) : 0;
   const displayProtein = baseResult ? Math.round(baseResult.proteines_g * multiplier * 10) / 10 : 0;
@@ -58,12 +63,13 @@ export default function PhotoAnalyse() {
       const b64 = pendingImageBase64;
       setPendingImage(null);
       setRawBase64(b64);
-      setImageUri(`data:image/jpeg;base64,${b64}`);
-      analyseWithBase64(b64, '');
+      const dataUri = `data:image/jpeg;base64,${b64}`;
+      setImageUri(dataUri);
+      analyseWithBase64(b64, '', dataUri);
     }
   }, []);
 
-  async function analyseWithBase64(b64: string | null, comment = '') {
+  async function analyseWithBase64(b64: string | null, comment = '', uri: string | null = null) {
     setAnalyzing(true);
     try {
       const analysis = await analyzeFoodPhoto(b64, comment);
@@ -72,6 +78,11 @@ export default function PhotoAnalyse() {
       setMultiplier(1);
       setShowCustomMultiplier(false);
       setCustomMultiplierText('');
+      const itemUri = uri ?? imageUri;
+      if (itemUri) {
+        setPhotoQueue([{ uri: itemUri, result: analysis }]);
+        setQueueIndex(0);
+      }
     } catch (err: any) {
       showGeminiError(err);
     } finally {
@@ -79,7 +90,72 @@ export default function PhotoAnalyse() {
     }
   }
 
-  async function pickFromGallery() {
+  function loadQueueItem(queue: { uri: string; result: FoodAnalysisResult }[], index: number) {
+    const item = queue[index];
+    if (!item) return;
+    setImageUri(item.uri);
+    setRawBase64(null);
+    setResult(item.result);
+    setBaseResult(item.result);
+    setMultiplier(1);
+    setShowCustomMultiplier(false);
+    setCustomMultiplierText('');
+    setShowMealTypeSelector(false);
+    setMealType((currentMealType as MealType) || 'dejeuner');
+  }
+
+  function advanceQueue() {
+    const nextIndex = queueIndex + 1;
+    if (nextIndex < photoQueue.length) {
+      setQueueIndex(nextIndex);
+      loadQueueItem(photoQueue, nextIndex);
+    } else {
+      setPhotoQueue([]);
+      setQueueIndex(0);
+      router.back();
+    }
+  }
+
+  async function analyzeBatch(uris: string[]) {
+    setIsBatchAnalyzing(true);
+    setResult(null);
+    setBaseResult(null);
+    const collected: { uri: string; result: FoodAnalysisResult }[] = [];
+    try {
+      for (let i = 0; i < uris.length; i++) {
+        setBatchProgress({ current: i + 1, total: uris.length });
+        try {
+          const base64 = await FileSystem.readAsStringAsync(uris[i], {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          const analysis = await analyzeFoodPhoto(base64, '');
+          collected.push({ uri: uris[i], result: analysis });
+        } catch (err: any) {
+          showGeminiError(err);
+        }
+      }
+    } finally {
+      setIsBatchAnalyzing(false);
+      setBatchProgress(null);
+    }
+    if (collected.length === 0) return;
+    setPhotoQueue(collected);
+    setQueueIndex(0);
+    loadQueueItem(collected, 0);
+  }
+
+  function pickFromGallery() {
+    Alert.alert(
+      '📷 Sélection de photos',
+      'Tu peux sélectionner jusqu\'à 4 photos.\nChaque photo utilise 1 appel IA (quota : 20/jour).',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Continuer', onPress: openGalleryPicker },
+      ]
+    );
+  }
+
+  async function openGalleryPicker() {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission refusée', 'Autorise l\'accès à la galerie pour continuer.');
@@ -87,14 +163,22 @@ export default function PhotoAnalyse() {
     }
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
+      allowsMultipleSelection: true,
+      selectionLimit: 4,
       quality: 0.8,
       base64: false,
     });
-    if (!res.canceled && res.assets[0]) {
+    if (res.canceled || res.assets.length === 0) return;
+
+    if (res.assets.length === 1) {
       setImageUri(res.assets[0].uri);
       setRawBase64(null);
       setResult(null);
+      setPhotoQueue([]);
+      return;
     }
+
+    await analyzeBatch(res.assets.map((a) => a.uri));
   }
 
   async function takePhoto() {
@@ -108,6 +192,7 @@ export default function PhotoAnalyse() {
       base64: false,
     });
     if (!res.canceled && res.assets[0]) {
+      saveToLeanTrackAlbum(res.assets[0].uri);
       setImageUri(res.assets[0].uri);
       setRawBase64(null);
       setResult(null);
@@ -116,7 +201,7 @@ export default function PhotoAnalyse() {
 
   async function analyse() {
     if (rawBase64) {
-      await analyseWithBase64(rawBase64, userComment);
+      await analyseWithBase64(rawBase64, userComment, imageUri);
       return;
     }
     if (!imageUri) return;
@@ -126,7 +211,7 @@ export default function PhotoAnalyse() {
         encoding: FileSystem.EncodingType.Base64,
       });
       setRawBase64(base64);
-      await analyseWithBase64(base64, userComment);
+      await analyseWithBase64(base64, userComment, imageUri);
     } catch (err: any) {
       showGeminiError(err);
     } finally {
@@ -147,7 +232,7 @@ export default function PhotoAnalyse() {
     await addWater(today, adjustedVolume);
     useStore.getState().refreshDailyData(today);
     Alert.alert('💧 Hydratation', `${adjustedVolume} ml ajoutés à ton hydratation !`, [
-      { text: 'Super !', onPress: () => router.back() },
+      { text: 'Super !', onPress: () => advanceQueue() },
     ]);
   }
 
@@ -168,7 +253,7 @@ export default function PhotoAnalyse() {
         photo_uri: imageUri ?? undefined,
         notes: userComment || undefined,
       });
-      router.back();
+      advanceQueue();
     } catch {
       Alert.alert('Erreur', 'Impossible d\'enregistrer le repas. Réessaie.');
     }
@@ -245,8 +330,23 @@ export default function PhotoAnalyse() {
         </Card>
       )}
 
+      {isBatchAnalyzing && batchProgress && (
+        <Card style={styles.loadingCard}>
+          <ActivityIndicator color={Colors.accent} size="large" />
+          <Text style={styles.loadingText}>
+            Analyse {batchProgress.current} / {batchProgress.total}...
+          </Text>
+          <Text style={styles.progressSub}>Ne ferme pas l'app</Text>
+        </Card>
+      )}
+
       {result && (
         <>
+          {photoQueue.length > 1 && (
+            <Text style={styles.queueIndicator}>
+              Photo {queueIndex + 1} / {photoQueue.length}
+            </Text>
+          )}
           {/* Result card — always shown */}
           <Card style={styles.resultCard}>
             <View style={styles.resultHeader}>
@@ -450,6 +550,10 @@ const styles = StyleSheet.create({
   },
   loadingCard: { alignItems: 'center', gap: 12 },
   loadingText: { fontSize: 15, color: Colors.textSecondary },
+  progressSub: { fontSize: 12, color: Colors.textMuted },
+  queueIndicator: {
+    fontSize: 13, color: Colors.accent, fontWeight: '700', textAlign: 'center',
+  },
   resultCard: { gap: 12 },
   resultHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
   resultName: { flex: 1, fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
