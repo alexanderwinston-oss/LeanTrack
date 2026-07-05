@@ -1,18 +1,18 @@
-@AGENTS.md
+﻿@AGENTS.md
 /**
  * ============================================================
- * LEANTRACK · CLAUDE CODE SYSTEM PROMPT
- * Staff Engineer Edition — v10.2
+ * LEANTRACK Â· CLAUDE CODE SYSTEM PROMPT
+ * Staff Engineer Edition â€” v10.2
  * ============================================================
  * PHILOSOPHIE :
- * On n'elimine pas des bugs — on elimine des classes de bugs
+ * On n'elimine pas des bugs â€” on elimine des classes de bugs
  * via des regles systemiques, validation automatique,
  * et architecture auto-correctrice.
  * ============================================================
  */
 
 // ============================================================
-// THINKING PROCESS (MANDATORY — NEVER SKIP)
+// THINKING PROCESS (MANDATORY â€” NEVER SKIP)
 // ============================================================
 
 1. UNDERSTAND
@@ -22,7 +22,7 @@
 2. DIAGNOSE
    - Cause racine (pas le symptome)
    - Local ou systemique ?
-   - Reproduit dans plusieurs fichiers → SYSTEM BUG
+   - Reproduit dans plusieurs fichiers â†’ SYSTEM BUG
 
 3. DECIDE
    - Regle globale > fix local
@@ -30,11 +30,11 @@
 
 4. IMPLEMENT
    - Lire TOUS les fichiers avant toute modification
-   - Utiliser les patterns etablis — jamais les reinventer
+   - Utiliser les patterns etablis â€” jamais les reinventer
 
 5. VERIFY
    - MODAL INVENTORY + FAIL-FAST obligatoires
-   - Si echec → STOP → FIX → RE-VALIDATE
+   - Si echec â†’ STOP â†’ FIX â†’ RE-VALIDATE
 
 NEVER skip a step.
 
@@ -56,7 +56,7 @@ FILES TO READ (lire en entier avant toute modification) :
 ---
 
 // ============================================================
-// MODULE: HOOKS ORDER (MANDATORY — ABSOLUTE RULE)
+// MODULE: HOOKS ORDER (MANDATORY â€” ABSOLUTE RULE)
 // ============================================================
 
 Tous les hooks au TOP du composant, AVANT tout return
@@ -74,23 +74,23 @@ OK :
     return ( ... )
   }
 
-VIOLATION → crash immediat :
+VIOLATION â†’ crash immediat :
   if (!profile) return null
   const x = useMemo(() => ...)   // hook apres return = CRASH
 
-Fonctions pures → definies HORS du composant, niveau module.
+Fonctions pures â†’ definies HORS du composant, niveau module.
 
 ---
 
 // ============================================================
-// MODULE: JSX SCOPE SAFETY (MANDATORY — ABSOLUTE RULE)
+// MODULE: JSX SCOPE SAFETY (MANDATORY â€” ABSOLUTE RULE)
 // ============================================================
 
 Toute variable utilisee dans PLUS D'UN endroit du composant
-doit etre calculee au niveau du composant — jamais dans un
+doit etre calculee au niveau du composant â€” jamais dans un
 IIFE JSX, bloc conditionnel, ou callback.
 
-INTERDIT — variable invisible hors de son IIFE :
+INTERDIT â€” variable invisible hors de son IIFE :
   return (
     <>
       {(() => {
@@ -98,12 +98,12 @@ INTERDIT — variable invisible hors de son IIFE :
         return <Text>{totalXP}</Text>
       })()}
       <Modal>
-        <Text>{totalXP}</Text> // UNDEFINED — hors scope
+        <Text>{totalXP}</Text> // UNDEFINED â€” hors scope
       </Modal>
     </>
   )
 
-CORRECT — variable au niveau composant :
+CORRECT â€” variable au niveau composant :
   const totalXP = useMemo(
     () => ALL_ACHIEVEMENTS
       .filter(a => unlockedIds.includes(a.id))
@@ -115,7 +115,7 @@ CORRECT — variable au niveau composant :
     <>
       <Text>{totalXP}</Text>    // OK
       <Modal>
-        <Text>{totalXP}</Text>  // OK — meme scope
+        <Text>{totalXP}</Text>  // OK â€” meme scope
       </Modal>
     </>
   )
@@ -125,19 +125,19 @@ vit au niveau composant avec useMemo si couteuse.
 Jamais dans un IIFE JSX. Jamais dans un bloc conditionnel JSX.
 
 CHECKLIST avant chaque prompt :
-  □ Chaque variable dans un Modal est definie au niveau composant ?
-  □ Aucun IIFE JSX ne calcule des variables reutilisees ailleurs ?
+  â–¡ Chaque variable dans un Modal est definie au niveau composant ?
+  â–¡ Aucun IIFE JSX ne calcule des variables reutilisees ailleurs ?
 
 ---
 
 // ============================================================
-// MODULE: SELF-HEALING (MANDATORY — ABSOLUTE RULE)
+// MODULE: SELF-HEALING (MANDATORY â€” ABSOLUTE RULE)
 // ============================================================
 
 Chaque systeme detecte et corrige ses propres etats
 incoherents sans intervention utilisateur.
 
-LEVEL 1 — DATA (guard flag — une seule fois) :
+LEVEL 1 â€” DATA (guard flag â€” une seule fois) :
   const [healRan, setHealRan] = useState(false)
   useEffect(() => {
     if (healRan || !profile) return
@@ -175,23 +175,23 @@ LEVEL 1 — DATA (guard flag — une seule fois) :
     heal()
   }, [profile?.profile_id, healRan])
 
-LEVEL 2 — SCHEMA :
+LEVEL 2 â€” SCHEMA :
   for (const sql of migrations) {
     await db.execAsync(sql).catch(() => {})
-    // .catch(() => {}) = colonne deja existante → skip silencieux
+    // .catch(() => {}) = colonne deja existante â†’ skip silencieux
   }
 
-LEVEL 3 — STATE :
+LEVEL 3 â€” STATE :
   useFocusEffect recharge depuis la DB a chaque focus.
   DB = source de verite. Store = couche affichage.
 
-LEVEL 4 — ERROR RECOVERY :
-  DB : 1 retry 500ms → alert actionnable.
-  Gemini : 0 retry (risque quota) → fallback immediat.
+LEVEL 4 â€” ERROR RECOVERY :
+  DB : 1 retry 500ms â†’ alert actionnable.
+  Gemini : 0 retry (risque quota) â†’ fallback immediat.
 
-LEVEL 5 — SESSION STARTUP (ordre obligatoire) :
-  migrateSchema → healData → reload store
-  → checkAchievements → load today data
+LEVEL 5 â€” SESSION STARTUP (ordre obligatoire) :
+  migrateSchema â†’ healData â†’ reload store
+  â†’ checkAchievements â†’ load today data
   Chaque etape dans try/catch independant.
 
 Profile name self-healing :
@@ -204,35 +204,35 @@ Profile name self-healing :
 // MODULE: MODAL SYSTEM ENGINE v10.1 (MANDATORY)
 // ============================================================
 
-DEFINITION FORMELLE — UN MODAL EST VALIDE SI ET SEULEMENT SI :
-  1. Fully scrollable       — contenu accessible meme si long
-  2. Keyboard-safe          — aucun input cache sous le clavier
-  3. Back-button safe       — fermable via touche retour Android
-  4. Cannot clip content    — aucun texte ou bouton coupe
-IF one condition fails → the modal is broken → fix before shipping.
+DEFINITION FORMELLE â€” UN MODAL EST VALIDE SI ET SEULEMENT SI :
+  1. Fully scrollable       â€” contenu accessible meme si long
+  2. Keyboard-safe          â€” aucun input cache sous le clavier
+  3. Back-button safe       â€” fermable via touche retour Android
+  4. Cannot clip content    â€” aucun texte ou bouton coupe
+IF one condition fails â†’ the modal is broken â†’ fix before shipping.
 
-RULES (BINARY — NO EXCEPTIONS) :
+RULES (BINARY â€” NO EXCEPTIONS) :
 
-RULE 1 — MODAL USAGE
-  ❌ <Modal direct → interdit
-  ✅ KeyboardAwareModal (contient TextInput)
-  ✅ Bottom sheet (selection/actions)
-  Si <Modal detecte → remplacer immediatement
+RULE 1 â€” MODAL USAGE
+  âŒ <Modal direct â†’ interdit
+  âœ… KeyboardAwareModal (contient TextInput)
+  âœ… Bottom sheet (selection/actions)
+  Si <Modal detecte â†’ remplacer immediatement
 
-RULE 2 — KEYBOARD SAFETY
-  Tout Modal avec TextInput → KeyboardAwareModal obligatoire
-  Fallback : app.json → softwareKeyboardLayoutMode: "pan"
+RULE 2 â€” KEYBOARD SAFETY
+  Tout Modal avec TextInput â†’ KeyboardAwareModal obligatoire
+  Fallback : app.json â†’ softwareKeyboardLayoutMode: "pan"
 
-RULE 3 — SELF-HEALING MODAL
+RULE 3 â€” SELF-HEALING MODAL
   3 chemins de fermeture obligatoires :
   1. Bouton interne
   2. Tap backdrop
   3. Bouton back Android (registerModal)
-  Si un manque → modal invalide
+  Si un manque â†’ modal invalide
 
-RULE 4 — BACK HANDLER GLOBAL
-  ❌ useBackHandler duplique par composant → interdit
-  ✅ lib/useModalManager.ts :
+RULE 4 â€” BACK HANDLER GLOBAL
+  âŒ useBackHandler duplique par composant â†’ interdit
+  âœ… lib/useModalManager.ts :
 
   const registry = new Map<string, {
     visible: boolean; close: () => void; priority: number
@@ -270,22 +270,22 @@ RULE 4 — BACK HANDLER GLOBAL
     }, [])
   }
 
-  app/_layout.tsx → useGlobalBackHandler() une seule fois.
-  Chaque composant → registerModal(...) au TOP avant tout return.
+  app/_layout.tsx â†’ useGlobalBackHandler() une seule fois.
+  Chaque composant â†’ registerModal(...) au TOP avant tout return.
 
-RULE 5 — HOOKS ORDER
+RULE 5 â€” HOOKS ORDER
   Tous les hooks avant tout return conditionnel.
 
-RULE 6 — UI CONTRACT (ANTI-CROPPING)
-  ❌ Aucun contenu coupe
-  ❌ Aucune height fixe sur contenu dynamique
-  ✅ maxHeight via Dimensions uniquement — jamais en % :
+RULE 6 â€” UI CONTRACT (ANTI-CROPPING)
+  âŒ Aucun contenu coupe
+  âŒ Aucune height fixe sur contenu dynamique
+  âœ… maxHeight via Dimensions uniquement â€” jamais en % :
      const SCREEN_H = Dimensions.get('window').height
      maxHeight: SCREEN_H * 0.85
-  ✅ paddingBottom ≥ 48
-  ✅ CTA toujours visible sans scroll
+  âœ… paddingBottom â‰¥ 48
+  âœ… CTA toujours visible sans scroll
 
-RULE 7 — SCROLL ARCHITECTURE
+RULE 7 â€” SCROLL ARCHITECTURE
   <View style={{ maxHeight: SCREEN_H * 0.85 }}>
     <ScrollView style={{ flex: 1 }}>
       {/* TOUT le contenu ici */}
@@ -295,26 +295,26 @@ RULE 7 — SCROLL ARCHITECTURE
     <View style={{ height: 20 }} />
   </View>
 
-RULE 8 — NO FIXED HEIGHT
-  ❌ height fixe sur card, nextBox, containers
-  ✅ maxHeight via Dimensions uniquement
-  ✅ flexShrink: 1 sur tout Text multiligne
+RULE 8 â€” NO FIXED HEIGHT
+  âŒ height fixe sur card, nextBox, containers
+  âœ… maxHeight via Dimensions uniquement
+  âœ… flexShrink: 1 sur tout Text multiligne
 
-RULE 9 — DEDUPLICATION
-  Aucune logique repetee → centraliser dans lib/
+RULE 9 â€” DEDUPLICATION
+  Aucune logique repetee â†’ centraliser dans lib/
 
-RULE 10 — NO MODAL FROM SCRATCH
-  ❌ Creer un modal de zero → strictement interdit
-  ✅ Toujours partir de KeyboardAwareModal ou BaseBottomSheet
+RULE 10 â€” NO MODAL FROM SCRATCH
+  âŒ Creer un modal de zero â†’ strictement interdit
+  âœ… Toujours partir de KeyboardAwareModal ou BaseBottomSheet
   Chaque nouveau modal herite du contrat des 4 conditions.
 
 KeyboardAwareModal contract :
-  ✅ behavior="padding"
-  ✅ justifyContent: "flex-end"
-  ✅ keyboardShouldPersistTaps="handled"
-  ✅ paddingBottom ≥ 48
-  ✅ onContentSizeChange → scrollToEnd
-  ✅ statusBarTranslucent
+  âœ… behavior="padding"
+  âœ… justifyContent: "flex-end"
+  âœ… keyboardShouldPersistTaps="handled"
+  âœ… paddingBottom â‰¥ 48
+  âœ… onContentSizeChange â†’ scrollToEnd
+  âœ… statusBarTranslucent
 
 MODAL INVENTORY (generer avant validation) :
 
@@ -335,7 +335,7 @@ MODAL INVENTORY (generer avant validation) :
 | app/_layout             | badgeCelebration  | N  | N/A | Y/N | Y/N |
 | components/Achievements | badgeDetail       | N  | N/A | Y/N | Y/N |
 
-Tout N non justifie → correction avant de terminer.
+Tout N non justifie â†’ correction avant de terminer.
 
 ---
 
@@ -364,10 +364,10 @@ Tout N non justifie → correction avant de terminer.
 // MODULE: WEIGHT LOGIC SAFETY (MANDATORY)
 // ============================================================
 
-  ✅ weight_initial = poids onboarding uniquement — immuable
-  ❌ NEVER overwrite si deja valide (> 0, not null)
-  ✅ Auto-heal via healRan guard
-  ❌ recalculateTargetsAfterWeighIn ne touche JAMAIS weight_initial
+  âœ… weight_initial = poids onboarding uniquement â€” immuable
+  âŒ NEVER overwrite si deja valide (> 0, not null)
+  âœ… Auto-heal via healRan guard
+  âŒ recalculateTargetsAfterWeighIn ne touche JAMAIS weight_initial
 
 ---
 
@@ -375,10 +375,10 @@ Tout N non justifie → correction avant de terminer.
 // MODULE: DB WRITE SAFETY (MANDATORY)
 // ============================================================
 
-  ❌ Jamais d'ecriture DB dans le render
-  ✅ Mutations dans async handlers uniquement
-  ✅ Une seule execution par correction (guard flag)
-  ❌ Aucun side-effect cache dans les composants UI
+  âŒ Jamais d'ecriture DB dans le render
+  âœ… Mutations dans async handlers uniquement
+  âœ… Une seule execution par correction (guard flag)
+  âŒ Aucun side-effect cache dans les composants UI
 
 ---
 
@@ -413,7 +413,7 @@ Apres mutation repas :
     const isQuota = err?.message === 'QUOTA_EXCEEDED'
       || err?.message?.includes('429')
     Alert.alert(
-      isQuota ? '⏳ Limite atteinte' : 'Erreur',
+      isQuota ? 'â³ Limite atteinte' : 'Erreur',
       isQuota ? 'Reessaie dans quelques heures.'
               : 'Verifie ta connexion et reessaie.'
     )
@@ -439,12 +439,12 @@ Clamp obligatoire sur sorties Gemini :
     onClose={dequeueNextBadge}
   />
 
-FIFO — un a la fois — aucun badge perdu — pas de stacking.
+FIFO â€” un a la fois â€” aucun badge perdu â€” pas de stacking.
 
 Badges reconquis (passes && current?.lost_at) :
-  → mise a jour silencieuse en DB
-  → NE PAS push dans newlyUnlocked
-  → pas d'animation (deja obtenu precedemment)
+  â†’ mise a jour silencieuse en DB
+  â†’ NE PAS push dans newlyUnlocked
+  â†’ pas d'animation (deja obtenu precedemment)
 
 ---
 
@@ -452,7 +452,7 @@ Badges reconquis (passes && current?.lost_at) :
 // MODULE: SCHEDULE BOUNDS (MANDATORY)
 // ============================================================
 
-  // Hors composant — niveau module :
+  // Hors composant â€” niveau module :
   function getWeighInSchedule(start: Date, end: Date): Date[] {
     const cap = new Date()
     cap.setDate(cap.getDate() - 90)
@@ -489,92 +489,92 @@ Badges reconquis (passes && current?.lost_at) :
 ---
 
 // ============================================================
-// LEANTRACK PATTERNS (TOUJOURS — JAMAIS REINVENTER)
+// LEANTRACK PATTERNS (TOUJOURS â€” JAMAIS REINVENTER)
 // ============================================================
 
 DATES :
-  ✅ getLocalDateString() — ❌ toISOString().split('T')[0]
-  ✅ datetime('now', 'localtime') — ❌ datetime('now')
+  âœ… getLocalDateString() â€” âŒ toISOString().split('T')[0]
+  âœ… datetime('now', 'localtime') â€” âŒ datetime('now')
 
 PROFIL :
-  ✅ Toujours filtrer par profile_id
-  ✅ await getCurrentProfileId() depuis lib/db.ts
-  ✅ Apres mutation : useStore.getState().setProfile(updated)
+  âœ… Toujours filtrer par profile_id
+  âœ… await getCurrentProfileId() depuis lib/db.ts
+  âœ… Apres mutation : useStore.getState().setProfile(updated)
 
 ERREURS :
   import { showGeminiError, normalizeText } from '@/lib/utils'
 
 BACK HANDLER :
-  lib/useModalManager.ts → registerModal + useGlobalBackHandler
-  useGlobalBackHandler() dans app/_layout.tsx — une seule fois
+  lib/useModalManager.ts â†’ registerModal + useGlobalBackHandler
+  useGlobalBackHandler() dans app/_layout.tsx â€” une seule fois
 
 FICHIERS CLES :
-  app/(tabs)/index.tsx       → Dashboard
-  app/(tabs)/journal.tsx     → Journal alimentaire
-  app/(tabs)/eau.tsx         → Hydratation
-  app/(tabs)/plan.tsx        → Plan alimentaire
-  app/(tabs)/profil.tsx      → Profil utilisateur
-  app/projection.tsx         → Projection poids
-  lib/db.ts                  → DB & queries SQLite
-  lib/achievements.ts        → Badges + progress()
-  lib/nutrition.ts           → Calculs nutritionnels
-  lib/gemini.ts              → API Gemini
-  lib/utils.ts               → Utilitaires partages
-  lib/store.ts               → Zustand store
-  lib/useModalManager.ts     → registerModal + useGlobalBackHandler
-  components/Achievements.tsx → AchievementGrid + BadgeItem
-  components/BadgeCelebration.tsx → Modal celebration badge
-  components/KeyboardAwareModal.tsx → Modal keyboard-safe
+  app/(tabs)/index.tsx       â†’ Dashboard
+  app/(tabs)/journal.tsx     â†’ Journal alimentaire
+  app/(tabs)/eau.tsx         â†’ Hydratation
+  app/(tabs)/plan.tsx        â†’ Plan alimentaire
+  app/(tabs)/profil.tsx      â†’ Profil utilisateur
+  app/projection.tsx         â†’ Projection poids
+  lib/db.ts                  â†’ DB & queries SQLite
+  lib/achievements.ts        â†’ Badges + progress()
+  lib/nutrition.ts           â†’ Calculs nutritionnels
+  lib/gemini.ts              â†’ API Gemini
+  lib/utils.ts               â†’ Utilitaires partages
+  lib/store.ts               â†’ Zustand store
+  lib/useModalManager.ts     â†’ registerModal + useGlobalBackHandler
+  components/Achievements.tsx â†’ AchievementGrid + BadgeItem
+  components/BadgeCelebration.tsx â†’ Modal celebration badge
+  components/KeyboardAwareModal.tsx â†’ Modal keyboard-safe
 
 ---
 
 // ============================================================
-// VALIDATION ENGINE — FAIL-FAST (MANDATORY)
+// VALIDATION ENGINE â€” FAIL-FAST (MANDATORY)
 // ============================================================
 
-ETAPE 1 — Generer le MODAL INVENTORY complet
-ETAPE 2 — Verifier chaque rule 1 → 10
-ETAPE 3 — Si N detecte → STOP → FIX → RE-VALIDATE
+ETAPE 1 â€” Generer le MODAL INVENTORY complet
+ETAPE 2 â€” Verifier chaque rule 1 â†’ 10
+ETAPE 3 â€” Si N detecte â†’ STOP â†’ FIX â†’ RE-VALIDATE
 
 HOOKS & SCOPE
-  □ Tous les hooks avant tout return conditionnel
-  □ registerModal au TOP de chaque composant
-  □ Toute variable dans un Modal definie au niveau composant
-  □ useMemo sur les calculs couteux reutilises
-  □ Aucun IIFE JSX ne calcule des variables reutilisees ailleurs
+  â–¡ Tous les hooks avant tout return conditionnel
+  â–¡ registerModal au TOP de chaque composant
+  â–¡ Toute variable dans un Modal definie au niveau composant
+  â–¡ useMemo sur les calculs couteux reutilises
+  â–¡ Aucun IIFE JSX ne calcule des variables reutilisees ailleurs
 
 SELF-HEALING
-  □ Migrations avec .catch(() => {})
-  □ weight_initial jamais ecrase si valide
-  □ healRan guard en place
-  □ Profile name → fallback 'Mon profil' si vide
+  â–¡ Migrations avec .catch(() => {})
+  â–¡ weight_initial jamais ecrase si valide
+  â–¡ healRan guard en place
+  â–¡ Profile name â†’ fallback 'Mon profil' si vide
 
-MODAL SYSTEM (Rules 1 → 10)
-  □ Aucun <Modal brut
-  □ Chaque modal : 4 conditions valides
-  □ registerModal pour chaque modal du MODAL INVENTORY
-  □ useGlobalBackHandler dans _layout.tsx uniquement
-  □ CTA toujours hors ScrollView
-  □ maxHeight via Dimensions (jamais en %)
-  □ paddingBottom ≥ 48
+MODAL SYSTEM (Rules 1 â†’ 10)
+  â–¡ Aucun <Modal brut
+  â–¡ Chaque modal : 4 conditions valides
+  â–¡ registerModal pour chaque modal du MODAL INVENTORY
+  â–¡ useGlobalBackHandler dans _layout.tsx uniquement
+  â–¡ CTA toujours hors ScrollView
+  â–¡ maxHeight via Dimensions (jamais en %)
+  â–¡ paddingBottom â‰¥ 48
 
 DONNEES
-  □ Sequences state respectees apres mutation
-  □ Gemini outputs clampes
-  □ Aucune ecriture DB dans le render
+  â–¡ Sequences state respectees apres mutation
+  â–¡ Gemini outputs clampes
+  â–¡ Aucune ecriture DB dans le render
 
 BADGES
-  □ Queue FIFO — aucun badge perdu
-  □ Badges reconquis silencieux (pas d'animation)
+  â–¡ Queue FIFO â€” aucun badge perdu
+  â–¡ Badges reconquis silencieux (pas d'animation)
 
 SI UN CHECK ECHOUE :
-  → STOP → CORRIGER → RE-VALIDER DEPUIS LE DEBUT
+  â†’ STOP â†’ CORRIGER â†’ RE-VALIDER DEPUIS LE DEBUT
   Zero tolerance aux regressions.
 
 ---
 
 // ============================================================
-// TERMINAL COMMANDS (ordre exact — Windows PowerShell)
+// TERMINAL COMMANDS (ordre exact â€” Windows PowerShell)
 // ============================================================
 
 git add -A && git commit -m "description" && git push

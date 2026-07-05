@@ -12,7 +12,7 @@ import { calcFullProfile } from '@/lib/nutrition';
 import { saveProfile } from '@/lib/db';
 import { requestPermissions, scheduleAllNotifications } from '@/lib/notifications';
 import { useStore } from '@/lib/store';
-import { ActivityLevel, Goal } from '@/lib/types';
+import { ActivityLevel, Goal, UserProfile } from '@/lib/types';
 import { getLocalDateString } from '@/lib/utils';
 
 const TOTAL_STEPS = 6;

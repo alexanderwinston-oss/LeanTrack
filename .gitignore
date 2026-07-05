@@ -31,10 +31,17 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
 *.tsbuildinfo
+
+# local SQLite database — never ship the developer's personal data
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 
 # generated native folders
 /ios

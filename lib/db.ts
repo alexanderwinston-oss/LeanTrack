@@ -26,6 +26,10 @@ export async function getCurrentProfileId(): Promise<string> {
   return _activeProfileId;
 }
 
+export function clearProfileIdCache(): void {
+  _activeProfileId = null;
+}
+
 async function safeAlterAdd(
   db: SQLite.SQLiteDatabase,
   table: string,
@@ -215,6 +219,14 @@ export async function initDB(): Promise<void> {
       unlocked_at TEXT,
       lost_at TEXT,
       PRIMARY KEY (id, profile_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS water_favorites (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profile_id TEXT NOT NULL,
+      amount_ml INTEGER NOT NULL,
+      label TEXT,
+      created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
 
     CREATE TABLE IF NOT EXISTS recipes (
@@ -549,6 +561,44 @@ export async function getWaterLogsForDate(
 export async function deleteWaterEntry(id: number): Promise<void> {
   const db = await getDB();
   await db.runAsync('DELETE FROM water_log WHERE id = ?', [id]);
+}
+
+const MAX_WATER_FAVORITES = 8;
+
+export async function getWaterFavorites(): Promise<
+  { id: number; amount_ml: number; label: string | null }[]
+> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  return db.getAllAsync(
+    'SELECT id, amount_ml, label FROM water_favorites WHERE profile_id = ? ORDER BY created_at DESC',
+    [profileId]
+  );
+}
+
+export async function addWaterFavorite(amount_ml: number, label?: string): Promise<void> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  const count = await db.getFirstAsync<{ c: number }>(
+    'SELECT COUNT(*) as c FROM water_favorites WHERE profile_id = ?',
+    [profileId]
+  );
+  if ((count?.c ?? 0) >= MAX_WATER_FAVORITES) {
+    throw new Error('MAX_FAVORITES');
+  }
+  await db.runAsync(
+    'INSERT INTO water_favorites (profile_id, amount_ml, label) VALUES (?, ?, ?)',
+    [profileId, amount_ml, label ?? `${amount_ml} ml`]
+  );
+}
+
+export async function deleteWaterFavorite(id: number): Promise<void> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  await db.runAsync(
+    'DELETE FROM water_favorites WHERE id = ? AND profile_id = ?',
+    [id, profileId]
+  );
 }
 
 // ─── Weight ──────────────────────────────────────────────────────────────────
@@ -969,11 +1019,11 @@ export async function checkAndUnlockAchievements(profile: UserProfile): Promise<
       );
       newlyUnlocked.push(achievement);
     } else if (passes && current?.lost_at) {
+      // Reconquered badge — restore silently, no re-animation
       await db.runAsync(
         'UPDATE achievements SET lost_at = NULL, unlocked_at = ? WHERE id = ? AND profile_id = ?',
         [new Date().toISOString(), achievement.id, profileId]
       );
-      newlyUnlocked.push(achievement);
     } else if (!passes && current && !current.lost_at) {
       await db.runAsync(
         'UPDATE achievements SET unlocked_at = NULL, lost_at = ? WHERE id = ? AND profile_id = ?',
