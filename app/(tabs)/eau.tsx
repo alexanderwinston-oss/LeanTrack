@@ -202,7 +202,7 @@ export default function Eau() {
               onPress={() => setCustomModalVisible(true)}
             >
               <Text style={styles.quickBtnIcon}>✏️</Text>
-              <Text style={styles.quickBtnText}>Autre</Text>
+              <Text style={styles.quickBtnText}>Personnaliser</Text>
             </TouchableOpacity>
           </View>
 
