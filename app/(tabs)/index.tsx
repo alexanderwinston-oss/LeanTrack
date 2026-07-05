@@ -169,7 +169,7 @@ export default function Dashboard() {
         )}
 
         {/* Action buttons */}
-        <Animated.View entering={SlideInDown.delay(160).springify()} style={styles.actionRow}>
+        <View style={styles.actionRow}>
           <Pressable style={styles.actionBtn} onPress={() => router.push('/photo-analyse')}>
             <Text style={styles.actionEmoji}>📷</Text>
             <Text style={styles.actionLabel}>Analyser repas</Text>
@@ -182,7 +182,7 @@ export default function Dashboard() {
             <Text style={styles.actionEmoji}>📅</Text>
             <Text style={styles.actionLabel}>Ma semaine</Text>
           </Pressable>
-        </Animated.View>
+        </View>
         <View style={{ height: BOTTOM_SPACER_HEIGHT }} />
       </ScrollView>
     </Animated.View>
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: Colors.textPrimary },
-  emptyCard: { alignItems: 'center', gap: 4 },
+  emptyCard: { alignItems: 'center', gap: 4, minHeight: 70, justifyContent: 'center' },
   emptyText: { color: Colors.textSecondary, fontSize: 15, textAlign: 'center', flexShrink: 1 },
   emptyHint: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', flexShrink: 1 },
   mealScroll: { marginHorizontal: -4 },
@@ -241,12 +241,14 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', gap: 12 },
   actionBtn: {
     flex: 1,
+    minHeight: 96,
     backgroundColor: Colors.bgSurface,
     borderRadius: Colors.radius,
     borderWidth: 1,
     borderColor: Colors.border,
     padding: 16,
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
   },
   actionEmoji: { fontSize: 28 },
