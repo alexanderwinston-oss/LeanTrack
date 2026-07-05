@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
-  Pressable, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View,
+  Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
 import { router, useFocusEffect } from 'expo-router';
@@ -13,8 +13,9 @@ import { Card } from '@/components/ui/Card';
 import { MealCard } from '@/components/MealCard';
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { useStore } from '@/lib/store';
-import { getStreakDays, getWaterFavorites } from '@/lib/db';
+import { getStreakDays } from '@/lib/db';
 import { getLocalDateString, getProfileName } from '@/lib/utils';
+import { WaterQuickAdd } from '@/components/WaterQuickAdd';
 
 
 export default function Dashboard() {
@@ -22,29 +23,16 @@ export default function Dashboard() {
   const dailyTotals = useStore((s) => s.dailyTotals);
   const meals = useStore((s) => s.meals);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
-  const addWaterToStore = useStore((s) => s.addWaterToStore);
   const [streak, setStreak] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
-  const [waterFavorites, setWaterFavorites] = useState<{ id: number; amount_ml: number; label: string | null }[]>([]);
-  const [addingWater, setAddingWater] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       const today = getLocalDateString();
       refreshDailyData(today);
       getStreakDays().then(setStreak);
-      getWaterFavorites().then(setWaterFavorites).catch(() => {});
     }, [])
   );
-
-  async function addWater(ml: number) {
-    setAddingWater(true);
-    try {
-      await addWaterToStore(getLocalDateString(), ml);
-    } finally {
-      setAddingWater(false);
-    }
-  }
 
   async function onRefresh() {
     setRefreshing(true);
@@ -155,34 +143,7 @@ export default function Dashboard() {
           <View style={styles.waterTrack}>
             <View style={[styles.waterFill, { width: `${waterProgress * 100}%` }]} />
           </View>
-          <View style={styles.waterBtns}>
-            {[150, 250, 500].map((ml) => (
-              <TouchableOpacity
-                key={ml}
-                style={[styles.waterBtn, addingWater && { opacity: 0.5 }]}
-                onPress={() => addWater(ml)}
-                disabled={addingWater}
-              >
-                <Text style={styles.waterBtnText}>+{ml}ml</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {waterFavorites.length > 0 && (
-            <View style={styles.waterFavGrid}>
-              {waterFavorites.map((fav) => (
-                <TouchableOpacity
-                  key={fav.id}
-                  style={[styles.waterFavBtn, addingWater && { opacity: 0.5 }]}
-                  onPress={() => addWater(fav.amount_ml)}
-                  disabled={addingWater}
-                >
-                  <Text style={styles.waterFavBtnIcon}>⭐</Text>
-                  <Text style={styles.waterFavBtnText}>{fav.label ?? `${fav.amount_ml}ml`}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+          <WaterQuickAdd quickAmounts={[150, 250, 500]} />
         </Card>
         </Animated.View>
 
@@ -271,27 +232,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.waterColor,
     borderRadius: 5,
   },
-  waterBtns: { flexDirection: 'row', gap: 10 },
-  waterBtn: {
-    flex: 1,
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
-    borderRadius: Colors.radius,
-    borderWidth: 1,
-    borderColor: Colors.waterColor,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  waterBtnText: { color: Colors.waterColor, fontWeight: '600', fontSize: 14 },
-  waterFavGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  waterFavBtn: {
-    flex: 1, minWidth: '28%',
-    backgroundColor: 'rgba(251,191,36,0.08)',
-    borderRadius: Colors.radius,
-    borderWidth: 1, borderColor: '#fbbf24',
-    paddingVertical: 8, alignItems: 'center', gap: 2,
-  },
-  waterFavBtnIcon: { fontSize: 14 },
-  waterFavBtnText: { color: '#fbbf24', fontWeight: '700', fontSize: 12 },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: Colors.textPrimary },
   emptyCard: { alignItems: 'center', gap: 4 },
   emptyText: { color: Colors.textSecondary, fontSize: 15, textAlign: 'center', flexShrink: 1 },
