@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/Colors';
@@ -93,47 +93,44 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
 
   return (
     <>
-      <View style={styles.quickGrid}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.row}
+      >
         {quickAmounts.map((ml) => (
           <TouchableOpacity
-            key={ml}
-            style={[styles.quickBtn, addingWater && { opacity: 0.5 }]}
+            key={`preset-${ml}`}
+            style={[styles.chip, styles.chipPreset, addingWater && styles.chipDisabled]}
             onPress={() => addWater(ml)}
             disabled={addingWater}
           >
-            <Text style={styles.quickBtnIcon}>💧</Text>
-            <Text style={styles.quickBtnText}>+{ml}ml</Text>
+            <Text style={styles.chipIcon}>💧</Text>
+            <Text style={[styles.chipText, styles.chipTextPreset]}>+{ml}ml</Text>
           </TouchableOpacity>
         ))}
-        <TouchableOpacity
-          style={[styles.quickBtn, styles.quickBtnCustom]}
-          onPress={() => setCustomModalVisible(true)}
-        >
-          <Text style={styles.quickBtnIcon}>✏️</Text>
-          <Text style={styles.quickBtnText}>Personnaliser</Text>
-        </TouchableOpacity>
-      </View>
 
-      {favorites.length > 0 && (
-        <>
-          <Text style={styles.favoritesTitle}>⭐ Mes contenants</Text>
-          <View style={styles.quickGrid}>
-            {favorites.map((fav) => (
-              <TouchableOpacity
-                key={fav.id}
-                style={[styles.quickBtn, styles.quickBtnFav, addingWater && { opacity: 0.5 }]}
-                onPress={() => addWater(fav.amount_ml)}
-                onLongPress={() => handleDeleteFavorite(fav.id)}
-                disabled={addingWater}
-              >
-                <Text style={styles.quickBtnIcon}>⭐</Text>
-                <Text style={styles.quickBtnText}>{fav.label ?? `${fav.amount_ml}ml`}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <Text style={styles.favoritesHint}>Appui long sur un favori pour le supprimer</Text>
-        </>
-      )}
+        {favorites.map((fav) => (
+          <TouchableOpacity
+            key={`fav-${fav.id}`}
+            style={[styles.chip, styles.chipFav, addingWater && styles.chipDisabled]}
+            onPress={() => addWater(fav.amount_ml)}
+            onLongPress={() => handleDeleteFavorite(fav.id)}
+            disabled={addingWater}
+          >
+            <Text style={styles.chipIcon}>⭐</Text>
+            <Text style={[styles.chipText, styles.chipTextFav]}>{fav.label ?? `${fav.amount_ml}ml`}</Text>
+          </TouchableOpacity>
+        ))}
+
+        <TouchableOpacity
+          style={[styles.chip, styles.chipAdd, addingWater && styles.chipDisabled]}
+          onPress={() => setCustomModalVisible(true)}
+          disabled={addingWater}
+        >
+          <Text style={styles.chipAddIcon}>+</Text>
+        </TouchableOpacity>
+      </ScrollView>
 
       <KeyboardAwareModal
         visible={customModalVisible}
@@ -188,33 +185,34 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
 }
 
 const styles = StyleSheet.create({
-  quickGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  quickBtn: {
-    flex: 1, minWidth: '28%',
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
-    borderRadius: Colors.radius,
-    borderWidth: 1, borderColor: Colors.waterColor,
-    padding: 12, alignItems: 'center', gap: 4,
+  row: { flexDirection: 'row', gap: 10, paddingVertical: 2, paddingRight: 2 },
+  chip: {
+    height: 56, minWidth: 80,
+    borderRadius: 28,
+    paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    borderWidth: 1,
   },
-  quickBtnIcon: { fontSize: 20 },
-  quickBtnText: { color: Colors.waterColor, fontWeight: '700', fontSize: 13 },
-  quickBtnCustom: {
-    borderColor: '#64748b',
+  chipDisabled: { opacity: 0.5 },
+  chipPreset: {
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+    borderColor: Colors.waterColor,
+  },
+  chipFav: {
+    backgroundColor: 'rgba(251,191,36,0.08)',
+    borderColor: '#fbbf24',
+  },
+  chipAdd: {
+    minWidth: 56, paddingHorizontal: 0,
     backgroundColor: 'rgba(100,116,139,0.08)',
+    borderColor: '#64748b',
     borderStyle: 'dashed',
   },
-  quickBtnFav: {
-    borderColor: '#fbbf24',
-    backgroundColor: 'rgba(251,191,36,0.08)',
-  },
-  favoritesTitle: {
-    color: Colors.textPrimary, fontWeight: '600', fontSize: 13,
-    marginTop: 8, marginBottom: 6,
-  },
-  favoritesHint: {
-    color: Colors.textMuted, fontSize: 10, textAlign: 'center',
-    marginTop: 4,
-  },
+  chipIcon: { fontSize: 16 },
+  chipText: { fontWeight: '700', fontSize: 13 },
+  chipTextPreset: { color: Colors.waterColor },
+  chipTextFav: { color: '#fbbf24' },
+  chipAddIcon: { fontSize: 24, fontWeight: '700', color: '#94a3b8', lineHeight: 26 },
   customTitle: {
     color: Colors.textPrimary, fontWeight: '700', fontSize: 18,
     marginBottom: 4,
