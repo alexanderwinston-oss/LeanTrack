@@ -11,9 +11,10 @@ import { Card } from '@/components/ui/Card';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import {
   getProfile, getWeightHistory, updateWeightEntry, deleteWeightEntry,
-  recalculateTargetsAfterWeighIn, checkAllAchievements, updateWeightInitial,
+  recalculateTargetsAfterWeighIn, updateWeightInitial,
 } from '@/lib/db';
 import { getLocalDateString } from '@/lib/utils';
+import { checkAchievementsAndNotify } from '@/lib/featureFlags';
 import { registerModal } from '@/lib/useModalManager';
 import { useStore } from '@/lib/store';
 import { calcProjection } from '@/lib/nutrition';
@@ -390,8 +391,7 @@ export default function Projection() {
                     await recalculateTargetsAfterWeighIn(prevWeight);
                     const upd = await getProfile();
                     if (upd) useStore.getState().setProfile(upd);
-                    const newlyUnlocked = await checkAllAchievements();
-                    newlyUnlocked.forEach((b) => useStore.getState().setPendingBadge(b));
+                    await checkAchievementsAndNotify();
                     loadData();
                   },
                 },
@@ -420,8 +420,7 @@ export default function Projection() {
                 await recalculateTargetsAfterWeighIn(w);
                 const upd = await getProfile();
                 if (upd) useStore.getState().setProfile(upd);
-                const newlyUnlocked = await checkAllAchievements();
-                newlyUnlocked.forEach((b) => useStore.getState().setPendingBadge(b));
+                await checkAchievementsAndNotify();
                 setWeightModalVisible(false);
                 setNewWeightInput('');
                 loadData();

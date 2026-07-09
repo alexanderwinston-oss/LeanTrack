@@ -5,11 +5,13 @@ import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/Colors';
 import { useStore } from '@/lib/store';
 import {
-  addWaterFavorite, checkAllAchievements, deleteWaterFavorite, getWaterFavorites,
+  addWaterFavorite, deleteWaterFavorite, getWaterFavorites,
 } from '@/lib/db';
 import { getLocalDateString } from '@/lib/utils';
+import { checkAchievementsAndNotify } from '@/lib/featureFlags';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import { registerModal } from '@/lib/useModalManager';
+import { LockedFeature } from '@/components/LockedFeature';
 
 interface Props {
   quickAmounts: number[];
@@ -40,8 +42,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
     try {
       await addWaterToStore(getLocalDateString(), ml);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      const newlyUnlocked = await checkAllAchievements();
-      newlyUnlocked.forEach((b) => useStore.getState().setPendingBadge(b));
+      await checkAchievementsAndNotify();
       onAdded?.();
     } catch {
       Alert.alert('Erreur', 'Impossible d\'enregistrer l\'eau. Réessaie.');
@@ -150,15 +151,17 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
           maxLength={4}
         />
 
-        <TouchableOpacity
-          style={styles.saveAsFavBtn}
-          disabled={savingFavorite}
-          onPress={handleSaveFavorite}
-        >
-          <Text style={styles.saveAsFavText}>
-            {savingFavorite ? '...' : '⭐ Sauvegarder comme favori'}
-          </Text>
-        </TouchableOpacity>
+        <LockedFeature feature="WATER_FAVORITES">
+          <TouchableOpacity
+            style={styles.saveAsFavBtn}
+            disabled={savingFavorite}
+            onPress={handleSaveFavorite}
+          >
+            <Text style={styles.saveAsFavText}>
+              {savingFavorite ? '...' : '⭐ Sauvegarder comme favori'}
+            </Text>
+          </TouchableOpacity>
+        </LockedFeature>
 
         <View style={styles.customButtons}>
           <TouchableOpacity

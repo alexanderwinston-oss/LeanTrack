@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { AchievementGrid, ALL_ACHIEVEMENTS } from '@/components/Achievements';
 import { useStore } from '@/lib/store';
 import {
-  checkAndUnlockAchievements, deleteWeightEntry, getAllWeightEntries,
+  deleteWeightEntry, getAllWeightEntries,
   getAchievementStats, getProfile, getUnlockedAchievements, resetAllData, saveProfile,
   updateWeightEntry, updateWeightInitial,
 } from '@/lib/db';
@@ -19,22 +19,10 @@ import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import { cancelAllNotifications, scheduleAllNotifications } from '@/lib/notifications';
 import { AchievementStats, WeightEntry } from '@/lib/types';
 
-const XP_LEVELS = [
-  { level: 1, label: 'Débutant',   min: 0,    max: 149   },
-  { level: 2, label: 'En route',   min: 150,  max: 399   },
-  { level: 3, label: 'Régulier',   min: 400,  max: 799   },
-  { level: 4, label: 'Confirmé',   min: 800,  max: 1499  },
-  { level: 5, label: 'Discipliné', min: 1500, max: 2499  },
-  { level: 6, label: 'Expert',     min: 2500, max: 3999  },
-  { level: 7, label: 'Élite',      min: 4000, max: 99999 },
-];
-
-function getLevel(xp: number) {
-  return XP_LEVELS.find((l) => xp >= l.min && xp <= l.max) ?? XP_LEVELS[XP_LEVELS.length - 1];
-}
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { registerModal } from '@/lib/useModalManager';
-import { getLocalDateString, getProfileName } from '@/lib/utils';
+import { getLocalDateString, getLevel, getProfileName, getTotalXP, XP_LEVELS } from '@/lib/utils';
+import { checkAchievementsAndNotify } from '@/lib/featureFlags';
 
 const SCREEN_H = Dimensions.get('window').height;
 
@@ -67,10 +55,10 @@ export default function Profil() {
   const [weightModal, setWeightModal] = useState(false);
   const [weightDate, setWeightDate] = useState('');
   const [weightInput, setWeightInput] = useState('');
-  const setPendingBadge = useStore((s) => s.setPendingBadge);
   const [saving, setSaving] = useState(false);
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
-  const [unlockedIds, setUnlockedIds] = useState<string[]>([]);
+  const unlockedIds = useStore((s) => s.unlockedAchievementIds);
+  const setUnlockedAchievementIds = useStore((s) => s.setUnlockedAchievementIds);
   const [achievementStats, setAchievementStats] = useState<AchievementStats | null>(null);
   const [editWeightInitialVisible, setEditWeightInitialVisible] = useState(false);
   const [editWeightInitialInput, setEditWeightInitialInput] = useState('');
@@ -83,16 +71,11 @@ export default function Profil() {
 
   useFocusEffect(
     useCallback(() => {
-      getUnlockedAchievements().then(setUnlockedIds);
+      getUnlockedAchievements().then(setUnlockedAchievementIds);
       loadWeightEntries();
       if (profile) {
         getAchievementStats(profile).then(setAchievementStats).catch(() => {});
-        checkAndUnlockAchievements(profile).then((newOnes) => {
-          if (newOnes.length > 0) {
-            newOnes.forEach((b) => setPendingBadge(b));
-            getUnlockedAchievements().then(setUnlockedIds);
-          }
-        }).catch(() => {});
+        checkAchievementsAndNotify().catch(() => {});
       }
     }, [profile])
   );
@@ -102,10 +85,7 @@ export default function Profil() {
     setWeightEntries(entries);
   }
 
-  const totalXP = useMemo(
-    () => ALL_ACHIEVEMENTS.filter((a) => unlockedIds.includes(a.id)).reduce((sum, a) => sum + a.xp, 0),
-    [unlockedIds]
-  );
+  const totalXP = useMemo(() => getTotalXP(unlockedIds), [unlockedIds]);
   const currentLevel = useMemo(() => getLevel(totalXP), [totalXP]);
   const nextLevel = useMemo(
     () => XP_LEVELS.find((l) => l.level === currentLevel.level + 1) ?? null,
@@ -182,11 +162,7 @@ export default function Profil() {
         const updated = { ...profile, weight_current: w } as NonNullable<typeof profile>;
         await saveProfile(updated);
         setProfile(updated);
-        const newOnes = await checkAndUnlockAchievements(updated);
-        if (newOnes.length > 0) {
-          newOnes.forEach((b) => setPendingBadge(b));
-          getUnlockedAchievements().then(setUnlockedIds);
-        }
+        await checkAchievementsAndNotify();
       }
       setWeightModal(false);
       setWeightInput('');

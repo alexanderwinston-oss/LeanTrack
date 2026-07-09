@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { MealCard } from '@/components/MealCard';
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { useStore } from '@/lib/store';
-import { checkAllAchievements } from '@/lib/db';
+import { checkAchievementsAndNotify } from '@/lib/featureFlags';
 import { searchFood } from '@/lib/openfoodfacts';
 import { analyzeFoodPhoto } from '@/lib/gemini';
 import { saveToLeanTrackAlbum } from '@/lib/media';
@@ -196,8 +196,7 @@ export default function Journal() {
       setSelectedFood(null);
       setModalVisible(false);
       showToast(`✅ ${food.name} ajouté · ${calories} kcal`);
-      const newlyUnlocked = await checkAllAchievements();
-      newlyUnlocked.forEach((b) => useStore.getState().setPendingBadge(b));
+      await checkAchievementsAndNotify();
     } catch {
       Alert.alert('Erreur', 'Impossible d\'enregistrer le repas. Réessaie.');
     }
@@ -223,8 +222,7 @@ export default function Journal() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setModalVisible(false);
       showToast(`✅ ${manualName} ajouté · ${calories} kcal`);
-      const newlyUnlocked = await checkAllAchievements();
-      newlyUnlocked.forEach((b) => useStore.getState().setPendingBadge(b));
+      await checkAchievementsAndNotify();
     } catch {
       Alert.alert('Erreur', 'Impossible d\'enregistrer le repas. Réessaie.');
     }

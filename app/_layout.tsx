@@ -4,12 +4,13 @@ import { Stack, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { initDB, healData, recoverMainProfile, getProfile, checkAndUnlockAchievements } from '@/lib/db';
+import { initDB, healData, recoverMainProfile, getProfile, getUnlockedAchievements, checkAndUnlockAchievements } from '@/lib/db';
 import { UserProfile } from '@/lib/types';
 import { useGlobalBackHandler } from '@/lib/useModalManager';
 import { useStore } from '@/lib/store';
 import { getLocalDateString } from '@/lib/utils';
 import BadgeCelebration from '@/components/BadgeCelebration';
+import LevelUpToast from '@/components/LevelUpToast';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,6 +21,9 @@ export default function RootLayout() {
   const badgeQueue = useStore((s) => s.badgeQueue);
   const dequeueNextBadge = useStore((s) => s.dequeueNextBadge);
   const setPendingBadge = useStore((s) => s.setPendingBadge);
+  const pendingLevelUp = useStore((s) => s.pendingLevelUp);
+  const setPendingLevelUp = useStore((s) => s.setPendingLevelUp);
+  const setUnlockedAchievementIds = useStore((s) => s.setUnlockedAchievementIds);
 
   useGlobalBackHandler();
 
@@ -48,8 +52,12 @@ export default function RootLayout() {
       } catch (e) { console.error('[startup] refreshDailyData', e); }
 
       if (profile) {
+        // Silent on launch — never trigger the level-up toast for XP earned while offline,
+        // only badge celebrations (existing behavior) and the feature-gate state get updated.
         checkAndUnlockAchievements(profile)
           .then((newOnes) => newOnes.forEach((b) => setPendingBadge(b)))
+          .then(() => getUnlockedAchievements())
+          .then(setUnlockedAchievementIds)
           .catch(() => {});
       }
 
@@ -78,6 +86,7 @@ export default function RootLayout() {
         <Stack.Screen name="recettes" />
       </Stack>
       <BadgeCelebration badge={badgeQueue[0] ?? null} onClose={dequeueNextBadge} />
+      <LevelUpToast level={pendingLevelUp} onClose={() => setPendingLevelUp(null)} />
     </SafeAreaProvider>
   );
 }

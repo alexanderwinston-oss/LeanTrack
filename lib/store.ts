@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { DailyTotals, Meal, UserProfile } from './types';
 import { AchievementDef } from './achievements';
-import { addMeal as dbAddMeal, addWater as dbAddWater, getDailyTotals, getMealsForDate, getProfile, getWaterForDate, switchProfile } from './db';
-import { getLocalDateString } from './utils';
+import { addMeal as dbAddMeal, addWater as dbAddWater, getDailyTotals, getMealsForDate, getProfile, getUnlockedAchievements, getWaterForDate, switchProfile } from './db';
+import { getLocalDateString, XPLevel } from './utils';
 
 interface AppState {
   profile: UserProfile | null;
@@ -13,6 +13,8 @@ interface AppState {
   currentMealType: string;
   badgeQueue: AchievementDef[];
   isModalOpen: boolean;
+  unlockedAchievementIds: string[];
+  pendingLevelUp: XPLevel | null;
   setProfile: (profile: UserProfile) => void;
   refreshDailyData: (date: string) => Promise<void>;
   addMealToStore: (meal: Meal) => Promise<void>;
@@ -23,6 +25,8 @@ interface AppState {
   setPendingBadge: (badge: AchievementDef) => void;
   dequeueNextBadge: () => void;
   setModalOpen: (open: boolean) => void;
+  setUnlockedAchievementIds: (ids: string[]) => void;
+  setPendingLevelUp: (level: XPLevel | null) => void;
 }
 
 const emptyTotals = (date: string): DailyTotals => ({
@@ -38,6 +42,8 @@ export const useStore = create<AppState>((set, get) => ({
   currentMealType: 'dejeuner',
   badgeQueue: [],
   isModalOpen: false,
+  unlockedAchievementIds: [],
+  pendingLevelUp: null,
 
   setProfile: (profile) => set({ profile }),
   setPendingImage: (b64) => set({ pendingImageBase64: b64 }),
@@ -45,6 +51,8 @@ export const useStore = create<AppState>((set, get) => ({
   setPendingBadge: (badge) => set((state) => ({ badgeQueue: [...state.badgeQueue, badge] })),
   dequeueNextBadge: () => set((state) => ({ badgeQueue: state.badgeQueue.slice(1) })),
   setModalOpen: (open) => set({ isModalOpen: open }),
+  setUnlockedAchievementIds: (ids) => set({ unlockedAchievementIds: ids }),
+  setPendingLevelUp: (level) => set({ pendingLevelUp: level }),
 
   refreshDailyData: async (date: string) => {
     const [totals, meals, water] = await Promise.all([
@@ -71,16 +79,18 @@ export const useStore = create<AppState>((set, get) => ({
     await switchProfile(profileId);
     const profile = await getProfile();
     const today = getLocalDateString();
-    const [totals, meals, water] = await Promise.all([
+    const [totals, meals, water, unlockedIds] = await Promise.all([
       getDailyTotals(today),
       getMealsForDate(today),
       getWaterForDate(today),
+      getUnlockedAchievements(),
     ]);
     set({
       profile,
       dailyTotals: totals,
       meals,
       waterMl: water,
+      unlockedAchievementIds: unlockedIds,
     });
   },
 }));
