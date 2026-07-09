@@ -1,5 +1,8 @@
 import { Alert } from 'react-native';
 
+export const CALORIE_TARGET_MIN_RATIO = 0.85;
+export const CALORIE_TARGET_MAX_RATIO = 1.05;
+
 export function normalizeText(str: string): string {
   return str.toLowerCase().trim().replace(/\s+/g, ' ').replace(/["""''']/g, '');
 }

@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { getWeeklyData } from '@/lib/db';
 import { useStore } from '@/lib/store';
 import { DailyEntry } from '@/lib/types';
-import { getLocalDateString } from '@/lib/utils';
+import { CALORIE_TARGET_MAX_RATIO, CALORIE_TARGET_MIN_RATIO, getLocalDateString } from '@/lib/utils';
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -26,8 +26,8 @@ function getWeekBounds(offset: number): { start: string; end: string; weekStart:
 function barColor(calories: number, target: number): string {
   if (calories === 0) return Colors.border;
   const ratio = calories / target;
-  if (ratio >= 0.85 && ratio <= 1.05) return Colors.accent;
-  if (ratio < 0.85) return Colors.info;
+  if (ratio >= CALORIE_TARGET_MIN_RATIO && ratio <= CALORIE_TARGET_MAX_RATIO) return Colors.accent;
+  if (ratio < CALORIE_TARGET_MIN_RATIO) return Colors.info;
   return Colors.danger;
 }
 
@@ -74,7 +74,10 @@ export default function RecapSemaine() {
     ? Math.round(activeDays.reduce((s, d) => s + d.total_fat, 0) / activeDays.length)
     : 0;
   const goalDays = data.filter(
-    (d) => d.total_calories > 0 && d.total_calories <= calorieTarget * 1.05
+    (d) =>
+      d.total_calories > 0 &&
+      d.total_calories >= calorieTarget * CALORIE_TARGET_MIN_RATIO &&
+      d.total_calories <= calorieTarget * CALORIE_TARGET_MAX_RATIO
   ).length;
 
   const bestDay = activeDays.reduce<DailyEntry | null>((best, d) => {

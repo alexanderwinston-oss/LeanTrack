@@ -340,7 +340,7 @@ export default function Profil() {
             </View>
             {nextLevel ? (
               <Text style={{ color: '#475569', fontSize: 10, marginTop: 4 }}>
-                {xpInLevel} / {xpNeeded} XP → Niv. {nextLevel.level} {nextLevel.label}
+                {xpInLevel} / {xpNeeded} XP gagnés ce niveau → Niv. {nextLevel.level} {nextLevel.label}
               </Text>
             ) : (
               <Text style={{ color: '#fbbf24', fontSize: 10, marginTop: 4 }}>Niveau maximum atteint 🏆</Text>
@@ -487,7 +487,7 @@ export default function Profil() {
                               <View style={[styles.levelCurrentFill, { width: `${levelPct}%` as any }]} />
                             </View>
                             <Text style={styles.levelCurrentProgress}>
-                              {xpInLevel} / {xpNeeded} XP vers {XP_LEVELS[i + 1]?.label ?? '🏆'}
+                              {xpInLevel} / {xpNeeded} XP gagnés ce niveau (vers {XP_LEVELS[i + 1]?.label ?? '🏆'})
                             </Text>
                           </View>
                         )}

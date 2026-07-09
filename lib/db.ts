@@ -1,7 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import { AchievementStats, DailyEntry, DailyTotals, Meal, MealPlan, Recipe, UserProfile, WeightEntry } from './types';
 import { AchievementDef, ALL_ACHIEVEMENTS } from './achievements';
-import { getLocalDateString } from './utils';
+import { CALORIE_TARGET_MAX_RATIO, CALORIE_TARGET_MIN_RATIO, getLocalDateString } from './utils';
 import { calcFullProfile } from './nutrition';
 
 let _db: SQLite.SQLiteDatabase | null = null;
@@ -838,7 +838,7 @@ export async function getAchievementStats(profile: UserProfile): Promise<Achieve
         SELECT date, SUM(calories) as total FROM meals WHERE profile_id = ?
         GROUP BY date HAVING total >= ? AND total <= ?
       ) ORDER BY date DESC`,
-      [profileId, profile.calorie_target * 0.9, profile.calorie_target * 1.1]
+      [profileId, profile.calorie_target * CALORIE_TARGET_MIN_RATIO, profile.calorie_target * CALORIE_TARGET_MAX_RATIO]
     ),
     db.getFirstAsync<{ c: number }>(
       `SELECT COUNT(*) as c FROM (
