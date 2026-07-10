@@ -12,6 +12,8 @@ import { getWeeklyData } from '@/lib/db';
 import { useStore } from '@/lib/store';
 import { DailyEntry } from '@/lib/types';
 import { CALORIE_TARGET_MAX_RATIO, CALORIE_TARGET_MIN_RATIO, getLocalDateString } from '@/lib/utils';
+import { LockedFeature } from '@/components/LockedFeature';
+import { CoachAnalysisSection } from '@/components/CoachAnalysisSection';
 
 const DAY_LABELS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -286,6 +288,21 @@ export default function RecapSemaine() {
               </Text>
             </Card>
           )}
+
+          <LockedFeature feature="AI_COACH">
+            <CoachAnalysisSection
+              weekOffset={weekOffset}
+              weekStart={bounds.start}
+              weekEnd={bounds.end}
+              days={data}
+              calorieTarget={calorieTarget}
+              proteinTarget={proteinTarget}
+              carbsTarget={carbsTarget}
+              fatTarget={fatTarget}
+              waterTarget={waterTarget}
+              goal={profile?.goal ?? 'maintien'}
+            />
+          </LockedFeature>
         </>
       )}
     </ScrollView>

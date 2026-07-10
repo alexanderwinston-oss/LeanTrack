@@ -156,6 +156,13 @@ export interface GeneratedRecipe {
   steps: string[];
 }
 
+export interface CoachAnalysis {
+  resume: string;
+  points_forts: string[];
+  points_faibles: string[];
+  recommandations: string[];
+}
+
 export interface AchievementStats {
   totalWaterEntries: number;
   waterGoalDaysCount: number;

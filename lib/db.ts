@@ -245,6 +245,15 @@ export async function initDB(): Promise<void> {
       profile_id TEXT DEFAULT 'default',
       created_at TEXT DEFAULT (datetime('now', 'localtime'))
     );
+
+    CREATE TABLE IF NOT EXISTS coach_analyses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profile_id TEXT NOT NULL,
+      week_start TEXT NOT NULL,
+      analysis_json TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+      UNIQUE(profile_id, week_start)
+    );
   `);
 
   // Safe column migrations for features added after initial release
@@ -739,6 +748,64 @@ export async function getWeeklyData(startDate: string, endDate: string): Promise
     cursor.setDate(cursor.getDate() + 1);
   }
   return result;
+}
+
+export async function getMealNamesForRange(
+  startDate: string, endDate: string
+): Promise<{ date: string; food_name: string }[]> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  return db.getAllAsync<{ date: string; food_name: string }>(
+    `SELECT date, food_name FROM meals
+     WHERE date BETWEEN ? AND ? AND profile_id = ?
+     ORDER BY date ASC, created_at ASC`,
+    [startDate, endDate, profileId]
+  );
+}
+
+export async function getWeightEntriesForRange(
+  startDate: string, endDate: string
+): Promise<WeightEntry[]> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  return db.getAllAsync<WeightEntry>(
+    'SELECT date, weight FROM weight_log WHERE date BETWEEN ? AND ? AND profile_id = ? ORDER BY date ASC',
+    [startDate, endDate, profileId]
+  );
+}
+
+// ─── Coach IA (weekly analysis cache) ──────────────────────────────────────────
+
+export async function getCoachAnalysis(
+  weekStart: string
+): Promise<{ analysis_json: string; created_at: string } | null> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  return db.getFirstAsync<{ analysis_json: string; created_at: string }>(
+    'SELECT analysis_json, created_at FROM coach_analyses WHERE profile_id = ? AND week_start = ?',
+    [profileId, weekStart]
+  );
+}
+
+export async function saveCoachAnalysis(weekStart: string, analysisJson: string): Promise<void> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  await db.runAsync(
+    `INSERT INTO coach_analyses (profile_id, week_start, analysis_json, created_at)
+     VALUES (?, ?, ?, datetime('now', 'localtime'))
+     ON CONFLICT(profile_id, week_start)
+     DO UPDATE SET analysis_json = excluded.analysis_json, created_at = excluded.created_at`,
+    [profileId, weekStart, analysisJson]
+  );
+}
+
+export async function deleteCoachAnalysis(weekStart: string): Promise<void> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  await db.runAsync(
+    'DELETE FROM coach_analyses WHERE profile_id = ? AND week_start = ?',
+    [profileId, weekStart]
+  );
 }
 
 // ─── Meal plan ───────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { FoodAnalysisResult, GeneratedRecipe, MealPlan } from './types';
+import { CoachAnalysis, FoodAnalysisResult, GeneratedRecipe, MealPlan } from './types';
 
 const API_KEY = Constants.expoConfig?.extra?.geminiApiKey ?? '';
 const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
@@ -270,4 +270,79 @@ Retourne UNIQUEMENT ce JSON sans markdown :
     ingredients: [],
     steps: [],
   });
+}
+
+export interface CoachAnalysisDayInput {
+  date: string;
+  total_calories: number;
+  total_protein: number;
+  total_carbs: number;
+  total_fat: number;
+  water_ml: number;
+  meal_names: string[];
+}
+
+export interface CoachAnalysisTargets {
+  calorieTarget: number;
+  proteinTarget: number;
+  carbsTarget: number;
+  fatTarget: number;
+  waterTarget: number;
+}
+
+export async function generateCoachAnalysis(
+  days: CoachAnalysisDayInput[],
+  targets: CoachAnalysisTargets,
+  weightEntries: { date: string; weight: number }[],
+  goal: string
+): Promise<CoachAnalysis> {
+  const daysSummary = days.map((d) => (
+    `${d.date} : ${Math.round(d.total_calories)}/${targets.calorieTarget} kcal | `
+    + `P:${Math.round(d.total_protein)}/${targets.proteinTarget}g `
+    + `G:${Math.round(d.total_carbs)}/${targets.carbsTarget}g `
+    + `L:${Math.round(d.total_fat)}/${targets.fatTarget}g | `
+    + `Eau:${d.water_ml}/${targets.waterTarget}ml | `
+    + `Repas: ${d.meal_names.length > 0 ? d.meal_names.join(', ') : 'aucun repas loggé'}`
+  )).join('\n');
+
+  const weightSummary = weightEntries.length > 0
+    ? weightEntries.map((w) => `${w.date} : ${w.weight}kg`).join(', ')
+    : 'Aucune pesée cette semaine';
+
+  const goalLabel = goal === 'perte' ? 'perte de poids' : goal === 'prise' ? 'prise de masse' : 'maintien';
+
+  const promptText = `Tu es un coach nutrition bienveillant. Analyse la semaine suivante d'un utilisateur dont l'objectif est : ${goalLabel}.
+
+DONNÉES DE LA SEMAINE (jour par jour) :
+${daysSummary}
+
+PESÉES DE LA SEMAINE :
+${weightSummary}
+
+=== RÈGLES STRICTES ===
+- Réponds en français, tutoie l'utilisateur ("tu").
+- Ton encourageant mais honnête, pratique. Aucune affirmation médicale. Ne culpabilise jamais l'utilisateur.
+- Les recommandations doivent être concrètes et actionnables, basées sur les données réelles ci-dessus
+  (ex: "Prépare tes repas du jeudi à l'avance — c'est ton jour le plus irrégulier"), jamais génériques.
+- N'invente aucune donnée non présente ci-dessus.
+
+Retourne UNIQUEMENT ce JSON valide, sans markdown, sans préambule, sans texte avant ou après :
+{
+  "resume": "string (2-3 phrases résumant la semaine)",
+  "points_forts": ["string", "string"],
+  "points_faibles": ["string", "string"],
+  "recommandations": ["string", "string", "string"]
+}`;
+
+  const data = await callGemini({
+    contents: [{ parts: [{ text: promptText }] }],
+  }, true, 0.3);
+
+  const fallback: CoachAnalysis = {
+    resume: '',
+    points_forts: [],
+    points_faibles: [],
+    recommandations: [],
+  };
+  return safeParseJSON<CoachAnalysis>(extractText(data), fallback);
 }
