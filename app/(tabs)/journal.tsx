@@ -755,7 +755,7 @@ const styles = StyleSheet.create({
   descScroll: { flexShrink: 1 },
   modalListContent: { padding: 16, paddingBottom: 100 },
   stickyFooter: {
-    padding: 16, paddingTop: 12,
+    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32,
     borderTopWidth: 1, borderTopColor: Colors.border,
     backgroundColor: Colors.bgPrimary,
   },

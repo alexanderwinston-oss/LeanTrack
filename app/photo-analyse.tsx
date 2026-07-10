@@ -270,8 +270,10 @@ export default function PhotoAnalyse() {
   }
 
   const conf = result ? CONFIDENCE_CONFIG[result.confiance] : null;
+  const showJournalFooter = !!result && (!result.is_drink || showMealTypeSelector);
 
   return (
+    <View style={styles.screen}>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
@@ -519,19 +521,29 @@ export default function PhotoAnalyse() {
                   ))}
                 </View>
               </Card>
-
-              <Button label="✅ Ajouter au journal" onPress={addToJournal} />
             </>
           )}
         </>
       )}
     </ScrollView>
+    {showJournalFooter && (
+      <View style={styles.stickyFooter}>
+        <Button label="✅ Ajouter au journal" onPress={addToJournal} />
+      </View>
+    )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: Colors.bgPrimary },
   container: { flex: 1, backgroundColor: Colors.bgPrimary },
   content: { padding: 20, paddingTop: 56, gap: 16, paddingBottom: 40 },
+  stickyFooter: {
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32,
+    borderTopWidth: 1, borderTopColor: Colors.border,
+    backgroundColor: Colors.bgPrimary,
+  },
   header: { gap: 8 },
   backBtn: { color: Colors.accent, fontSize: 15, fontWeight: '500' },
   title: { fontSize: 22, fontWeight: '700', color: Colors.textPrimary },
