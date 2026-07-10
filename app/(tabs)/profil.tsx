@@ -1,8 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Alert, Dimensions, Modal, ScrollView, StyleSheet, Text,
-  TextInput, TouchableOpacity, View,
+  Alert, Dimensions, LayoutAnimation, Modal, Platform, ScrollView, StyleSheet, Text,
+  TextInput, TouchableOpacity, UIManager, View,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 import { router, useFocusEffect } from 'expo-router';
 import { Colors } from '@/constants/Colors';
@@ -12,7 +16,7 @@ import { AchievementGrid, ALL_ACHIEVEMENTS } from '@/components/Achievements';
 import { useStore } from '@/lib/store';
 import {
   deleteWeightEntry, getAllWeightEntries,
-  getAchievementStats, getProfile, getUnlockedAchievements, resetAllData, saveProfile,
+  getAchievementStats, getProfile, resetAllData, saveProfile,
   updateWeightEntry, updateWeightInitial,
 } from '@/lib/db';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
@@ -22,7 +26,7 @@ import { AchievementStats, WeightEntry } from '@/lib/types';
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { registerModal } from '@/lib/useModalManager';
 import { getLocalDateString, getLevel, getProfileName, getTotalXP, XP_LEVELS } from '@/lib/utils';
-import { checkAchievementsAndNotify } from '@/lib/featureFlags';
+import { checkAchievementsAndNotify, LEVEL_FEATURES } from '@/lib/featureFlags';
 
 const SCREEN_H = Dimensions.get('window').height;
 
@@ -58,11 +62,11 @@ export default function Profil() {
   const [saving, setSaving] = useState(false);
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([]);
   const unlockedIds = useStore((s) => s.unlockedAchievementIds);
-  const setUnlockedAchievementIds = useStore((s) => s.setUnlockedAchievementIds);
   const [achievementStats, setAchievementStats] = useState<AchievementStats | null>(null);
   const [editWeightInitialVisible, setEditWeightInitialVisible] = useState(false);
   const [editWeightInitialInput, setEditWeightInitialInput] = useState('');
   const [levelsModalVisible, setLevelsModalVisible] = useState(false);
+  const [expandedLevel, setExpandedLevel] = useState<number | null>(null);
   const [rewardsExpanded, setRewardsExpanded] = useState(false);
 
   registerModal('profilWeight', weightModal, () => setWeightModal(false), 10);
@@ -71,10 +75,11 @@ export default function Profil() {
 
   useFocusEffect(
     useCallback(() => {
-      getUnlockedAchievements().then(setUnlockedAchievementIds);
       loadWeightEntries();
       if (profile) {
         getAchievementStats(profile).then(setAchievementStats).catch(() => {});
+        // checkAchievementsAndNotify() already refreshes unlockedAchievementIds in the
+        // store when something changed — no need for a second, racing fetch here.
         checkAchievementsAndNotify().catch(() => {});
       }
     }, [profile])
@@ -83,6 +88,11 @@ export default function Profil() {
   async function loadWeightEntries() {
     const entries = await getAllWeightEntries();
     setWeightEntries(entries);
+  }
+
+  function toggleLevelExpanded(level: number) {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedLevel((prev) => (prev === level ? null : level));
   }
 
   const totalXP = useMemo(() => getTotalXP(unlockedIds), [unlockedIds]);
@@ -301,7 +311,10 @@ export default function Profil() {
         {/* Achievements */}
         <Card>
           <TouchableOpacity
-            onPress={() => setLevelsModalVisible(true)}
+            onPress={() => {
+              setExpandedLevel(currentLevel.level);
+              setLevelsModalVisible(true);
+            }}
             activeOpacity={0.75}
             style={{ marginBottom: 8 }}
           >
@@ -433,8 +446,16 @@ export default function Profil() {
                   const isPast = totalXP > lvl.max;
                   const isCurrent = lvl.level === currentLevel.level;
                   const isFuture = lvl.min > totalXP;
+                  const isExpanded = expandedLevel === lvl.level;
+                  const feature = LEVEL_FEATURES.find((f) => f.level === lvl.level);
+                  const xpMissing = Math.max(lvl.min - totalXP, 0);
                   return (
-                    <View key={lvl.level} style={[styles.levelRow, isCurrent && styles.levelRowCurrent]}>
+                    <TouchableOpacity
+                      key={lvl.level}
+                      activeOpacity={0.75}
+                      onPress={() => toggleLevelExpanded(lvl.level)}
+                      style={[styles.levelRow, isCurrent && styles.levelRowCurrent]}
+                    >
                       <View style={[
                         styles.levelDot,
                         isPast && styles.levelDotPast,
@@ -457,6 +478,9 @@ export default function Profil() {
                             {lvl.level < 7 ? `${lvl.min} XP` : `${lvl.min}+ XP`}
                           </Text>
                         </View>
+                        {!!feature && (
+                          <Text style={styles.levelSummary}>{feature.summary}</Text>
+                        )}
                         {isCurrent && (
                           <View style={{ marginTop: 6 }}>
                             <View style={styles.levelCurrentBar}>
@@ -467,8 +491,28 @@ export default function Profil() {
                             </Text>
                           </View>
                         )}
+                        {isExpanded && !!feature && (
+                          <View style={styles.levelDetailPanel}>
+                            <Text style={styles.levelDetailText}>{feature.detail}</Text>
+                            <View style={[
+                              styles.levelStatusBadge,
+                              isPast && styles.levelStatusBadgeUnlocked,
+                              isCurrent && styles.levelStatusBadgeCurrent,
+                              isFuture && styles.levelStatusBadgeLocked,
+                            ]}>
+                              <Text style={styles.levelStatusBadgeText}>
+                                {isCurrent ? '⚡ Niveau actuel' : isPast ? '✅ Débloqué' : `🔒 Débloqué au niveau ${lvl.level}`}
+                              </Text>
+                            </View>
+                            {isFuture && (
+                              <Text style={styles.levelXpMissing}>
+                                Il te manque {xpMissing} XP pour débloquer cette fonctionnalité
+                              </Text>
+                            )}
+                          </View>
+                        )}
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </ScrollView>
@@ -637,6 +681,18 @@ const styles = StyleSheet.create({
   levelCurrentBar: { height: 4, borderRadius: 2, backgroundColor: '#0f172a', overflow: 'hidden' },
   levelCurrentFill: { height: '100%', borderRadius: 2, backgroundColor: '#fbbf24' },
   levelCurrentProgress: { color: '#64748b', fontSize: 10, marginTop: 3 },
+  levelSummary: { color: '#64748b', fontSize: 12, fontStyle: 'italic', marginTop: 3 },
+  levelDetailPanel: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#0f172a', gap: 8 },
+  levelDetailText: { color: '#94a3b8', fontSize: 13, lineHeight: 19 },
+  levelStatusBadge: {
+    alignSelf: 'flex-start', borderRadius: Colors.radiusPill,
+    paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1,
+  },
+  levelStatusBadgeUnlocked: { backgroundColor: 'rgba(16,185,129,0.1)', borderColor: '#10b981' },
+  levelStatusBadgeCurrent: { backgroundColor: 'rgba(251,191,36,0.1)', borderColor: '#fbbf24' },
+  levelStatusBadgeLocked: { backgroundColor: 'rgba(100,116,139,0.1)', borderColor: '#475569' },
+  levelStatusBadgeText: { fontSize: 12, fontWeight: '700', color: '#f1f5f9' },
+  levelXpMissing: { color: '#64748b', fontSize: 12 },
   levelsClose: { marginTop: 20, backgroundColor: '#10b981', borderRadius: 14, padding: 14, alignItems: 'center' },
   levelsCloseText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   rewardsToggle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: '#0f172a', borderRadius: 12, borderWidth: 1, borderColor: '#1e293b' },

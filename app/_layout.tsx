@@ -54,11 +54,16 @@ export default function RootLayout() {
       if (profile) {
         // Silent on launch — never trigger the level-up toast for XP earned while offline,
         // only badge celebrations (existing behavior) and the feature-gate state get updated.
-        checkAndUnlockAchievements(profile)
-          .then((newOnes) => newOnes.forEach((b) => setPendingBadge(b)))
-          .then(() => getUnlockedAchievements())
-          .then(setUnlockedAchievementIds)
-          .catch(() => {});
+        // Awaited (unlike other steps this used to be a fire-and-forget chain) so
+        // unlockedAchievementIds is hydrated before the app becomes interactive — otherwise
+        // the first achievement check of the session reads an empty prevIds and can never
+        // detect a level-up.
+        try {
+          const newOnes = await checkAndUnlockAchievements(profile);
+          newOnes.forEach((b) => setPendingBadge(b));
+          const ids = await getUnlockedAchievements();
+          setUnlockedAchievementIds(ids);
+        } catch (e) { console.error('[startup] checkAndUnlockAchievements', e); }
       }
 
       setReady(true);
