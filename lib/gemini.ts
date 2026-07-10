@@ -1,8 +1,7 @@
-import Constants from 'expo-constants';
 import { CoachAnalysis, FoodAnalysisResult, GeneratedRecipe, MealPlan } from './types';
 
-const API_KEY = Constants.expoConfig?.extra?.geminiApiKey ?? '';
-const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+const GEMINI_PROXY_URL = 'https://loopcraft-pi.vercel.app/api/gemini';
+const GEMINI_ENDPOINT = '/v1beta/models/gemini-2.5-flash:generateContent';
 const TIMEOUT_MS = 30000;
 
 async function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
@@ -16,8 +15,6 @@ async function fetchWithTimeout(url: string, options: RequestInit): Promise<Resp
 }
 
 export async function callGemini(body: object, disableThinking = false, temperature = 0): Promise<any> {
-  if (!API_KEY) throw new Error('Clé API manquante dans app.json');
-
   const generationConfig: any = { temperature };
   if (disableThinking) {
     generationConfig.thinkingConfig = { thinkingBudget: 0 };
@@ -25,10 +22,10 @@ export async function callGemini(body: object, disableThinking = false, temperat
 
   const requestBody = { ...body, generationConfig };
 
-  const response = await fetchWithTimeout(`${BASE_URL}?key=${API_KEY}`, {
+  const response = await fetchWithTimeout(GEMINI_PROXY_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody),
+    body: JSON.stringify({ endpoint: GEMINI_ENDPOINT, body: requestBody }),
   });
 
   const data = await response.json();
