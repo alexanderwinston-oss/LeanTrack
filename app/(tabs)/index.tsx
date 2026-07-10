@@ -16,6 +16,8 @@ import { useStore } from '@/lib/store';
 import { getStreakDays } from '@/lib/db';
 import { getLocalDateString, getProfileName } from '@/lib/utils';
 import { WaterQuickAdd } from '@/components/WaterQuickAdd';
+import { ScrollFadeOverlay } from '@/components/ScrollFadeOverlay';
+import { useScrollFade } from '@/lib/useScrollFade';
 
 
 export default function Dashboard() {
@@ -25,6 +27,7 @@ export default function Dashboard() {
   const refreshDailyData = useStore((s) => s.refreshDailyData);
   const [streak, setStreak] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const mealsFade = useScrollFade();
 
   useFocusEffect(
     useCallback(() => {
@@ -155,17 +158,28 @@ export default function Dashboard() {
             <Text style={styles.emptyHint}>Appuie sur "Journal" pour ajouter tes repas</Text>
           </Card>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.mealScroll}>
-            {meals.map((meal) => (
-              <MealCard
-                key={meal.id}
-                meal={meal}
-                compact
-                style={styles.mealCardItem}
-                onMealChanged={() => refreshDailyData(getLocalDateString())}
-              />
-            ))}
-          </ScrollView>
+          <View style={styles.mealScrollWrap}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.mealScroll}
+              onLayout={mealsFade.onLayout}
+              onContentSizeChange={mealsFade.onContentSizeChange}
+              onScroll={mealsFade.onScroll}
+              scrollEventThrottle={16}
+            >
+              {meals.map((meal) => (
+                <MealCard
+                  key={meal.id}
+                  meal={meal}
+                  compact
+                  style={styles.mealCardItem}
+                  onMealChanged={() => refreshDailyData(getLocalDateString())}
+                />
+              ))}
+            </ScrollView>
+            {mealsFade.showFade && <ScrollFadeOverlay color={Colors.bgPrimary} />}
+          </View>
         )}
 
         {/* Action buttons */}
@@ -236,6 +250,7 @@ const styles = StyleSheet.create({
   emptyCard: { alignItems: 'center', gap: 4, minHeight: 70, justifyContent: 'center' },
   emptyText: { color: Colors.textSecondary, fontSize: 15, textAlign: 'center', flexShrink: 1 },
   emptyHint: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', flexShrink: 1 },
+  mealScrollWrap: { position: 'relative' },
   mealScroll: { marginHorizontal: -4 },
   mealCardItem: { marginHorizontal: 4 },
   actionRow: { flexDirection: 'row', gap: 12 },

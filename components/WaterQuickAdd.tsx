@@ -12,6 +12,8 @@ import { checkAchievementsAndNotify } from '@/lib/featureFlags';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import { registerModal } from '@/lib/useModalManager';
 import { LockedFeature } from '@/components/LockedFeature';
+import { ScrollFadeOverlay } from '@/components/ScrollFadeOverlay';
+import { useScrollFade } from '@/lib/useScrollFade';
 
 interface Props {
   quickAmounts: number[];
@@ -25,6 +27,8 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
   const [customModalVisible, setCustomModalVisible] = useState(false);
   const [customInput, setCustomInput] = useState('');
   const [savingFavorite, setSavingFavorite] = useState(false);
+  const presetFade = useScrollFade();
+  const favFade = useScrollFade();
 
   registerModal('waterCustom', customModalVisible, () => {
     setCustomModalVisible(false);
@@ -92,46 +96,78 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
     setCustomInput('');
   }
 
+  function renderFavoriteChip(fav: { id: number; amount_ml: number; label: string | null }) {
+    return (
+      <TouchableOpacity
+        key={`fav-${fav.id}`}
+        style={[styles.chip, styles.chipFav, addingWater && styles.chipDisabled]}
+        onPress={() => addWater(fav.amount_ml)}
+        onLongPress={() => handleDeleteFavorite(fav.id)}
+        disabled={addingWater}
+      >
+        <Text style={styles.chipIcon}>⭐</Text>
+        <Text style={[styles.chipText, styles.chipTextFav]}>{fav.label ?? `${fav.amount_ml}ml`}</Text>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.row}
-      >
-        {quickAmounts.map((ml) => (
-          <TouchableOpacity
-            key={`preset-${ml}`}
-            style={[styles.chip, styles.chipPreset, addingWater && styles.chipDisabled]}
-            onPress={() => addWater(ml)}
-            disabled={addingWater}
-          >
-            <Text style={styles.chipIcon}>💧</Text>
-            <Text style={[styles.chipText, styles.chipTextPreset]}>+{ml}ml</Text>
-          </TouchableOpacity>
-        ))}
-
-        {favorites.map((fav) => (
-          <TouchableOpacity
-            key={`fav-${fav.id}`}
-            style={[styles.chip, styles.chipFav, addingWater && styles.chipDisabled]}
-            onPress={() => addWater(fav.amount_ml)}
-            onLongPress={() => handleDeleteFavorite(fav.id)}
-            disabled={addingWater}
-          >
-            <Text style={styles.chipIcon}>⭐</Text>
-            <Text style={[styles.chipText, styles.chipTextFav]}>{fav.label ?? `${fav.amount_ml}ml`}</Text>
-          </TouchableOpacity>
-        ))}
-
-        <TouchableOpacity
-          style={[styles.chip, styles.chipAdd, addingWater && styles.chipDisabled]}
-          onPress={() => setCustomModalVisible(true)}
-          disabled={addingWater}
+      <View style={styles.scrollWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.row}
+          onLayout={presetFade.onLayout}
+          onContentSizeChange={presetFade.onContentSizeChange}
+          onScroll={presetFade.onScroll}
+          scrollEventThrottle={16}
         >
-          <Text style={styles.chipAddIcon}>+</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          {quickAmounts.map((ml) => (
+            <TouchableOpacity
+              key={`preset-${ml}`}
+              style={[styles.chip, styles.chipPreset, addingWater && styles.chipDisabled]}
+              onPress={() => addWater(ml)}
+              disabled={addingWater}
+            >
+              <Text style={styles.chipIcon}>💧</Text>
+              <Text style={[styles.chipText, styles.chipTextPreset]}>+{ml}ml</Text>
+            </TouchableOpacity>
+          ))}
+
+          <TouchableOpacity
+            style={[styles.chip, styles.chipAdd, addingWater && styles.chipDisabled]}
+            onPress={() => setCustomModalVisible(true)}
+            disabled={addingWater}
+          >
+            <Text style={styles.chipAddIcon}>+</Text>
+          </TouchableOpacity>
+        </ScrollView>
+        {presetFade.showFade && <ScrollFadeOverlay color={Colors.bgSurface} />}
+      </View>
+
+      {favorites.length === 1 && (
+        <View style={styles.pinnedFavRow}>
+          {renderFavoriteChip(favorites[0])}
+        </View>
+      )}
+
+      {favorites.length > 1 && (
+        <View style={[styles.scrollWrap, styles.pinnedFavRow]}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.row}
+            onLayout={favFade.onLayout}
+            onContentSizeChange={favFade.onContentSizeChange}
+            onScroll={favFade.onScroll}
+            scrollEventThrottle={16}
+          >
+            {favorites.map((fav) => renderFavoriteChip(fav))}
+          </ScrollView>
+          {favFade.showFade && <ScrollFadeOverlay color={Colors.bgSurface} />}
+        </View>
+      )}
 
       <KeyboardAwareModal
         visible={customModalVisible}
@@ -188,6 +224,8 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
 }
 
 const styles = StyleSheet.create({
+  scrollWrap: { position: 'relative' },
+  pinnedFavRow: { marginTop: 10 },
   row: { flexDirection: 'row', gap: 10, paddingVertical: 2, paddingRight: 2 },
   chip: {
     height: 56, minWidth: 80,
