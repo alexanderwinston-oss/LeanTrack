@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert, Animated, FlatList, KeyboardAvoidingView, Modal, Platform,
   Pressable, ScrollView, StyleSheet,
@@ -15,13 +15,17 @@ import { Button } from '@/components/ui/Button';
 import { MealCard } from '@/components/MealCard';
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { useStore } from '@/lib/store';
-import { checkAchievementsAndNotify } from '@/lib/featureFlags';
+import { checkAchievementsAndNotify, useFeatureUnlocked } from '@/lib/featureFlags';
 import { searchFood } from '@/lib/openfoodfacts';
 import { analyzeFoodPhoto } from '@/lib/gemini';
 import { saveToLeanTrackAlbum } from '@/lib/media';
 import { getLocalDateString, showGeminiError } from '@/lib/utils';
 import { registerModal } from '@/lib/useModalManager';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
+import { LockedFeature } from '@/components/LockedFeature';
+import {
+  addMeal, addWater, deleteWaterEntry, getMealsForDate, getWaterForDate, getWaterLogsForDate,
+} from '@/lib/db';
 import { FoodItem, Meal, MealType } from '@/lib/types';
 
 const SECTIONS: { type: MealType; label: string; emoji: string }[] = [
@@ -40,6 +44,12 @@ const MEAL_TYPE_CHIPS: { key: MealType; label: string }[] = [
 
 type ModalTab = 'search' | 'manual' | 'ai';
 
+function getYesterdayString(): string {
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  return getLocalDateString(yesterdayDate);
+}
+
 export default function Journal() {
   const meals = useStore((s) => s.meals);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
@@ -47,6 +57,19 @@ export default function Journal() {
   const dailyTotals = useStore((s) => s.dailyTotals);
   const setPendingImage = useStore((s) => s.setPendingImage);
   const setCurrentMealType = useStore((s) => s.setCurrentMealType);
+
+  const today = getLocalDateString();
+  const yesterday = getYesterdayString();
+  const canEditYesterday = useFeatureUnlocked('EDIT_YESTERDAY_MEAL');
+  const fullYesterdayAccess = useFeatureUnlocked('EDIT_YESTERDAY_FULL');
+
+  const [selectedDate, setSelectedDate] = useState<string>(today);
+  const [yesterdayMeals, setYesterdayMeals] = useState<Meal[]>([]);
+  const [yesterdayWaterTotal, setYesterdayWaterTotal] = useState(0);
+  const [yesterdayWaterLogs, setYesterdayWaterLogs] = useState<
+    { id: number; amount_ml: number; created_at: string }[]
+  >([]);
+  const isYesterday = selectedDate === yesterday;
 
   const [modalVisible, setModalVisible] = useState(false);
   const [activeMealType, setActiveMealType] = useState<MealType>('dejeuner');
@@ -75,11 +98,27 @@ export default function Journal() {
   const [textDescription, setTextDescription] = useState('');
   const [isAnalyzingText, setIsAnalyzingText] = useState(false);
 
+  const loadYesterdayData = useCallback(async () => {
+    const [ms, waterTotal, waterLogs] = await Promise.all([
+      getMealsForDate(yesterday),
+      getWaterForDate(yesterday),
+      getWaterLogsForDate(yesterday),
+    ]);
+    setYesterdayMeals(ms);
+    setYesterdayWaterTotal(waterTotal);
+    setYesterdayWaterLogs(waterLogs);
+  }, [yesterday]);
+
   useFocusEffect(
     useCallback(() => {
       refreshDailyData(getLocalDateString());
-    }, [])
+      if (isYesterday) loadYesterdayData();
+    }, [isYesterday])
   );
+
+  useEffect(() => {
+    if (isYesterday) loadYesterdayData();
+  }, [isYesterday]);
 
   registerModal('journalFoodSheet', foodBottomSheetVisible, () => setFoodBottomSheetVisible(false), 10);
   registerModal('journalAddFood', modalVisible, () => setModalVisible(false), 5);
@@ -174,12 +213,11 @@ export default function Journal() {
   }
 
   async function addFromFood(food: FoodItem) {
-    const today = getLocalDateString();
     const q = parseFloat(foodQuantity) || 100;
     const factor = q / 100;
     const calories = Math.round(food.calories_100g * factor);
     const meal: Meal = {
-      date: today,
+      date: selectedDate,
       meal_type: activeMealType,
       food_name: food.name,
       quantity_g: q,
@@ -190,7 +228,12 @@ export default function Journal() {
       source: 'search',
     };
     try {
-      await addMealToStore(meal);
+      if (isYesterday) {
+        await addMeal(meal);
+        await loadYesterdayData();
+      } else {
+        await addMealToStore(meal);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setFoodBottomSheetVisible(false);
       setSelectedFood(null);
@@ -204,10 +247,9 @@ export default function Journal() {
 
   async function addManual() {
     if (!manualName.trim()) return;
-    const today = getLocalDateString();
     const calories = parseFloat(manualCal) || 0;
     const meal: Meal = {
-      date: today,
+      date: selectedDate,
       meal_type: activeMealType,
       food_name: manualName,
       quantity_g: parseFloat(quantity) || 100,
@@ -218,7 +260,12 @@ export default function Journal() {
       source: 'manual',
     };
     try {
-      await addMealToStore(meal);
+      if (isYesterday) {
+        await addMeal(meal);
+        await loadYesterdayData();
+      } else {
+        await addMealToStore(meal);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setModalVisible(false);
       showToast(`✅ ${manualName} ajouté · ${calories} kcal`);
@@ -250,7 +297,28 @@ export default function Journal() {
     refreshDailyData(getLocalDateString());
   }
 
-  const mealsByType = (type: MealType) => meals.filter((m) => m.meal_type === type);
+  function onYesterdayMealChanged() {
+    loadYesterdayData();
+    checkAchievementsAndNotify().catch(() => {});
+  }
+
+  async function addYesterdayWater(ml: number) {
+    await addWater(yesterday, ml);
+    await loadYesterdayData();
+    await checkAchievementsAndNotify();
+  }
+
+  async function deleteYesterdayWater(id: number) {
+    await deleteWaterEntry(id);
+    await loadYesterdayData();
+    await checkAchievementsAndNotify();
+  }
+
+  const displayedMeals = isYesterday ? yesterdayMeals : meals;
+  const displayedTotal = isYesterday
+    ? Math.round(yesterdayMeals.reduce((s, m) => s + m.calories, 0))
+    : dailyTotals.calories;
+  const mealsByType = (type: MealType) => displayedMeals.filter((m) => m.meal_type === type);
 
   const searchHeader = (
     <View>
@@ -275,11 +343,41 @@ export default function Journal() {
     <ScreenContainer>
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Journal du {format(new Date(), 'd MMMM', { locale: fr })}</Text>
+        <Text style={styles.title}>
+          Journal du {format(
+            isYesterday ? new Date(yesterday + 'T12:00:00') : new Date(),
+            'd MMMM', { locale: fr }
+          )}
+        </Text>
         <View style={styles.totalBadge}>
-          <Text style={styles.totalText}>{dailyTotals.calories} kcal</Text>
+          <Text style={styles.totalText}>{displayedTotal} kcal</Text>
         </View>
       </View>
+
+      <View style={styles.datePillsRow}>
+        <TouchableOpacity
+          style={[styles.datePill, !isYesterday && styles.datePillActive]}
+          onPress={() => setSelectedDate(today)}
+        >
+          <Text style={[styles.datePillText, !isYesterday && styles.datePillTextActive]}>Aujourd'hui</Text>
+        </TouchableOpacity>
+        <LockedFeature feature="EDIT_YESTERDAY_MEAL" lockedLabel="Débloqué au niveau 3 — Régulier">
+          <TouchableOpacity
+            style={[styles.datePill, isYesterday && styles.datePillActive]}
+            onPress={() => setSelectedDate(yesterday)}
+          >
+            <Text style={[styles.datePillText, isYesterday && styles.datePillTextActive]}>Hier</Text>
+          </TouchableOpacity>
+        </LockedFeature>
+      </View>
+
+      {isYesterday && canEditYesterday && !fullYesterdayAccess && (
+        <View style={styles.j1Banner}>
+          <Text style={styles.j1BannerText}>
+            Édition uniquement — ajout disponible au niveau 5 (Discipliné)
+          </Text>
+        </View>
+      )}
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {SECTIONS.map(({ type, label, emoji }) => (
@@ -292,14 +390,45 @@ export default function Journal() {
             </View>
 
             {mealsByType(type).map((meal) => (
-              <MealCard key={meal.id} meal={meal} onMealChanged={refresh} />
+              <MealCard
+                key={meal.id}
+                meal={meal}
+                onMealChanged={isYesterday ? onYesterdayMealChanged : refresh}
+              />
             ))}
 
-            <TouchableOpacity style={styles.addBtn} onPress={() => openAdd(type)}>
-              <Text style={styles.addBtnText}>+ Ajouter un aliment</Text>
-            </TouchableOpacity>
+            {(!isYesterday || fullYesterdayAccess) && (
+              <TouchableOpacity style={styles.addBtn} onPress={() => openAdd(type)}>
+                <Text style={styles.addBtnText}>+ Ajouter un aliment</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ))}
+
+        {isYesterday && fullYesterdayAccess && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>💧 Eau</Text>
+              <Text style={styles.sectionCals}>{yesterdayWaterTotal} ml</Text>
+            </View>
+            <View style={styles.j1WaterChipsRow}>
+              {[150, 250, 500].map((ml) => (
+                <TouchableOpacity key={ml} style={styles.j1WaterChip} onPress={() => addYesterdayWater(ml)}>
+                  <Text style={styles.j1WaterChipText}>+{ml}ml</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {yesterdayWaterLogs.map((log) => (
+              <View key={log.id} style={styles.j1WaterLogRow}>
+                <Text style={styles.j1WaterLogText}>{log.amount_ml} ml</Text>
+                <TouchableOpacity onPress={() => deleteYesterdayWater(log.id)}>
+                  <Text style={styles.j1WaterLogDelete}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
+
         <View style={{ height: BOTTOM_SPACER_HEIGHT }} />
       </ScrollView>
 
@@ -541,6 +670,38 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.accent,
   },
   totalText: { color: Colors.accent, fontWeight: '700', fontSize: 14 },
+  datePillsRow: {
+    flexDirection: 'row', gap: 10,
+    paddingHorizontal: 20, paddingTop: 12,
+  },
+  datePill: {
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderRadius: Colors.radiusPill, borderWidth: 1.5,
+    borderColor: Colors.border, backgroundColor: Colors.bgSurface,
+  },
+  datePillActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
+  datePillText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
+  datePillTextActive: { color: Colors.accent },
+  j1Banner: {
+    marginHorizontal: 20, marginTop: 12,
+    backgroundColor: Colors.accentSubtle, borderRadius: Colors.radius,
+    borderWidth: 1, borderColor: Colors.accent,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  j1BannerText: { color: Colors.accent, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  j1WaterChipsRow: { flexDirection: 'row', gap: 8 },
+  j1WaterChip: {
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: Colors.radiusPill, borderWidth: 1,
+    borderColor: Colors.waterColor, backgroundColor: 'rgba(56, 189, 248, 0.1)',
+  },
+  j1WaterChipText: { color: Colors.waterColor, fontWeight: '700', fontSize: 13 },
+  j1WaterLogRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.border,
+  },
+  j1WaterLogText: { color: Colors.textPrimary, fontSize: 13 },
+  j1WaterLogDelete: { color: Colors.danger, fontSize: 15, paddingHorizontal: 8 },
   scroll: { padding: 20, gap: 20 },
   section: { gap: 8 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
