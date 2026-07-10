@@ -3,6 +3,7 @@ import {
   Keyboard, KeyboardAvoidingView, Modal, ScrollView,
   StyleSheet, TouchableOpacity, View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
 
 export default function KeyboardAwareModal({ visible, onClose, children, footer }: Props) {
   const scrollRef = useRef<ScrollView>(null);
+  const insets = useSafeAreaInsets();
 
   return (
     <Modal
@@ -46,7 +48,7 @@ export default function KeyboardAwareModal({ visible, onClose, children, footer 
             </TouchableOpacity>
           </ScrollView>
           {footer && (
-            <View style={styles.footer}>
+            <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
               {footer}
             </View>
           )}
@@ -77,7 +79,7 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   footer: {
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32,
+    paddingHorizontal: 20, paddingTop: 12,
     borderTopWidth: 1, borderTopColor: Colors.border,
     backgroundColor: '#1e293b',
   },

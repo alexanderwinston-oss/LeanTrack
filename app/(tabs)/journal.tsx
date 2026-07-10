@@ -7,6 +7,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Colors } from '@/constants/Colors';
@@ -44,6 +45,7 @@ function getYesterdayString(): string {
 }
 
 export default function Journal() {
+  const insets = useSafeAreaInsets();
   const meals = useStore((s) => s.meals);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
   const addMealToStore = useStore((s) => s.addMealToStore);
@@ -580,7 +582,7 @@ export default function Journal() {
                 </View>
               </ScrollView>
               {descFormVisible && (
-                <View style={styles.stickyFooter}>
+                <View style={[styles.stickyFooter, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
                   <Button label="Ajouter au journal" onPress={addManual} />
                 </View>
               )}
@@ -757,7 +759,7 @@ const styles = StyleSheet.create({
   descScroll: { flexShrink: 1 },
   modalListContent: { padding: 16, paddingBottom: 100 },
   stickyFooter: {
-    paddingHorizontal: 16, paddingTop: 12, paddingBottom: 32,
+    paddingHorizontal: 16, paddingTop: 12,
     borderTopWidth: 1, borderTopColor: Colors.border,
     backgroundColor: Colors.bgPrimary,
   },

@@ -7,6 +7,7 @@ import Slider from '@react-native-community/slider';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -31,6 +32,7 @@ const CONFIDENCE_CONFIG: Record<string, { label: string; color: string }> = {
 };
 
 export default function PhotoAnalyse() {
+  const insets = useSafeAreaInsets();
   const addMealToStore = useStore((s) => s.addMealToStore);
   const pendingImageBase64 = useStore((s) => s.pendingImageBase64);
   const setPendingImage = useStore((s) => s.setPendingImage);
@@ -527,7 +529,7 @@ export default function PhotoAnalyse() {
       )}
     </ScrollView>
     {showJournalFooter && (
-      <View style={styles.stickyFooter}>
+      <View style={[styles.stickyFooter, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
         <Button label="✅ Ajouter au journal" onPress={addToJournal} />
       </View>
     )}
@@ -540,7 +542,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgPrimary },
   content: { padding: 20, paddingTop: 56, gap: 16, paddingBottom: 40 },
   stickyFooter: {
-    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32,
+    paddingHorizontal: 20, paddingTop: 12,
     borderTopWidth: 1, borderTopColor: Colors.border,
     backgroundColor: Colors.bgPrimary,
   },
