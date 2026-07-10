@@ -12,7 +12,8 @@ import { Colors } from '@/constants/Colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { analyzeFoodPhoto } from '@/lib/gemini';
-import { saveToLeanTrackAlbum } from '@/lib/media';
+import { saveToLeanTrackAlbum, shouldShowPhotoPopup } from '@/lib/media';
+import { PhotoSourceModal } from '@/components/PhotoSourceModal';
 import { addMeal, addWater } from '@/lib/db';
 import { getLocalDateString, showGeminiError } from '@/lib/utils';
 import { useStore } from '@/lib/store';
@@ -57,6 +58,7 @@ export default function PhotoAnalyse() {
   const [queueIndex, setQueueIndex] = useState(0);
   const [isBatchAnalyzing, setIsBatchAnalyzing] = useState(false);
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
+  const [photoPopupVisible, setPhotoPopupVisible] = useState(false);
 
   const displayCalories = baseResult ? Math.round(baseResult.calories_estimees * multiplier) : 0;
   const displayProtein = baseResult ? Math.round(baseResult.proteines_g * multiplier * 10) / 10 : 0;
@@ -151,15 +153,12 @@ export default function PhotoAnalyse() {
     loadQueueItem(collected, 0);
   }
 
-  function pickFromGallery() {
-    Alert.alert(
-      '📷 Sélection de photos',
-      'Tu peux sélectionner jusqu\'à 4 photos.\nChaque photo utilise 1 appel IA (quota : 20/jour).',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        { text: 'Continuer', onPress: openGalleryPicker },
-      ]
-    );
+  async function pickFromGallery() {
+    if (await shouldShowPhotoPopup()) {
+      setPhotoPopupVisible(true);
+    } else {
+      openGalleryPicker();
+    }
   }
 
   async function openGalleryPicker() {
@@ -174,6 +173,10 @@ export default function PhotoAnalyse() {
       selectionLimit: 4,
       quality: 0.8,
       base64: false,
+      // Android's modern system Photo Picker can retain the previous
+      // session's multi-selection across invocations. The legacy picker
+      // doesn't have this sticky-selection behavior.
+      legacy: true,
     });
     if (res.canceled || res.assets.length === 0) return;
 
@@ -533,6 +536,11 @@ export default function PhotoAnalyse() {
         <Button label="✅ Ajouter au journal" onPress={addToJournal} />
       </View>
     )}
+    <PhotoSourceModal
+      visible={photoPopupVisible}
+      onCancel={() => setPhotoPopupVisible(false)}
+      onConfirm={() => { setPhotoPopupVisible(false); openGalleryPicker(); }}
+    />
     </View>
   );
 }

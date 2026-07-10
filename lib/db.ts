@@ -30,6 +30,25 @@ export function clearProfileIdCache(): void {
   _activeProfileId = null;
 }
 
+// ─── Generic settings key-value store ──────────────────────────────────────
+
+export async function getSetting(key: string): Promise<string | null> {
+  const db = await getDB();
+  const row = await db.getFirstAsync<{ value: string }>(
+    'SELECT value FROM settings WHERE key = ?', [key]
+  );
+  return row?.value ?? null;
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  const db = await getDB();
+  await db.runAsync(
+    `INSERT INTO settings (key, value) VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [key, value]
+  );
+}
+
 async function safeAlterAdd(
   db: SQLite.SQLiteDatabase,
   table: string,
