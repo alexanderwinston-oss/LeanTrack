@@ -3,14 +3,19 @@ import {
   Keyboard, KeyboardAvoidingView, Modal, ScrollView,
   StyleSheet, TouchableOpacity, View,
 } from 'react-native';
+import { Colors } from '@/constants/Colors';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  // Optional sticky footer, rendered OUTSIDE the scrollable content so a primary
+  // action button (e.g. a save/confirm CTA) is never pushed out of view by content
+  // growing above it. Omit for modals that don't need a pinned bottom action.
+  footer?: React.ReactNode;
 }
 
-export default function KeyboardAwareModal({ visible, onClose, children }: Props) {
+export default function KeyboardAwareModal({ visible, onClose, children, footer }: Props) {
   const scrollRef = useRef<ScrollView>(null);
 
   return (
@@ -40,6 +45,11 @@ export default function KeyboardAwareModal({ visible, onClose, children }: Props
               {children}
             </TouchableOpacity>
           </ScrollView>
+          {footer && (
+            <View style={styles.footer}>
+              {footer}
+            </View>
+          )}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -65,5 +75,10 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
     paddingBottom: 48,
+  },
+  footer: {
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32,
+    borderTopWidth: 1, borderTopColor: Colors.border,
+    backgroundColor: '#1e293b',
   },
 });

@@ -594,6 +594,16 @@ export default function Journal() {
       <KeyboardAwareModal
         visible={foodBottomSheetVisible}
         onClose={() => setFoodBottomSheetVisible(false)}
+        footer={selectedFood && (
+          <TouchableOpacity
+            onPress={() => addFromFood(selectedFood)}
+            style={{ backgroundColor: '#10b981', borderRadius: 12, padding: 16, alignItems: 'center' }}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
+              Ajouter au journal
+            </Text>
+          </TouchableOpacity>
+        )}
       >
         {selectedFood && (
           <>
@@ -651,14 +661,6 @@ export default function Journal() {
                 </View>
               );
             })()}
-            <TouchableOpacity
-              onPress={() => addFromFood(selectedFood)}
-              style={{ backgroundColor: '#10b981', borderRadius: 12, padding: 16, alignItems: 'center' }}
-            >
-              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
-                Ajouter au journal
-              </Text>
-            </TouchableOpacity>
           </>
         )}
       </KeyboardAwareModal>
