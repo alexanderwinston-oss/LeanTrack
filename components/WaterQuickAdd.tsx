@@ -37,7 +37,8 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
 
   useFocusEffect(
     React.useCallback(() => {
-      getWaterFavorites().then(setFavorites).catch(() => {});
+      getWaterFavorites().then(setFavorites)
+        .catch((err) => console.error('[WaterQuickAdd] getWaterFavorites', err));
     }, [])
   );
 
@@ -118,6 +119,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.row}
+          contentOffset={{ x: 0, y: 0 }}
           onLayout={presetFade.onLayout}
           onContentSizeChange={presetFade.onContentSizeChange}
           onScroll={presetFade.onScroll}
@@ -158,6 +160,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.row}
+            contentOffset={{ x: 0, y: 0 }}
             onLayout={favFade.onLayout}
             onContentSizeChange={favFade.onContentSizeChange}
             onScroll={favFade.onScroll}

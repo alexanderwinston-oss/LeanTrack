@@ -163,6 +163,7 @@ export default function Dashboard() {
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.mealScroll}
+              contentOffset={{ x: 0, y: 0 }}
               onLayout={mealsFade.onLayout}
               onContentSizeChange={mealsFade.onContentSizeChange}
               onScroll={mealsFade.onScroll}

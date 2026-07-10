@@ -7,23 +7,22 @@ interface Props {
   width?: number;
 }
 
-let gradientIdCounter = 0;
-
 // Right-edge fade signaling more horizontally-scrollable content, built on
 // react-native-svg (already linked in this app) instead of expo-linear-gradient
-// (not installed — would require a native rebuild).
+// (not installed — would require a native rebuild). Coordinates use percentage
+// strings to match react-native-svg's own LinearGradient defaultProps exactly
+// (x1: '0%', y1: '0%', x2: '100%', y2: '0%') — bare unitless "0"/"1" strings
+// risk the gradient degenerating to a solid flat fill instead of a fade.
 export function ScrollFadeOverlay({ color, width = 48 }: Props) {
-  const gradientId = React.useRef(`scrollFade${gradientIdCounter++}`).current;
-
   return (
     <Svg width={width} height="100%" style={styles.overlay} pointerEvents="none">
       <Defs>
-        <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
-          <Stop offset="0" stopColor={color} stopOpacity={0} />
-          <Stop offset="1" stopColor={color} stopOpacity={1} />
+        <LinearGradient id="scrollFadeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <Stop offset="0%" stopColor={color} stopOpacity={0} />
+          <Stop offset="100%" stopColor={color} stopOpacity={1} />
         </LinearGradient>
       </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" fill={`url(#${gradientId})`} />
+      <Rect x="0" y="0" width="100%" height="100%" fill="url(#scrollFadeGradient)" />
     </Svg>
   );
 }
