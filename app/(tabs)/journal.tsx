@@ -19,7 +19,7 @@ import { checkAchievementsAndNotify, useFeatureUnlocked } from '@/lib/featureFla
 import { searchFood } from '@/lib/openfoodfacts';
 import { analyzeFoodPhoto } from '@/lib/gemini';
 import { saveToLeanTrackAlbum } from '@/lib/media';
-import { getLocalDateString, showGeminiError } from '@/lib/utils';
+import { getLocalDateString } from '@/lib/utils';
 import { registerModal } from '@/lib/useModalManager';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import { LockedFeature } from '@/components/LockedFeature';
@@ -35,14 +35,7 @@ const SECTIONS: { type: MealType; label: string; emoji: string }[] = [
   { type: 'collation', label: 'Collation', emoji: '🍎' },
 ];
 
-const MEAL_TYPE_CHIPS: { key: MealType; label: string }[] = [
-  { key: 'petit_dejeuner', label: '🥣 Petit-déj' },
-  { key: 'dejeuner', label: '🍽️ Déjeuner' },
-  { key: 'diner', label: '🌙 Dîner' },
-  { key: 'collation', label: '🍎 Collation' },
-];
-
-type ModalTab = 'search' | 'manual' | 'ai';
+type ModalTab = 'description' | 'search';
 
 function getYesterdayString(): string {
   const yesterdayDate = new Date();
@@ -60,8 +53,7 @@ export default function Journal() {
 
   const today = getLocalDateString();
   const yesterday = getYesterdayString();
-  const canEditYesterday = useFeatureUnlocked('EDIT_YESTERDAY_MEAL');
-  const fullYesterdayAccess = useFeatureUnlocked('EDIT_YESTERDAY_FULL');
+  const canEditYesterday = useFeatureUnlocked('EDIT_YESTERDAY');
 
   const [selectedDate, setSelectedDate] = useState<string>(today);
   const [yesterdayMeals, setYesterdayMeals] = useState<Meal[]>([]);
@@ -88,8 +80,8 @@ export default function Journal() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
-  // Modal tab + manual/AI entry state
-  const [modalTab, setModalTab] = useState<ModalTab>('search');
+  // Modal tab + description/manual entry state
+  const [modalTab, setModalTab] = useState<ModalTab>('description');
   const [manualName, setManualName] = useState('');
   const [manualCal, setManualCal] = useState('');
   const [manualProt, setManualProt] = useState('');
@@ -97,6 +89,8 @@ export default function Journal() {
   const [manualFat, setManualFat] = useState('');
   const [textDescription, setTextDescription] = useState('');
   const [isAnalyzingText, setIsAnalyzingText] = useState(false);
+  const [descFormVisible, setDescFormVisible] = useState(false);
+  const [aiUnavailable, setAiUnavailable] = useState(false);
 
   const loadYesterdayData = useCallback(async () => {
     const [ms, waterTotal, waterLogs] = await Promise.all([
@@ -172,11 +166,23 @@ export default function Journal() {
     setQuantity('100');
     setFoodQuantity('100');
     setFoodBottomSheetVisible(false);
-    setModalTab('search');
+    setModalTab('description');
     setTextDescription('');
+    setDescFormVisible(false);
+    setAiUnavailable(false);
+    setManualName('');
+    setManualCal('');
+    setManualProt('');
+    setManualCarbs('');
+    setManualFat('');
     setPage(1);
     setHasMore(true);
     setModalVisible(true);
+  }
+
+  function fillManually() {
+    setAiUnavailable(false);
+    setDescFormVisible(true);
   }
 
   async function doSearch() {
@@ -278,6 +284,7 @@ export default function Journal() {
   async function analyzeTextDescription() {
     if (!textDescription.trim()) return;
     setIsAnalyzingText(true);
+    setAiUnavailable(false);
     try {
       const result = await analyzeFoodPhoto(null, textDescription);
       setManualName(result.aliment_principal);
@@ -285,9 +292,17 @@ export default function Journal() {
       setManualProt(String(Math.round(result.proteines_g)));
       setManualCarbs(String(Math.round(result.glucides_g)));
       setManualFat(String(Math.round(result.lipides_g)));
-      setModalTab('manual');
+      setDescFormVisible(true);
     } catch (err) {
-      showGeminiError(err);
+      // AI failed or quota exceeded — fall back to the same editable form, empty,
+      // so manual entry always remains possible.
+      setManualName('');
+      setManualCal('');
+      setManualProt('');
+      setManualCarbs('');
+      setManualFat('');
+      setAiUnavailable(true);
+      setDescFormVisible(true);
     } finally {
       setIsAnalyzingText(false);
     }
@@ -319,6 +334,7 @@ export default function Journal() {
     ? Math.round(yesterdayMeals.reduce((s, m) => s + m.calories, 0))
     : dailyTotals.calories;
   const mealsByType = (type: MealType) => displayedMeals.filter((m) => m.meal_type === type);
+  const targetMealLabel = SECTIONS.find((s) => s.type === activeMealType)?.label ?? activeMealType;
 
   const searchHeader = (
     <View>
@@ -361,7 +377,7 @@ export default function Journal() {
         >
           <Text style={[styles.datePillText, !isYesterday && styles.datePillTextActive]}>Aujourd'hui</Text>
         </TouchableOpacity>
-        <LockedFeature feature="EDIT_YESTERDAY_MEAL" lockedLabel="Débloqué au niveau 3 — Régulier">
+        <LockedFeature feature="EDIT_YESTERDAY" lockedLabel="Débloqué au niveau 3 — Régulier">
           <TouchableOpacity
             style={[styles.datePill, isYesterday && styles.datePillActive]}
             onPress={() => setSelectedDate(yesterday)}
@@ -370,14 +386,6 @@ export default function Journal() {
           </TouchableOpacity>
         </LockedFeature>
       </View>
-
-      {isYesterday && canEditYesterday && !fullYesterdayAccess && (
-        <View style={styles.j1Banner}>
-          <Text style={styles.j1BannerText}>
-            Édition uniquement — ajout disponible au niveau 5 (Discipliné)
-          </Text>
-        </View>
-      )}
 
       <ScrollView contentContainerStyle={styles.scroll}>
         {SECTIONS.map(({ type, label, emoji }) => (
@@ -397,7 +405,7 @@ export default function Journal() {
               />
             ))}
 
-            {(!isYesterday || fullYesterdayAccess) && (
+            {(!isYesterday || canEditYesterday) && (
               <TouchableOpacity style={styles.addBtn} onPress={() => openAdd(type)}>
                 <Text style={styles.addBtnText}>+ Ajouter un aliment</Text>
               </TouchableOpacity>
@@ -405,7 +413,7 @@ export default function Journal() {
           </View>
         ))}
 
-        {isYesterday && fullYesterdayAccess && (
+        {isYesterday && canEditYesterday && (
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>💧 Eau</Text>
@@ -447,7 +455,9 @@ export default function Journal() {
         <KeyboardAvoidingView behavior={Platform.OS === 'android' ? 'height' : 'padding'} style={{ flex: 1 }}>
         <View style={styles.modal}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Ajouter un aliment</Text>
+            <Text style={styles.modalTitle}>
+              Ajout au {targetMealLabel} — {isYesterday ? 'hier' : "aujourd'hui"}
+            </Text>
             <TouchableOpacity onPress={() => setModalVisible(false)}>
               <Text style={styles.closeBtn}>✕</Text>
             </TouchableOpacity>
@@ -465,39 +475,18 @@ export default function Journal() {
             </TouchableOpacity>
           </View>
 
-          {/* Meal type selector */}
-          <View style={styles.mealTypeRow}>
-            {MEAL_TYPE_CHIPS.map((chip) => (
-              <TouchableOpacity
-                key={chip.key}
-                style={[styles.mealTypeChip, activeMealType === chip.key && styles.mealTypeChipActive]}
-                onPress={() => setActiveMealType(chip.key)}
-              >
-                <Text style={[styles.mealTypeChipText, activeMealType === chip.key && styles.mealTypeChipTextActive]}>
-                  {chip.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
           <View style={styles.modeTabs}>
+            <TouchableOpacity
+              style={[styles.modeTab, modalTab === 'description' && styles.modeTabActive]}
+              onPress={() => setModalTab('description')}
+            >
+              <Text style={[styles.modeTabText, modalTab === 'description' && styles.modeTabTextActive]}>📝 Description</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modeTab, modalTab === 'search' && styles.modeTabActive]}
               onPress={() => setModalTab('search')}
             >
               <Text style={[styles.modeTabText, modalTab === 'search' && styles.modeTabTextActive]}>🔍 Recherche</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeTab, modalTab === 'ai' && styles.modeTabActive]}
-              onPress={() => setModalTab('ai')}
-            >
-              <Text style={[styles.modeTabText, modalTab === 'ai' && styles.modeTabTextActive]}>🤖 IA</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeTab, modalTab === 'manual' && styles.modeTabActive]}
-              onPress={() => setModalTab('manual')}
-            >
-              <Text style={[styles.modeTabText, modalTab === 'manual' && styles.modeTabTextActive]}>✏️ Manuel</Text>
             </TouchableOpacity>
           </View>
 
@@ -525,20 +514,20 @@ export default function Journal() {
               onEndReached={loadMoreResults}
               onEndReachedThreshold={0.5}
             />
-          ) : modalTab === 'ai' ? (
+          ) : (
             <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent} keyboardShouldPersistTaps="handled">
               <View style={styles.manualForm}>
                 <Text style={styles.aiDescHint}>
-                  Décris ton repas en texte et l'IA remplira le formulaire automatiquement.
+                  Décris ce que tu as mangé et l'IA remplira le formulaire automatiquement.
                 </Text>
                 <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Description du repas</Text>
+                  <Text style={styles.formLabel}>Description</Text>
                   <TextInput
                     style={[styles.formInput, { minHeight: 80, textAlignVertical: 'top' }]}
                     value={textDescription}
                     onChangeText={setTextDescription}
                     multiline
-                    placeholder="Ex: steak haché avec riz basmati et haricots verts vapeur..."
+                    placeholder="Ex: 2 œufs au plat avec du pain beurré"
                     placeholderTextColor={Colors.textMuted}
                   />
                 </View>
@@ -547,31 +536,44 @@ export default function Journal() {
                   onPress={analyzeTextDescription}
                   loading={isAnalyzingText}
                 />
-              </View>
-            </ScrollView>
-          ) : (
-            <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent} keyboardShouldPersistTaps="handled">
-              <View style={styles.manualForm}>
-                {[
-                  { label: 'Nom de l\'aliment', value: manualName, set: setManualName, kb: 'default' },
-                  { label: 'Calories (kcal)', value: manualCal, set: setManualCal, kb: 'numeric' },
-                  { label: 'Protéines (g)', value: manualProt, set: setManualProt, kb: 'numeric' },
-                  { label: 'Glucides (g)', value: manualCarbs, set: setManualCarbs, kb: 'numeric' },
-                  { label: 'Lipides (g)', value: manualFat, set: setManualFat, kb: 'numeric' },
-                  { label: 'Quantité (g)', value: quantity, set: setQuantity, kb: 'numeric' },
-                ].map(({ label, value, set, kb }) => (
-                  <View key={label} style={styles.formField}>
-                    <Text style={styles.formLabel}>{label}</Text>
-                    <TextInput
-                      style={styles.formInput}
-                      value={value}
-                      onChangeText={set as any}
-                      keyboardType={kb as any}
-                      placeholderTextColor={Colors.textMuted}
-                    />
+                {!descFormVisible && (
+                  <TouchableOpacity onPress={fillManually} style={styles.manualLinkBtn}>
+                    <Text style={styles.manualLinkText}>Remplir manuellement</Text>
+                  </TouchableOpacity>
+                )}
+
+                {aiUnavailable && (
+                  <View style={styles.aiUnavailableBox}>
+                    <Text style={styles.aiUnavailableText}>
+                      L'IA est indisponible — saisis les valeurs manuellement
+                    </Text>
                   </View>
-                ))}
-                <Button label="Ajouter au journal" onPress={addManual} />
+                )}
+
+                {descFormVisible && (
+                  <View style={styles.descFormSection}>
+                    {[
+                      { label: 'Nom de l\'aliment', value: manualName, set: setManualName, kb: 'default' },
+                      { label: 'Calories (kcal)', value: manualCal, set: setManualCal, kb: 'numeric' },
+                      { label: 'Protéines (g)', value: manualProt, set: setManualProt, kb: 'numeric' },
+                      { label: 'Glucides (g)', value: manualCarbs, set: setManualCarbs, kb: 'numeric' },
+                      { label: 'Lipides (g)', value: manualFat, set: setManualFat, kb: 'numeric' },
+                      { label: 'Quantité (g)', value: quantity, set: setQuantity, kb: 'numeric' },
+                    ].map(({ label, value, set, kb }) => (
+                      <View key={label} style={styles.formField}>
+                        <Text style={styles.formLabel}>{label}</Text>
+                        <TextInput
+                          style={styles.formInput}
+                          value={value}
+                          onChangeText={set as any}
+                          keyboardType={kb as any}
+                          placeholderTextColor={Colors.textMuted}
+                        />
+                      </View>
+                    ))}
+                    <Button label="Ajouter au journal" onPress={addManual} />
+                  </View>
+                )}
               </View>
             </ScrollView>
           )}
@@ -682,13 +684,6 @@ const styles = StyleSheet.create({
   datePillActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
   datePillText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
   datePillTextActive: { color: Colors.accent },
-  j1Banner: {
-    marginHorizontal: 20, marginTop: 12,
-    backgroundColor: Colors.accentSubtle, borderRadius: Colors.radius,
-    borderWidth: 1, borderColor: Colors.accent,
-    paddingHorizontal: 12, paddingVertical: 10,
-  },
-  j1BannerText: { color: Colors.accent, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   j1WaterChipsRow: { flexDirection: 'row', gap: 8 },
   j1WaterChip: {
     paddingHorizontal: 14, paddingVertical: 8,
@@ -738,15 +733,6 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary },
   closeBtn: { fontSize: 18, color: Colors.textSecondary, padding: 4 },
-  mealTypeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingTop: 12 },
-  mealTypeChip: {
-    paddingHorizontal: 10, paddingVertical: 7,
-    borderRadius: Colors.radiusPill, borderWidth: 1.5,
-    borderColor: Colors.border, backgroundColor: Colors.bgSurface,
-  },
-  mealTypeChipActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
-  mealTypeChipText: { fontSize: 12, color: Colors.textSecondary, fontWeight: '500' },
-  mealTypeChipTextActive: { color: Colors.accent, fontWeight: '700' },
   modeTabs: { flexDirection: 'row', padding: 16, gap: 8 },
   modeTab: {
     flex: 1, padding: 10, borderRadius: Colors.radius,
@@ -794,5 +780,16 @@ const styles = StyleSheet.create({
   },
   aiDescHint: {
     fontSize: 13, color: Colors.textSecondary, lineHeight: 19, marginBottom: 4,
+  },
+  manualLinkBtn: { alignSelf: 'center', paddingVertical: 4 },
+  manualLinkText: { color: Colors.textSecondary, fontSize: 13, fontWeight: '600', textDecorationLine: 'underline' },
+  aiUnavailableBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)', borderRadius: Colors.radius,
+    borderWidth: 1, borderColor: Colors.danger, padding: 10,
+  },
+  aiUnavailableText: { color: Colors.danger, fontSize: 12, textAlign: 'center' },
+  descFormSection: {
+    gap: 12, marginTop: 4, paddingTop: 14,
+    borderTopWidth: 1, borderTopColor: Colors.border,
   },
 });
