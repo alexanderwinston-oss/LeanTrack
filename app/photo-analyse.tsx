@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { analyzeFoodPhoto } from '@/lib/gemini';
 import { saveToLeanTrackAlbum } from '@/lib/media';
-import { addWater } from '@/lib/db';
+import { addMeal, addWater } from '@/lib/db';
 import { getLocalDateString, showGeminiError } from '@/lib/utils';
 import { useStore } from '@/lib/store';
 import { FoodAnalysisResult, MealType } from '@/lib/types';
@@ -35,6 +35,10 @@ export default function PhotoAnalyse() {
   const pendingImageBase64 = useStore((s) => s.pendingImageBase64);
   const setPendingImage = useStore((s) => s.setPendingImage);
   const currentMealType = useStore((s) => s.currentMealType);
+  const pendingMealDate = useStore((s) => s.pendingMealDate);
+  const setPendingMealDate = useStore((s) => s.setPendingMealDate);
+  const [targetDate] = useState<string>(() => pendingMealDate ?? getLocalDateString());
+  const isYesterdayTarget = targetDate !== getLocalDateString();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [rawBase64, setRawBase64] = useState<string | null>(null);
   const [userComment, setUserComment] = useState('');
@@ -67,6 +71,7 @@ export default function PhotoAnalyse() {
       setImageUri(dataUri);
       analyseWithBase64(b64, '', dataUri);
     }
+    setPendingMealDate(null);
   }, []);
 
   async function analyseWithBase64(b64: string | null, comment = '', uri: string | null = null) {
@@ -228,9 +233,10 @@ export default function PhotoAnalyse() {
   }, [result]);
 
   async function addToWaterTracker() {
-    const today = getLocalDateString();
-    await addWater(today, adjustedVolume);
-    useStore.getState().refreshDailyData(today);
+    await addWater(targetDate, adjustedVolume);
+    if (!isYesterdayTarget) {
+      useStore.getState().refreshDailyData(targetDate);
+    }
     Alert.alert('💧 Hydratation', `${adjustedVolume} ml ajoutés à ton hydratation !`, [
       { text: 'Super !', onPress: () => advanceQueue() },
     ]);
@@ -238,21 +244,25 @@ export default function PhotoAnalyse() {
 
   async function addToJournal() {
     if (!baseResult) return;
-    const today = getLocalDateString();
+    const meal = {
+      date: targetDate,
+      meal_type: mealType,
+      food_name: baseResult.aliment_principal,
+      quantity_g: displayQuantity,
+      calories: displayCalories,
+      protein: displayProtein,
+      carbs: displayCarbs,
+      fat: displayFat,
+      source: 'photo' as const,
+      photo_uri: imageUri ?? undefined,
+      notes: userComment || undefined,
+    };
     try {
-      await addMealToStore({
-        date: today,
-        meal_type: mealType,
-        food_name: baseResult.aliment_principal,
-        quantity_g: displayQuantity,
-        calories: displayCalories,
-        protein: displayProtein,
-        carbs: displayCarbs,
-        fat: displayFat,
-        source: 'photo',
-        photo_uri: imageUri ?? undefined,
-        notes: userComment || undefined,
-      });
+      if (isYesterdayTarget) {
+        await addMeal(meal);
+      } else {
+        await addMealToStore(meal);
+      }
       advanceQueue();
     } catch {
       Alert.alert('Erreur', 'Impossible d\'enregistrer le repas. Réessaie.');
@@ -268,6 +278,9 @@ export default function PhotoAnalyse() {
           <Text style={styles.backBtn}>← Retour</Text>
         </TouchableOpacity>
         <Text style={styles.title}>📷 Analyser un repas</Text>
+        {isYesterdayTarget && (
+          <Text style={styles.targetDateNote}>Ajout au journal d'hier</Text>
+        )}
       </View>
 
       {/* Image preview */}
@@ -522,6 +535,7 @@ const styles = StyleSheet.create({
   header: { gap: 8 },
   backBtn: { color: Colors.accent, fontSize: 15, fontWeight: '500' },
   title: { fontSize: 22, fontWeight: '700', color: Colors.textPrimary },
+  targetDateNote: { fontSize: 13, color: Colors.accent, fontWeight: '600' },
   imageArea: {
     borderRadius: Colors.radius, overflow: 'hidden',
     height: 220, backgroundColor: Colors.bgSurface,

@@ -311,7 +311,7 @@ export default function RecapSemaine() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bgPrimary },
-  content: { padding: 20, paddingTop: 56, gap: 16, paddingBottom: 40 },
+  content: { padding: 20, paddingTop: 56, gap: 16, paddingBottom: 120 },
   header: { gap: 8 },
   backBtn: { color: Colors.accent, fontSize: 15, fontWeight: '500' },
   title: { fontSize: 22, fontWeight: '700', color: Colors.textPrimary },

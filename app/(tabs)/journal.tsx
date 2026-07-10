@@ -50,6 +50,7 @@ export default function Journal() {
   const dailyTotals = useStore((s) => s.dailyTotals);
   const setPendingImage = useStore((s) => s.setPendingImage);
   const setCurrentMealType = useStore((s) => s.setCurrentMealType);
+  const setPendingMealDate = useStore((s) => s.setPendingMealDate);
 
   const today = getLocalDateString();
   const yesterday = getYesterdayString();
@@ -137,6 +138,7 @@ export default function Journal() {
     if (!res.canceled && res.assets[0]?.base64) {
       setPendingImage(res.assets[0].base64);
       setCurrentMealType(activeMealType);
+      setPendingMealDate(selectedDate);
       setModalVisible(false);
       router.push('/photo-analyse');
     }
@@ -153,6 +155,7 @@ export default function Journal() {
       saveToLeanTrackAlbum(res.assets[0].uri);
       setPendingImage(res.assets[0].base64);
       setCurrentMealType(activeMealType);
+      setPendingMealDate(selectedDate);
       setModalVisible(false);
       router.push('/photo-analyse');
     }
@@ -515,67 +518,73 @@ export default function Journal() {
               onEndReachedThreshold={0.5}
             />
           ) : (
-            <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent} keyboardShouldPersistTaps="handled">
-              <View style={styles.manualForm}>
-                <Text style={styles.aiDescHint}>
-                  Décris ce que tu as mangé et l'IA remplira le formulaire automatiquement.
-                </Text>
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Description</Text>
-                  <TextInput
-                    style={[styles.formInput, { minHeight: 80, textAlignVertical: 'top' }]}
-                    value={textDescription}
-                    onChangeText={setTextDescription}
-                    multiline
-                    placeholder="Ex: 2 œufs au plat avec du pain beurré"
-                    placeholderTextColor={Colors.textMuted}
+            <>
+              <ScrollView style={styles.descScroll} contentContainerStyle={styles.modalListContent} keyboardShouldPersistTaps="handled">
+                <View style={styles.manualForm}>
+                  <Text style={styles.aiDescHint}>
+                    Décris ce que tu as mangé et l'IA remplira le formulaire automatiquement.
+                  </Text>
+                  <View style={styles.formField}>
+                    <Text style={styles.formLabel}>Description</Text>
+                    <TextInput
+                      style={[styles.formInput, { minHeight: 80, textAlignVertical: 'top' }]}
+                      value={textDescription}
+                      onChangeText={setTextDescription}
+                      multiline
+                      placeholder="Ex: 2 œufs au plat avec du pain beurré"
+                      placeholderTextColor={Colors.textMuted}
+                    />
+                  </View>
+                  <Button
+                    label={isAnalyzingText ? 'Analyse en cours...' : '🤖 Analyser et remplir'}
+                    onPress={analyzeTextDescription}
+                    loading={isAnalyzingText}
                   />
+                  {!descFormVisible && (
+                    <TouchableOpacity onPress={fillManually} style={styles.manualLinkBtn}>
+                      <Text style={styles.manualLinkText}>Remplir manuellement</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {aiUnavailable && (
+                    <View style={styles.aiUnavailableBox}>
+                      <Text style={styles.aiUnavailableText}>
+                        L'IA est indisponible — saisis les valeurs manuellement
+                      </Text>
+                    </View>
+                  )}
+
+                  {descFormVisible && (
+                    <View style={styles.descFormSection}>
+                      {[
+                        { label: 'Nom de l\'aliment', value: manualName, set: setManualName, kb: 'default' },
+                        { label: 'Calories (kcal)', value: manualCal, set: setManualCal, kb: 'numeric' },
+                        { label: 'Protéines (g)', value: manualProt, set: setManualProt, kb: 'numeric' },
+                        { label: 'Glucides (g)', value: manualCarbs, set: setManualCarbs, kb: 'numeric' },
+                        { label: 'Lipides (g)', value: manualFat, set: setManualFat, kb: 'numeric' },
+                        { label: 'Quantité (g)', value: quantity, set: setQuantity, kb: 'numeric' },
+                      ].map(({ label, value, set, kb }) => (
+                        <View key={label} style={styles.formField}>
+                          <Text style={styles.formLabel}>{label}</Text>
+                          <TextInput
+                            style={styles.formInput}
+                            value={value}
+                            onChangeText={set as any}
+                            keyboardType={kb as any}
+                            placeholderTextColor={Colors.textMuted}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
-                <Button
-                  label={isAnalyzingText ? 'Analyse en cours...' : '🤖 Analyser et remplir'}
-                  onPress={analyzeTextDescription}
-                  loading={isAnalyzingText}
-                />
-                {!descFormVisible && (
-                  <TouchableOpacity onPress={fillManually} style={styles.manualLinkBtn}>
-                    <Text style={styles.manualLinkText}>Remplir manuellement</Text>
-                  </TouchableOpacity>
-                )}
-
-                {aiUnavailable && (
-                  <View style={styles.aiUnavailableBox}>
-                    <Text style={styles.aiUnavailableText}>
-                      L'IA est indisponible — saisis les valeurs manuellement
-                    </Text>
-                  </View>
-                )}
-
-                {descFormVisible && (
-                  <View style={styles.descFormSection}>
-                    {[
-                      { label: 'Nom de l\'aliment', value: manualName, set: setManualName, kb: 'default' },
-                      { label: 'Calories (kcal)', value: manualCal, set: setManualCal, kb: 'numeric' },
-                      { label: 'Protéines (g)', value: manualProt, set: setManualProt, kb: 'numeric' },
-                      { label: 'Glucides (g)', value: manualCarbs, set: setManualCarbs, kb: 'numeric' },
-                      { label: 'Lipides (g)', value: manualFat, set: setManualFat, kb: 'numeric' },
-                      { label: 'Quantité (g)', value: quantity, set: setQuantity, kb: 'numeric' },
-                    ].map(({ label, value, set, kb }) => (
-                      <View key={label} style={styles.formField}>
-                        <Text style={styles.formLabel}>{label}</Text>
-                        <TextInput
-                          style={styles.formInput}
-                          value={value}
-                          onChangeText={set as any}
-                          keyboardType={kb as any}
-                          placeholderTextColor={Colors.textMuted}
-                        />
-                      </View>
-                    ))}
-                    <Button label="Ajouter au journal" onPress={addManual} />
-                  </View>
-                )}
-              </View>
-            </ScrollView>
+              </ScrollView>
+              {descFormVisible && (
+                <View style={styles.stickyFooter}>
+                  <Button label="Ajouter au journal" onPress={addManual} />
+                </View>
+              )}
+            </>
           )}
         </View>
         </KeyboardAvoidingView>
@@ -743,7 +752,13 @@ const styles = StyleSheet.create({
   modeTabText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '500' },
   modeTabTextActive: { color: Colors.accent },
   modalList: { flex: 1 },
+  descScroll: { flexShrink: 1 },
   modalListContent: { padding: 16, paddingBottom: 100 },
+  stickyFooter: {
+    padding: 16, paddingTop: 12,
+    borderTopWidth: 1, borderTopColor: Colors.border,
+    backgroundColor: Colors.bgPrimary,
+  },
   searchRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
   searchInput: {
     flex: 1, backgroundColor: Colors.bgSurface, borderRadius: Colors.radius,

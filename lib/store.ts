@@ -11,6 +11,7 @@ interface AppState {
   waterMl: number;
   pendingImageBase64: string | null;
   currentMealType: string;
+  pendingMealDate: string | null;
   badgeQueue: AchievementDef[];
   isModalOpen: boolean;
   unlockedAchievementIds: string[];
@@ -21,6 +22,7 @@ interface AppState {
   addWaterToStore: (date: string, ml: number) => Promise<void>;
   setPendingImage: (b64: string | null) => void;
   setCurrentMealType: (type: string) => void;
+  setPendingMealDate: (date: string | null) => void;
   switchProfileInStore: (profileId: string) => Promise<void>;
   setPendingBadge: (badge: AchievementDef) => void;
   dequeueNextBadge: () => void;
@@ -40,6 +42,7 @@ export const useStore = create<AppState>((set, get) => ({
   waterMl: 0,
   pendingImageBase64: null,
   currentMealType: 'dejeuner',
+  pendingMealDate: null,
   badgeQueue: [],
   isModalOpen: false,
   unlockedAchievementIds: [],
@@ -48,6 +51,7 @@ export const useStore = create<AppState>((set, get) => ({
   setProfile: (profile) => set({ profile }),
   setPendingImage: (b64) => set({ pendingImageBase64: b64 }),
   setCurrentMealType: (type) => set({ currentMealType: type }),
+  setPendingMealDate: (date) => set({ pendingMealDate: date }),
   setPendingBadge: (badge) => set((state) => ({ badgeQueue: [...state.badgeQueue, badge] })),
   dequeueNextBadge: () => set((state) => ({ badgeQueue: state.badgeQueue.slice(1) })),
   setModalOpen: (open) => set({ isModalOpen: open }),
