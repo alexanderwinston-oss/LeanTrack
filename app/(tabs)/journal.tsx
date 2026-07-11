@@ -52,6 +52,7 @@ export default function Journal() {
   const setPendingImage = useStore((s) => s.setPendingImage);
   const setCurrentMealType = useStore((s) => s.setCurrentMealType);
   const setPendingMealDate = useStore((s) => s.setPendingMealDate);
+  const setPendingOpenCamera = useStore((s) => s.setPendingOpenCamera);
 
   const today = getLocalDateString();
   const yesterday = getYesterdayString();
@@ -150,6 +151,7 @@ export default function Journal() {
   function takePhotoAndAnalyse() {
     setCurrentMealType(activeMealType);
     setPendingMealDate(selectedDate);
+    setPendingOpenCamera(true);
     setModalVisible(false);
     router.push('/photo-analyse');
   }
@@ -462,7 +464,7 @@ export default function Journal() {
         <View style={styles.modal}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
-              Ajout au {targetMealLabel} — {isYesterday ? 'hier' : "aujourd'hui"}
+              Ajout au {targetMealLabel} - {isYesterday ? 'hier' : "aujourd'hui"}
             </Text>
             <TouchableOpacity onPress={() => setModalVisible(false)}>
               <Text style={styles.closeBtn}>✕</Text>

@@ -40,6 +40,8 @@ export default function PhotoAnalyse() {
   const currentMealType = useStore((s) => s.currentMealType);
   const pendingMealDate = useStore((s) => s.pendingMealDate);
   const setPendingMealDate = useStore((s) => s.setPendingMealDate);
+  const pendingOpenCamera = useStore((s) => s.pendingOpenCamera);
+  const setPendingOpenCamera = useStore((s) => s.setPendingOpenCamera);
   const [targetDate] = useState<string>(() => pendingMealDate ?? getLocalDateString());
   const isYesterdayTarget = targetDate !== getLocalDateString();
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -74,6 +76,9 @@ export default function PhotoAnalyse() {
       const dataUri = `data:image/jpeg;base64,${b64}`;
       setImageUri(dataUri);
       analyseWithBase64(b64, '', dataUri);
+    } else if (pendingOpenCamera) {
+      setPendingOpenCamera(false);
+      takePhoto();
     }
     setPendingMealDate(null);
   }, []);
