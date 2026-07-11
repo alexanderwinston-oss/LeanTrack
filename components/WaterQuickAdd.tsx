@@ -241,7 +241,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
 const styles = StyleSheet.create({
   scrollWrap: { position: 'relative' },
   pinnedFavRow: { marginTop: 10 },
-  row: { flexDirection: 'row', gap: 10, paddingVertical: 2, paddingRight: 32 },
+  row: { flexDirection: 'row', gap: 10, paddingVertical: 2, paddingRight: 48 },
   chip: {
     height: 56, minWidth: 80,
     borderRadius: 28,

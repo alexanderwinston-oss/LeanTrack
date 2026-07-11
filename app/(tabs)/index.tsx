@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
   emptyHint: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', flexShrink: 1 },
   mealScrollWrap: { position: 'relative' },
   mealScroll: { marginHorizontal: -4 },
-  mealScrollContent: { paddingRight: 32 },
+  mealScrollContent: { paddingRight: 48 },
   mealCardItem: { marginHorizontal: 4 },
   actionRow: { flexDirection: 'row', gap: 12 },
   actionBtn: {
