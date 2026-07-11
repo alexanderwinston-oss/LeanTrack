@@ -598,9 +598,17 @@ export async function getWaterFavorites(): Promise<
 > {
   const db = await getDB();
   const profileId = await getCurrentProfileId();
-  return db.getAllAsync(
+  const own = await db.getAllAsync<{ id: number; amount_ml: number; label: string | null }>(
     'SELECT id, amount_ml, label FROM water_favorites WHERE profile_id = ? ORDER BY created_at DESC',
     [profileId]
+  );
+  if (own.length > 0 || profileId === 'default') return own;
+  // Fallback for favorites saved under the legacy 'default' profile_id before
+  // this profile's own scoping was in sync — only used when this profile has
+  // none of its own, so it never leaks into a profile that already has favorites.
+  return db.getAllAsync(
+    'SELECT id, amount_ml, label FROM water_favorites WHERE profile_id = ? ORDER BY created_at DESC',
+    ['default']
   );
 }
 
@@ -624,7 +632,7 @@ export async function deleteWaterFavorite(id: number): Promise<void> {
   const db = await getDB();
   const profileId = await getCurrentProfileId();
   await db.runAsync(
-    'DELETE FROM water_favorites WHERE id = ? AND profile_id = ?',
+    'DELETE FROM water_favorites WHERE id = ? AND (profile_id = ? OR profile_id = \'default\')',
     [id, profileId]
   );
 }
