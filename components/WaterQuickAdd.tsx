@@ -27,11 +27,13 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
   const [customModalVisible, setCustomModalVisible] = useState(false);
   const [customInput, setCustomInput] = useState('');
   const [savingFavorite, setSavingFavorite] = useState(false);
+  const [openedFromFavoriteCTA, setOpenedFromFavoriteCTA] = useState(false);
   const presetFade = useScrollFade();
 
   registerModal('waterCustom', customModalVisible, () => {
     setCustomModalVisible(false);
     setCustomInput('');
+    setOpenedFromFavoriteCTA(false);
   }, 10);
 
   useFocusEffect(
@@ -77,6 +79,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
     try {
       await addWaterFavorite(ml);
       setFavorites(await getWaterFavorites());
+      setOpenedFromFavoriteCTA(false);
       Alert.alert('⭐ Ajouté aux favoris !', `${ml} ml sauvegardé`);
     } catch (err: any) {
       if (err?.message === 'MAX_FAVORITES') {
@@ -149,6 +152,19 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
         {presetFade.showFade && <ScrollArrowIndicator />}
       </View>
 
+      {favorites.length === 0 && (
+        <TouchableOpacity
+          onPress={() => {
+            setOpenedFromFavoriteCTA(true);
+            setCustomModalVisible(true);
+          }}
+          style={styles.favoriteCTA}
+        >
+          <Text style={styles.favoriteCTAIcon}>☆</Text>
+          <Text style={styles.favoriteCTAText}>Ajouter un volume favori</Text>
+        </TouchableOpacity>
+      )}
+
       {favorites.length === 1 && (
         <View style={styles.pinnedFavRow}>
           {renderFavoriteChip(favorites[0])}
@@ -170,7 +186,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
 
       <KeyboardAwareModal
         visible={customModalVisible}
-        onClose={() => { setCustomModalVisible(false); setCustomInput(''); }}
+        onClose={() => { setCustomModalVisible(false); setCustomInput(''); setOpenedFromFavoriteCTA(false); }}
       >
         <Text style={styles.customTitle}>💧 Volume personnalisé</Text>
         <Text style={styles.customSubtitle}>Entre le volume en millilitres</Text>
@@ -188,11 +204,11 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
 
         <LockedFeature feature="WATER_FAVORITES">
           <TouchableOpacity
-            style={styles.saveAsFavBtn}
+            style={[styles.saveAsFavBtn, openedFromFavoriteCTA && styles.saveAsFavBtnHighlighted]}
             disabled={savingFavorite}
             onPress={handleSaveFavorite}
           >
-            <Text style={styles.saveAsFavText}>
+            <Text style={[styles.saveAsFavText, openedFromFavoriteCTA && styles.saveAsFavTextHighlighted]}>
               {savingFavorite ? '...' : '⭐ Sauvegarder comme favori'}
             </Text>
           </TouchableOpacity>
@@ -201,7 +217,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
         <View style={styles.customButtons}>
           <TouchableOpacity
             style={styles.customCancelBtn}
-            onPress={() => { setCustomModalVisible(false); setCustomInput(''); }}
+            onPress={() => { setCustomModalVisible(false); setCustomInput(''); setOpenedFromFavoriteCTA(false); }}
           >
             <Text style={styles.customCancelText}>Annuler</Text>
           </TouchableOpacity>
@@ -225,7 +241,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
 const styles = StyleSheet.create({
   scrollWrap: { position: 'relative' },
   pinnedFavRow: { marginTop: 10 },
-  row: { flexDirection: 'row', gap: 10, paddingVertical: 2, paddingRight: 2 },
+  row: { flexDirection: 'row', gap: 10, paddingVertical: 2, paddingRight: 32 },
   chip: {
     height: 56, minWidth: 80,
     borderRadius: 28,
@@ -253,6 +269,21 @@ const styles = StyleSheet.create({
   chipTextPreset: { color: Colors.waterColor },
   chipTextFav: { color: '#fbbf24' },
   chipAddIcon: { fontSize: 24, fontWeight: '700', color: '#94a3b8', lineHeight: 26 },
+  favoriteCTA: {
+    borderWidth: 1.5,
+    borderColor: 'rgba(234, 179, 8, 0.6)',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  favoriteCTAIcon: { fontSize: 16 },
+  favoriteCTAText: { color: 'rgba(234, 179, 8, 0.9)', fontSize: 14, fontWeight: '500' },
   customTitle: {
     color: Colors.textPrimary, fontWeight: '700', fontSize: 18,
     marginBottom: 4,
@@ -273,6 +304,12 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#fbbf24',
   },
   saveAsFavText: { color: '#fbbf24', fontWeight: '600', fontSize: 13 },
+  saveAsFavBtnHighlighted: {
+    backgroundColor: 'rgba(234, 179, 8, 0.15)',
+    borderColor: 'rgba(234, 179, 8, 0.8)',
+    borderWidth: 1.5,
+  },
+  saveAsFavTextHighlighted: { color: 'rgba(234, 179, 8, 1)' },
   customButtons: { flexDirection: 'row', gap: 12 },
   customCancelBtn: {
     flex: 1, padding: 14, borderRadius: 12,

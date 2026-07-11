@@ -163,6 +163,7 @@ export default function Dashboard() {
               horizontal
               showsHorizontalScrollIndicator={false}
               style={styles.mealScroll}
+              contentContainerStyle={styles.mealScrollContent}
               contentOffset={{ x: 0, y: 0 }}
               onLayout={mealsFade.onLayout}
               onContentSizeChange={mealsFade.onContentSizeChange}
@@ -253,6 +254,7 @@ const styles = StyleSheet.create({
   emptyHint: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', flexShrink: 1 },
   mealScrollWrap: { position: 'relative' },
   mealScroll: { marginHorizontal: -4 },
+  mealScrollContent: { paddingRight: 32 },
   mealCardItem: { marginHorizontal: 4 },
   actionRow: { flexDirection: 'row', gap: 12 },
   actionBtn: {

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, Text } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 
 // Right-edge indicator signaling more horizontally-scrollable content. Plain
 // Animated.Text/View (no SVG) — the parent only mounts this while its
@@ -21,7 +21,9 @@ export function ScrollArrowIndicator() {
 
   return (
     <Animated.View style={[styles.wrap, { opacity }]} pointerEvents="none">
-      <Text style={styles.arrow}>›</Text>
+      <View style={styles.arrowInner}>
+        <Text style={styles.arrow}>›</Text>
+      </View>
     </Animated.View>
   );
 }
@@ -29,7 +31,7 @@ export function ScrollArrowIndicator() {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    right: 6,
+    right: 0,
     top: '50%',
     marginTop: -14,
     backgroundColor: 'rgba(0,0,0,0.3)',
@@ -37,6 +39,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  arrowInner: {
+    marginRight: 4,
   },
   arrow: {
     color: '#fff',
