@@ -19,6 +19,7 @@ import { useStore } from '@/lib/store';
 import { checkAchievementsAndNotify, useFeatureUnlocked } from '@/lib/featureFlags';
 import { searchFood } from '@/lib/openfoodfacts';
 import { analyzeFoodPhoto } from '@/lib/gemini';
+import { saveToLeanTrackAlbum } from '@/lib/media';
 import { getLocalDateString } from '@/lib/utils';
 import { registerModal } from '@/lib/useModalManager';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
@@ -52,7 +53,6 @@ export default function Journal() {
   const setPendingImage = useStore((s) => s.setPendingImage);
   const setCurrentMealType = useStore((s) => s.setCurrentMealType);
   const setPendingMealDate = useStore((s) => s.setPendingMealDate);
-  const setPendingOpenCamera = useStore((s) => s.setPendingOpenCamera);
 
   const today = getLocalDateString();
   const yesterday = getYesterdayString();
@@ -148,12 +148,21 @@ export default function Journal() {
     }
   }
 
-  function takePhotoAndAnalyse() {
-    setCurrentMealType(activeMealType);
-    setPendingMealDate(selectedDate);
-    setPendingOpenCamera(true);
-    setModalVisible(false);
-    router.push('/photo-analyse');
+  async function takePhotoAndAnalyse() {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission refusée', 'Autorise l\'accès à la caméra pour continuer.');
+      return;
+    }
+    const res = await ImagePicker.launchCameraAsync({ quality: 0.8, base64: true });
+    if (!res.canceled && res.assets[0]?.base64) {
+      saveToLeanTrackAlbum(res.assets[0].uri);
+      setPendingImage(res.assets[0].base64);
+      setCurrentMealType(activeMealType);
+      setPendingMealDate(selectedDate);
+      setModalVisible(false);
+      router.push('/photo-analyse');
+    }
   }
 
   function openAdd(type: MealType) {
