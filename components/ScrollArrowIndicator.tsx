@@ -1,11 +1,21 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
-// Right-edge indicator signaling more horizontally-scrollable content. Plain
-// Animated.Text/View (no SVG) — the parent only mounts this while its
-// useScrollFade().showFade is true, so the pulse just runs for the component's
-// whole lifetime instead of tracking its own visibility state.
-export function ScrollArrowIndicator() {
+interface Props {
+  color: string;
+  width?: number;
+}
+
+// Right-edge indicator signaling more horizontally-scrollable content. Pairs
+// a static SVG fade-to-background gradient (react-native-svg, already linked
+// — no native rebuild) with a pulsing arrow badge on top. useScrollFade's
+// showFade is true exactly when a real chip/card sits at the edge (not
+// trailing padding), so without the fade the badge always sat directly on
+// top of live content — only the fade, not spacing, fixes the overlap. The
+// parent only mounts this while showFade is true, so the pulse just runs for
+// the component's whole lifetime instead of tracking its own visibility state.
+export function ScrollArrowIndicator({ color, width = 48 }: Props) {
   const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -20,11 +30,20 @@ export function ScrollArrowIndicator() {
   }, [opacity]);
 
   return (
-    <Animated.View style={[styles.wrap, { opacity }]} pointerEvents="none">
-      <View style={styles.arrowInner}>
+    <View style={[styles.wrap, { width }]} pointerEvents="none">
+      <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
+        <Defs>
+          <LinearGradient id="scrollFadeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <Stop offset="0%" stopColor={color} stopOpacity={0} />
+            <Stop offset="100%" stopColor={color} stopOpacity={1} />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#scrollFadeGradient)" />
+      </Svg>
+      <Animated.View style={[styles.arrowInner, { opacity }]}>
         <Text style={styles.arrow}>›</Text>
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -35,7 +54,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     justifyContent: 'center',
-    pointerEvents: 'none',
+    alignItems: 'flex-end',
   },
   arrowInner: {
     backgroundColor: 'rgba(0,0,0,0.45)',

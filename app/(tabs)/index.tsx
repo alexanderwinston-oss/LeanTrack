@@ -180,7 +180,7 @@ export default function Dashboard() {
                 />
               ))}
             </ScrollView>
-            {mealsFade.showFade && <ScrollArrowIndicator />}
+            {mealsFade.showFade && <ScrollArrowIndicator color={Colors.bgPrimary} />}
           </View>
         )}
 

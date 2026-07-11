@@ -149,7 +149,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
             <Text style={styles.chipAddIcon}>+</Text>
           </TouchableOpacity>
         </ScrollView>
-        {presetFade.showFade && <ScrollArrowIndicator />}
+        {presetFade.showFade && <ScrollArrowIndicator color={Colors.bgSurface} />}
       </View>
 
       {favorites.length === 0 && (
