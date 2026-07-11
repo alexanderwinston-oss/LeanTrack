@@ -17,6 +17,7 @@ import { PhotoSourceModal } from '@/components/PhotoSourceModal';
 import { addMeal, addWater } from '@/lib/db';
 import { getLocalDateString, showGeminiError } from '@/lib/utils';
 import { useStore } from '@/lib/store';
+import { registerModal } from '@/lib/useModalManager';
 import { FoodAnalysisResult, MealType } from '@/lib/types';
 
 const MEAL_TYPES: { key: MealType; label: string }[] = [
@@ -42,6 +43,8 @@ export default function PhotoAnalyse() {
   const setPendingMealDate = useStore((s) => s.setPendingMealDate);
   const pendingOpenCamera = useStore((s) => s.pendingOpenCamera);
   const setPendingOpenCamera = useStore((s) => s.setPendingOpenCamera);
+  const [autoLaunching, setAutoLaunching] = useState(() => pendingOpenCamera);
+  registerModal('photoAutoLaunch', autoLaunching, () => router.back(), 10);
   const [targetDate] = useState<string>(() => pendingMealDate ?? getLocalDateString());
   const isYesterdayTarget = targetDate !== getLocalDateString();
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -197,20 +200,24 @@ export default function PhotoAnalyse() {
   }
 
   async function takePhoto() {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission refusée', 'Autorise l\'accès à la caméra pour continuer.');
-      return;
-    }
-    const res = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
-      base64: false,
-    });
-    if (!res.canceled && res.assets[0]) {
-      saveToLeanTrackAlbum(res.assets[0].uri);
-      setImageUri(res.assets[0].uri);
-      setRawBase64(null);
-      setResult(null);
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission refusée', 'Autorise l\'accès à la caméra pour continuer.');
+        return;
+      }
+      const res = await ImagePicker.launchCameraAsync({
+        quality: 0.8,
+        base64: false,
+      });
+      if (!res.canceled && res.assets[0]) {
+        saveToLeanTrackAlbum(res.assets[0].uri);
+        setImageUri(res.assets[0].uri);
+        setRawBase64(null);
+        setResult(null);
+      }
+    } finally {
+      setAutoLaunching(false);
     }
   }
 
@@ -281,6 +288,14 @@ export default function PhotoAnalyse() {
 
   const conf = result ? CONFIDENCE_CONFIG[result.confiance] : null;
   const showJournalFooter = !!result && (!result.is_drink || showMealTypeSelector);
+
+  if (autoLaunching) {
+    return (
+      <View style={[styles.screen, styles.loadingScreen]}>
+        <ActivityIndicator size="large" color={Colors.accent} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.screen}>
@@ -552,6 +567,7 @@ export default function PhotoAnalyse() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Colors.bgPrimary },
+  loadingScreen: { justifyContent: 'center', alignItems: 'center' },
   container: { flex: 1, backgroundColor: Colors.bgPrimary },
   content: { padding: 20, paddingTop: 56, gap: 16, paddingBottom: 40 },
   stickyFooter: {
