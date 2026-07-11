@@ -252,9 +252,9 @@ const styles = StyleSheet.create({
   emptyCard: { alignItems: 'center', gap: 4, minHeight: 70, justifyContent: 'center' },
   emptyText: { color: Colors.textSecondary, fontSize: 15, textAlign: 'center', flexShrink: 1 },
   emptyHint: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', flexShrink: 1 },
-  mealScrollWrap: { position: 'relative' },
+  mealScrollWrap: { position: 'relative', overflow: 'hidden' },
   mealScroll: { marginHorizontal: -4 },
-  mealScrollContent: { paddingRight: 48 },
+  mealScrollContent: { paddingRight: 56 },
   mealCardItem: { marginHorizontal: 4 },
   actionRow: { flexDirection: 'row', gap: 12 },
   actionBtn: {
