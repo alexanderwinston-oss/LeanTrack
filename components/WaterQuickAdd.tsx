@@ -118,10 +118,11 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
 
   return (
     <>
-      <View style={styles.scrollWrap}>
+      <View style={styles.scrollRow}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={styles.scrollFlex}
           contentContainerStyle={styles.row}
           contentOffset={{ x: 0, y: 0 }}
           onLayout={presetFade.onLayout}
@@ -149,7 +150,9 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
             <Text style={styles.chipAddIcon}>+</Text>
           </TouchableOpacity>
         </ScrollView>
-        {presetFade.showFade && <ScrollArrowIndicator color={Colors.bgSurface} />}
+        <View style={styles.arrowSlot}>
+          {presetFade.showFade && <ScrollArrowIndicator />}
+        </View>
       </View>
 
       {favorites.length === 0 && (
@@ -172,7 +175,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
       )}
 
       {favorites.length > 1 && (
-        <View style={[styles.scrollWrap, styles.pinnedFavRow]}>
+        <View style={styles.pinnedFavRow}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -239,9 +242,11 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
 }
 
 const styles = StyleSheet.create({
-  scrollWrap: { position: 'relative', overflow: 'hidden' },
+  scrollRow: { flexDirection: 'row', alignItems: 'stretch' },
+  scrollFlex: { flex: 1 },
+  arrowSlot: { width: 32, alignItems: 'center', justifyContent: 'center' },
   pinnedFavRow: { marginTop: 10 },
-  row: { flexDirection: 'row', gap: 10, paddingVertical: 2, paddingRight: 56 },
+  row: { flexDirection: 'row', gap: 10, paddingVertical: 2, paddingRight: 2 },
   chip: {
     height: 56, minWidth: 80,
     borderRadius: 28,

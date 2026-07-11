@@ -158,11 +158,11 @@ export default function Dashboard() {
             <Text style={styles.emptyHint}>Appuie sur "Journal" pour ajouter tes repas</Text>
           </Card>
         ) : (
-          <View style={styles.mealScrollWrap}>
+          <View style={styles.mealScrollRow}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              style={styles.mealScroll}
+              style={[styles.mealScroll, styles.mealScrollFlex]}
               contentContainerStyle={styles.mealScrollContent}
               contentOffset={{ x: 0, y: 0 }}
               onLayout={mealsFade.onLayout}
@@ -180,7 +180,9 @@ export default function Dashboard() {
                 />
               ))}
             </ScrollView>
-            {mealsFade.showFade && <ScrollArrowIndicator color={Colors.bgPrimary} />}
+            <View style={styles.mealArrowSlot}>
+              {mealsFade.showFade && <ScrollArrowIndicator />}
+            </View>
           </View>
         )}
 
@@ -252,9 +254,11 @@ const styles = StyleSheet.create({
   emptyCard: { alignItems: 'center', gap: 4, minHeight: 70, justifyContent: 'center' },
   emptyText: { color: Colors.textSecondary, fontSize: 15, textAlign: 'center', flexShrink: 1 },
   emptyHint: { color: Colors.textMuted, fontSize: 13, textAlign: 'center', flexShrink: 1 },
-  mealScrollWrap: { position: 'relative', overflow: 'hidden' },
+  mealScrollRow: { flexDirection: 'row', alignItems: 'stretch' },
   mealScroll: { marginHorizontal: -4 },
-  mealScrollContent: { paddingRight: 56 },
+  mealScrollFlex: { flex: 1 },
+  mealArrowSlot: { width: 32, alignItems: 'center', justifyContent: 'center' },
+  mealScrollContent: { paddingRight: 0 },
   mealCardItem: { marginHorizontal: 4 },
   actionRow: { flexDirection: 'row', gap: 12 },
   actionBtn: {
