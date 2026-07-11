@@ -3,3 +3,11 @@ leantrack.db
 *.db-journal
 *.db-wal
 *.db-shm
+
+# Locally-generated native folders — contain absolute Windows paths baked in
+# by prior local builds (gradle.properties' org.gradle.java.home, the
+# autolinking.json manifest, etc.) that break the cloud Linux builder.
+# Excluding them lets EAS Build run a clean "expo prebuild" instead of
+# reusing this machine's local android/ directory as-is.
+android
+ios

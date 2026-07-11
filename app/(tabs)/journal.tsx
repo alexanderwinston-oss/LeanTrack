@@ -93,7 +93,9 @@ export default function Journal() {
   const [textDescription, setTextDescription] = useState('');
   const [isAnalyzingText, setIsAnalyzingText] = useState(false);
   const [descFormVisible, setDescFormVisible] = useState(false);
+  const [summaryVisible, setSummaryVisible] = useState(false);
   const [aiUnavailable, setAiUnavailable] = useState(false);
+  const descScrollRef = useRef<ScrollView>(null);
 
   const loadYesterdayData = useCallback(async () => {
     const [ms, waterTotal, waterLogs] = await Promise.all([
@@ -174,6 +176,7 @@ export default function Journal() {
     setModalTab('description');
     setTextDescription('');
     setDescFormVisible(false);
+    setSummaryVisible(false);
     setAiUnavailable(false);
     setManualName('');
     setManualCal('');
@@ -187,6 +190,12 @@ export default function Journal() {
 
   function fillManually() {
     setAiUnavailable(false);
+    setSummaryVisible(false);
+    setDescFormVisible(true);
+  }
+
+  function openEditFromSummary() {
+    setSummaryVisible(false);
     setDescFormVisible(true);
   }
 
@@ -297,7 +306,8 @@ export default function Journal() {
       setManualProt(String(Math.round(result.proteines_g)));
       setManualCarbs(String(Math.round(result.glucides_g)));
       setManualFat(String(Math.round(result.lipides_g)));
-      setDescFormVisible(true);
+      setQuantity(String(Math.round(result.quantite_estimee_g)));
+      setSummaryVisible(true);
     } catch (err) {
       // AI failed or quota exceeded — fall back to the same editable form, empty,
       // so manual entry always remains possible.
@@ -307,6 +317,7 @@ export default function Journal() {
       setManualCarbs('');
       setManualFat('');
       setAiUnavailable(true);
+      setSummaryVisible(false);
       setDescFormVisible(true);
     } finally {
       setIsAnalyzingText(false);
@@ -340,6 +351,7 @@ export default function Journal() {
     : dailyTotals.calories;
   const mealsByType = (type: MealType) => displayedMeals.filter((m) => m.meal_type === type);
   const targetMealLabel = SECTIONS.find((s) => s.type === activeMealType)?.label ?? activeMealType;
+  const targetMealEmoji = SECTIONS.find((s) => s.type === activeMealType)?.emoji ?? '🍽️';
 
   const searchHeader = (
     <View>
@@ -521,7 +533,13 @@ export default function Journal() {
             />
           ) : (
             <>
-              <ScrollView style={styles.descScroll} contentContainerStyle={styles.modalListContent} keyboardShouldPersistTaps="handled">
+              <ScrollView
+                ref={descScrollRef}
+                style={styles.descScroll}
+                contentContainerStyle={styles.descScrollContent}
+                keyboardShouldPersistTaps="handled"
+                onContentSizeChange={() => descScrollRef.current?.scrollToEnd({ animated: true })}
+              >
                 <View style={styles.manualForm}>
                   <Text style={styles.aiDescHint}>
                     Décris ce que tu as mangé et l'IA remplira le formulaire automatiquement.
@@ -532,6 +550,7 @@ export default function Journal() {
                       style={[styles.formInput, { minHeight: 80, textAlignVertical: 'top' }]}
                       value={textDescription}
                       onChangeText={setTextDescription}
+                      onFocus={() => setTimeout(() => descScrollRef.current?.scrollToEnd({ animated: true }), 150)}
                       multiline
                       placeholder="Ex: 2 œufs au plat avec du pain beurré"
                       placeholderTextColor={Colors.textMuted}
@@ -542,7 +561,7 @@ export default function Journal() {
                     onPress={analyzeTextDescription}
                     loading={isAnalyzingText}
                   />
-                  {!descFormVisible && (
+                  {!descFormVisible && !summaryVisible && (
                     <TouchableOpacity onPress={fillManually} style={styles.manualLinkBtn}>
                       <Text style={styles.manualLinkText}>Remplir manuellement</Text>
                     </TouchableOpacity>
@@ -553,6 +572,27 @@ export default function Journal() {
                       <Text style={styles.aiUnavailableText}>
                         L'IA est indisponible — saisis les valeurs manuellement
                       </Text>
+                    </View>
+                  )}
+
+                  {summaryVisible && (
+                    <View style={styles.summaryCard}>
+                      <View style={styles.summaryHeader}>
+                        <Text style={styles.summaryEmoji}>{targetMealEmoji}</Text>
+                        <Text style={styles.summaryName}>{manualName}</Text>
+                      </View>
+                      <Text style={styles.summaryMeta}>{quantity}g · {manualCal} kcal</Text>
+                      <Text style={styles.summaryMacros}>
+                        P:{manualProt}g G:{manualCarbs}g L:{manualFat}g
+                      </Text>
+                      <View style={styles.summaryBtnRow}>
+                        <View style={{ flex: 1 }}>
+                          <Button label="Modifier" variant="secondary" onPress={openEditFromSummary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Button label="Confirmer" onPress={addManual} />
+                        </View>
+                      </View>
                     </View>
                   )}
 
@@ -758,6 +798,7 @@ const styles = StyleSheet.create({
   modalList: { flex: 1 },
   descScroll: { flexShrink: 1 },
   modalListContent: { padding: 16, paddingBottom: 100 },
+  descScrollContent: { padding: 16, paddingBottom: 220 },
   stickyFooter: {
     paddingHorizontal: 16, paddingTop: 12,
     borderTopWidth: 1, borderTopColor: Colors.border,
@@ -811,4 +852,15 @@ const styles = StyleSheet.create({
     gap: 12, marginTop: 4, paddingTop: 14,
     borderTopWidth: 1, borderTopColor: Colors.border,
   },
+  summaryCard: {
+    gap: 6, marginTop: 4, padding: 14,
+    borderRadius: Colors.radius, borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: Colors.bgSurface,
+  },
+  summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  summaryEmoji: { fontSize: 22 },
+  summaryName: { fontSize: 16, fontWeight: '700', color: Colors.textPrimary, flexShrink: 1 },
+  summaryMeta: { fontSize: 14, color: Colors.accent, fontWeight: '700' },
+  summaryMacros: { fontSize: 13, color: Colors.textSecondary },
+  summaryBtnRow: { flexDirection: 'row', gap: 10, marginTop: 6 },
 });

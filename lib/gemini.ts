@@ -77,14 +77,25 @@ Si la photo montre une étiquette nutritionnelle lisible sur un emballage :
 → Indique dans remarques : "Valeurs lues directement sur l'étiquette nutritionnelle."
 
 RÈGLE 2 — POIDS INDIQUÉ PAR L'UTILISATEUR (priorité haute) :
-Parse tout poids mentionné dans l'information utilisateur :
-→ "400g" ou "400 g" ou "400gr" ou "400grammes" ou "400 grammes" → quantite_estimee_g = 400
+Parse tout poids mentionné dans l'information utilisateur, quel que soit le format —
+tous ces formats sont ÉQUIVALENTS et doivent être reconnus :
+→ "50g" ou "50 g" ou "50gr" ou "50 gr" ou "50grammes" ou "50 grammes" → quantite_estimee_g = 50
 → "0.4kg" ou "0.4 kg" ou "0,4 kg" → quantite_estimee_g = 400
 → "2 portions" → estime le poids de 2 portions standard du plat identifié
-→ Ce poids override toute estimation visuelle pour quantite_estimee_g.
-→ Recalcule calories et macros proportionnellement si le poids indiqué diffère
-   du poids estimé visuellement. Exemple : si visuellement 200g mais utilisateur
-   dit 400g → multiplie toutes les valeurs par 2.
+Procède dans cet ordre exact :
+1. Cherche activement un poids explicite dans le texte utilisateur, sous n'importe
+   lequel des formats ci-dessus (espace ou non avant l'unité, unité abrégée ou complète).
+2. Si un poids est trouvé : quantite_estimee_g = ce poids exactement, et
+   quantity_source = "mentioned". Calcule calories et macros pour EXACTEMENT ce
+   poids (jamais pour 100g par défaut) — pars des valeurs nutritionnelles pour
+   100g de l'aliment identifié puis mets à l'échelle. Exemple : "50 gr de brownie"
+   → identifie "brownie", calcule sa valeur pour 100g, puis multiplie par 0.5.
+   Ce poids override toute estimation visuelle.
+3. Si aucun poids n'est mentionné : estime une portion réaliste du plat identifié
+   (jamais 100g par défaut sauf si c'est réellement la portion estimée) et mets
+   quantity_source = "estimated".
+4. quantity_source = "default" UNIQUEMENT si rien ne permet ni de lire ni
+   d'estimer un poids (cas rarissime).
 
 RÈGLE 3 — PRÉCISION CALORIQUE (tables CIQUAL France) :
 Utilise des valeurs précises issues des tables CIQUAL françaises.
@@ -119,7 +130,8 @@ Retourne UNIQUEMENT ce JSON valide sans markdown ni explication :
   "remarques": "string (méthode: estimation visuelle / étiquette / CIQUAL codes utilisés)",
   "is_drink": boolean,
   "volume_ml": number,
-  "drink_type": "water" | "other"
+  "drink_type": "water" | "other",
+  "quantity_source": "mentioned" | "estimated" | "default"
 }`;
 
   const parts: any[] = [];
@@ -143,6 +155,7 @@ Retourne UNIQUEMENT ce JSON valide sans markdown ni explication :
     is_drink: false,
     volume_ml: 0,
     drink_type: 'other',
+    quantity_source: 'default',
   };
   const parsed = safeParseJSON<FoodAnalysisResult>(extractText(data), fallback);
   return {
@@ -155,6 +168,9 @@ Retourne UNIQUEMENT ce JSON valide sans markdown ni explication :
     quantite_estimee_g: typeof parsed.quantite_estimee_g === 'number' ? parsed.quantite_estimee_g : 100,
     is_drink: typeof parsed.is_drink === 'boolean' ? parsed.is_drink : false,
     volume_ml: typeof parsed.volume_ml === 'number' ? parsed.volume_ml : 0,
+    quantity_source: ['mentioned', 'estimated', 'default'].includes(parsed.quantity_source)
+      ? parsed.quantity_source
+      : 'estimated',
   };
 }
 

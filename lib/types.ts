@@ -80,6 +80,7 @@ export interface FoodAnalysisResult {
   is_drink: boolean;
   volume_ml: number;
   drink_type: 'water' | 'other';
+  quantity_source: 'mentioned' | 'estimated' | 'default';
 }
 
 export interface MealPlanRepas {
