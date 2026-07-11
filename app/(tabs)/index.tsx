@@ -16,7 +16,7 @@ import { useStore } from '@/lib/store';
 import { getStreakDays } from '@/lib/db';
 import { getLocalDateString, getProfileName } from '@/lib/utils';
 import { WaterQuickAdd } from '@/components/WaterQuickAdd';
-import { ScrollFadeOverlay } from '@/components/ScrollFadeOverlay';
+import { ScrollArrowIndicator } from '@/components/ScrollArrowIndicator';
 import { useScrollFade } from '@/lib/useScrollFade';
 
 
@@ -179,7 +179,7 @@ export default function Dashboard() {
                 />
               ))}
             </ScrollView>
-            {mealsFade.showFade && <ScrollFadeOverlay color={Colors.bgPrimary} />}
+            {mealsFade.showFade && <ScrollArrowIndicator />}
           </View>
         )}
 

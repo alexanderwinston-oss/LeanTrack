@@ -12,7 +12,7 @@ import { checkAchievementsAndNotify } from '@/lib/featureFlags';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import { registerModal } from '@/lib/useModalManager';
 import { LockedFeature } from '@/components/LockedFeature';
-import { ScrollFadeOverlay } from '@/components/ScrollFadeOverlay';
+import { ScrollArrowIndicator } from '@/components/ScrollArrowIndicator';
 import { useScrollFade } from '@/lib/useScrollFade';
 
 interface Props {
@@ -28,7 +28,6 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
   const [customInput, setCustomInput] = useState('');
   const [savingFavorite, setSavingFavorite] = useState(false);
   const presetFade = useScrollFade();
-  const favFade = useScrollFade();
 
   registerModal('waterCustom', customModalVisible, () => {
     setCustomModalVisible(false);
@@ -37,8 +36,10 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
 
   useFocusEffect(
     React.useCallback(() => {
-      getWaterFavorites().then(setFavorites)
-        .catch((err) => console.error('[WaterQuickAdd] getWaterFavorites', err));
+      getWaterFavorites().then((favs) => {
+        console.log('[WaterQuickAdd] favorites loaded:', favs.length, favs);
+        setFavorites(favs);
+      }).catch((err) => console.error('[WaterQuickAdd] getWaterFavorites', err));
     }, [])
   );
 
@@ -145,7 +146,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
             <Text style={styles.chipAddIcon}>+</Text>
           </TouchableOpacity>
         </ScrollView>
-        {presetFade.showFade && <ScrollFadeOverlay color={Colors.bgSurface} />}
+        {presetFade.showFade && <ScrollArrowIndicator />}
       </View>
 
       {favorites.length === 1 && (
@@ -161,14 +162,9 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.row}
             contentOffset={{ x: 0, y: 0 }}
-            onLayout={favFade.onLayout}
-            onContentSizeChange={favFade.onContentSizeChange}
-            onScroll={favFade.onScroll}
-            scrollEventThrottle={16}
           >
             {favorites.map((fav) => renderFavoriteChip(fav))}
           </ScrollView>
-          {favFade.showFade && <ScrollFadeOverlay color={Colors.bgSurface} />}
         </View>
       )}
 
