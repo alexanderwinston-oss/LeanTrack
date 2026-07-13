@@ -256,8 +256,8 @@ const styles = StyleSheet.create({
   },
   chipDisabled: { opacity: 0.5 },
   chipPreset: {
-    backgroundColor: 'rgba(56, 189, 248, 0.1)',
-    borderColor: Colors.waterColor,
+    backgroundColor: 'rgba(56, 189, 248, 0.08)',
+    borderColor: Colors.waterColorLight,
   },
   chipFav: {
     backgroundColor: 'rgba(251,191,36,0.08)',
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   },
   chipIcon: { fontSize: 16 },
   chipText: { fontWeight: '700', fontSize: 13 },
-  chipTextPreset: { color: Colors.waterColor },
+  chipTextPreset: { color: Colors.waterColorLight },
   chipTextFav: { color: '#fbbf24' },
   chipAddIcon: { fontSize: 24, fontWeight: '700', color: Colors.textSecondary, lineHeight: 26 },
   favoriteCTA: {

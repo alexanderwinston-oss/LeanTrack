@@ -241,13 +241,13 @@ const styles = StyleSheet.create({
   waterValue: { fontSize: 14 },
   waterTrack: {
     height: 10,
-    backgroundColor: Colors.bgElevated,
+    backgroundColor: Colors.trackBg,
     borderRadius: 5,
     overflow: 'hidden',
   },
   waterFill: {
     height: '100%',
-    backgroundColor: Colors.waterColor,
+    backgroundColor: Colors.waterColorLight,
     borderRadius: 5,
   },
   sectionTitle: { fontSize: 17, fontWeight: '700', color: Colors.textPrimary },

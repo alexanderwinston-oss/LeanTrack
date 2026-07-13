@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   macroTarget: { color: Colors.textSecondary, fontWeight: '400' },
   track: {
     height: 8,
-    backgroundColor: Colors.bgElevated,
+    backgroundColor: Colors.trackBg,
     borderRadius: 4,
     overflow: 'hidden',
   },

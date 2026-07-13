@@ -40,7 +40,7 @@ export function ProgressRing({ consumed, target, size = 180 }: ProgressRingProps
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={Colors.bgElevated}
+          stroke={Colors.trackBg}
           strokeWidth={strokeWidth}
           fill="none"
         />

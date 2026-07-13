@@ -13,11 +13,13 @@ export const Colors = {
   info: '#3D6473',
   border: '#C0C9C1',
   borderStrong: '#707973',
+  trackBg: '#DCE4DC',
   // macro colors
   proteinColor: '#60a5fa',
   carbsColor: '#f59e0b',
   fatColor: '#f87171',
   waterColor: '#3D6473',
+  waterColorLight: '#38bdf8',
   // radius
   radius: 12,
   radiusPill: 20,
