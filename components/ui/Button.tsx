@@ -1,6 +1,7 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/Colors';
 
 type Variant = 'primary' | 'secondary' | 'ghost';
@@ -25,7 +26,12 @@ export function Button({ label, onPress, variant = 'primary', disabled, loading 
     <Animated.View style={animStyle}>
       <Pressable
         onPress={onPress}
-        onPressIn={() => { if (!isDisabled) scale.value = withSpring(0.95, { damping: 15 }); }}
+        onPressIn={() => {
+          if (!isDisabled) {
+            scale.value = withSpring(0.96, { damping: 12, stiffness: 180 });
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          }
+        }}
         onPressOut={() => { scale.value = withSpring(1, { damping: 15 }); }}
         disabled={isDisabled}
         style={[
@@ -57,9 +63,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 50,
   },
-  primary: { backgroundColor: Colors.accent },
-  secondary: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: Colors.accent },
-  ghost: { backgroundColor: 'transparent' },
+  primary: { backgroundColor: Colors.accent, borderRadius: Colors.radiusButton },
+  secondary: { backgroundColor: 'transparent', borderWidth: 1.5, borderColor: Colors.accent, borderRadius: Colors.radiusCard },
+  ghost: { backgroundColor: 'transparent', borderRadius: Colors.radiusCard },
   disabled: { opacity: 0.4 },
   label: { color: '#fff', fontSize: 16, fontWeight: '600', letterSpacing: 0.2 },
   labelAlt: { color: Colors.accent },

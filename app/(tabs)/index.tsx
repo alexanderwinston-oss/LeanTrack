@@ -115,8 +115,9 @@ export default function Dashboard() {
               }}>
                 <Text style={{
                   color: isOver ? Colors.danger : Colors.accent,
-                  fontSize: 22,
-                  fontWeight: '800',
+                  fontSize: 36,
+                  fontWeight: '700',
+                  letterSpacing: -0.5,
                 }}>
                   {isOver ? `-${overBy}` : `${remainingCalories}`} kcal
                 </Text>

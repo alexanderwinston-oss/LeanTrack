@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Colors } from '@/constants/Colors';
 
 interface MacroBarProps {
@@ -16,7 +16,7 @@ function MacroBar({ label, consumed, target, color, unit = 'g' }: MacroBarProps)
   const width = useSharedValue(0);
 
   useEffect(() => {
-    width.value = withTiming(ratio, { duration: 700 });
+    width.value = withSpring(ratio, { damping: 20, stiffness: 90, mass: 0.8 });
   }, [ratio]);
 
   const animStyle = useAnimatedStyle(() => ({ width: `${width.value * 100}%` }));

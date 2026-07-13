@@ -23,6 +23,9 @@ export const Colors = {
   // radius
   radius: 12,
   radiusPill: 20,
+  radiusCard: 20,
+  radiusButton: 28,
+  radiusChip: 8,
 } as const;
 
 export type ColorKey = keyof typeof Colors;
