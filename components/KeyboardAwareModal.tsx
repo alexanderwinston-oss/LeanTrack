@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.bgSurface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '88%',
@@ -81,6 +81,6 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 20, paddingTop: 12,
     borderTopWidth: 1, borderTopColor: Colors.border,
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.bgSurface,
   },
 });

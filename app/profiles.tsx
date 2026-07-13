@@ -113,7 +113,7 @@ export default function Profiles() {
         <Text style={styles.deleteTitle}>⚠️ Supprimer le profil</Text>
         <Text style={styles.deleteDesc}>
           Toutes les données de{' '}
-          <Text style={{ color: '#ef4444', fontWeight: '700' }}>
+          <Text style={{ color: Colors.danger, fontWeight: '700' }}>
             {deleteTarget?.display_name || deleteTarget?.name || 'ce profil'}
           </Text>
           {' '}seront supprimées définitivement.
@@ -124,7 +124,7 @@ export default function Profiles() {
           value={deleteConfirmText}
           onChangeText={setDeleteConfirmText}
           placeholder="Tape la phrase ici..."
-          placeholderTextColor="#475569"
+          placeholderTextColor={Colors.textMuted}
           autoCapitalize="none"
           autoCorrect={false}
           style={styles.deleteInput}
@@ -173,18 +173,18 @@ const styles = StyleSheet.create({
   activeBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   deleteBtn: { padding: 8 },
   deleteBtnText: { fontSize: 18 },
-  deleteTitle: { color: '#f1f5f9', fontSize: 18, fontWeight: '700', marginBottom: 8 },
-  deleteDesc: { color: '#94a3b8', fontSize: 13, marginBottom: 12, lineHeight: 18 },
-  deleteHint: { color: '#64748b', fontSize: 12, marginBottom: 4 },
-  deletePhrase: { color: '#ef4444', fontSize: 13, fontWeight: '600', marginBottom: 12 },
+  deleteTitle: { color: Colors.textPrimary, fontSize: 18, fontWeight: '700', marginBottom: 8 },
+  deleteDesc: { color: Colors.textSecondary, fontSize: 13, marginBottom: 12, lineHeight: 18 },
+  deleteHint: { color: Colors.textMuted, fontSize: 12, marginBottom: 4 },
+  deletePhrase: { color: Colors.danger, fontSize: 13, fontWeight: '600', marginBottom: 12 },
   deleteInput: {
-    backgroundColor: '#0f172a', borderRadius: 10, padding: 14,
-    color: '#f1f5f9', fontSize: 14, marginBottom: 16,
-    borderWidth: 1, borderColor: '#334155',
+    backgroundColor: Colors.bgPrimary, borderRadius: 10, padding: 14,
+    color: Colors.textPrimary, fontSize: 14, marginBottom: 16,
+    borderWidth: 1, borderColor: Colors.border,
   },
   deleteButtons: { flexDirection: 'row', gap: 12 },
-  cancelBtn: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#1e293b', alignItems: 'center' },
-  cancelText: { color: '#94a3b8', fontWeight: '600' },
-  deleteActionBtn: { flex: 2, padding: 14, borderRadius: 12, backgroundColor: '#ef4444', alignItems: 'center' },
+  cancelBtn: { flex: 1, padding: 14, borderRadius: 12, backgroundColor: Colors.bgSurface, alignItems: 'center' },
+  cancelText: { color: Colors.textSecondary, fontWeight: '600' },
+  deleteActionBtn: { flex: 2, padding: 14, borderRadius: 12, backgroundColor: Colors.danger, alignItems: 'center' },
   deleteActionText: { color: '#fff', fontWeight: '700' },
 });

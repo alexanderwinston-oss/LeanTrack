@@ -9,6 +9,7 @@ import { UserProfile } from '@/lib/types';
 import { useGlobalBackHandler } from '@/lib/useModalManager';
 import { useStore } from '@/lib/store';
 import { getLocalDateString } from '@/lib/utils';
+import { Colors } from '@/constants/Colors';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import LevelUpToast from '@/components/LevelUpToast';
 
@@ -82,7 +83,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0f172a' } }}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.bgPrimary } }}>
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="photo-analyse" options={{ presentation: 'modal' }} />

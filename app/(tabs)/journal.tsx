@@ -639,7 +639,7 @@ export default function Journal() {
         footer={selectedFood && (
           <TouchableOpacity
             onPress={() => addFromFood(selectedFood)}
-            style={{ backgroundColor: '#10b981', borderRadius: 12, padding: 16, alignItems: 'center' }}
+            style={{ backgroundColor: Colors.accent, borderRadius: 12, padding: 16, alignItems: 'center' }}
           >
             <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
               Ajouter au journal
@@ -649,11 +649,11 @@ export default function Journal() {
       >
         {selectedFood && (
           <>
-            <Text style={{ color: '#f1f5f9', fontSize: 17, fontWeight: '700', marginBottom: 2 }}>
+            <Text style={{ color: Colors.textPrimary, fontSize: 17, fontWeight: '700', marginBottom: 2 }}>
               {selectedFood.name}
             </Text>
             {selectedFood.brand ? (
-              <Text style={{ color: '#64748b', fontSize: 13, marginBottom: 12 }}>
+              <Text style={{ color: Colors.textMuted, fontSize: 13, marginBottom: 12 }}>
                 {selectedFood.brand}
               </Text>
             ) : null}
@@ -665,24 +665,24 @@ export default function Journal() {
                 { label: 'L', value: `${selectedFood.fat_100g}g` },
               ].map(item => (
                 <View key={item.label} style={{
-                  flex: 1, backgroundColor: '#0f172a',
+                  flex: 1, backgroundColor: Colors.bgPrimary,
                   borderRadius: 8, padding: 8, alignItems: 'center',
                 }}>
-                  <Text style={{ color: '#10b981', fontSize: 14, fontWeight: '700' }}>{item.value}</Text>
-                  <Text style={{ color: '#64748b', fontSize: 10 }}>{item.label}</Text>
+                  <Text style={{ color: Colors.accent, fontSize: 14, fontWeight: '700' }}>{item.value}</Text>
+                  <Text style={{ color: Colors.textMuted, fontSize: 10 }}>{item.label}</Text>
                 </View>
               ))}
             </View>
-            <Text style={{ color: '#94a3b8', fontSize: 13, marginBottom: 6 }}>Quantité (g)</Text>
+            <Text style={{ color: Colors.textSecondary, fontSize: 13, marginBottom: 6 }}>Quantité (g)</Text>
             <TextInput
               value={foodQuantity}
               onChangeText={setFoodQuantity}
               keyboardType="numeric"
               style={{
-                backgroundColor: '#0f172a',
+                backgroundColor: Colors.bgPrimary,
                 borderRadius: 10,
                 padding: 12,
-                color: '#f1f5f9',
+                color: Colors.textPrimary,
                 fontSize: 18,
                 fontWeight: '700',
                 marginBottom: 8,
@@ -695,9 +695,9 @@ export default function Journal() {
               const carbs = Math.round(selectedFood.carbs_100g * qty / 100 * 10) / 10;
               const fat = Math.round(selectedFood.fat_100g * qty / 100 * 10) / 10;
               return (
-                <View style={{ backgroundColor: '#0f172a', borderRadius: 10, padding: 12, marginBottom: 16, alignItems: 'center' }}>
-                  <Text style={{ color: '#10b981', fontSize: 22, fontWeight: '800' }}>{cal} kcal</Text>
-                  <Text style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>
+                <View style={{ backgroundColor: Colors.bgPrimary, borderRadius: 10, padding: 12, marginBottom: 16, alignItems: 'center' }}>
+                  <Text style={{ color: Colors.accent, fontSize: 22, fontWeight: '800' }}>{cal} kcal</Text>
+                  <Text style={{ color: Colors.textMuted, fontSize: 12, marginTop: 2 }}>
                     P:{prot}g · G:{carbs}g · L:{fat}g
                   </Text>
                 </View>
@@ -757,7 +757,7 @@ const styles = StyleSheet.create({
   sectionCals: { fontSize: 13, color: Colors.textSecondary },
   toast: {
     position: 'absolute', bottom: 90, left: 20, right: 20,
-    backgroundColor: '#1e293b', borderRadius: Colors.radius,
+    backgroundColor: Colors.bgSurface, borderRadius: Colors.radius,
     borderWidth: 1, borderColor: Colors.accent,
     paddingHorizontal: 16, paddingVertical: 12,
     alignItems: 'center',

@@ -215,38 +215,38 @@ export default function Projection() {
                   : projectionData.filter((_, i) => i % 14 === 0).map(d => d.x)
               }
               tickFormat={d => format(new Date(d), 'dd/MM', { locale: fr })}
-              style={{ tickLabels: { fontSize: 9, fill: '#94a3b8', angle: -20 } }}
+              style={{ tickLabels: { fontSize: 9, fill: Colors.textSecondary, angle: -20 } }}
             />
             <VictoryAxis
               dependentAxis
-              style={{ tickLabels: { fontSize: 9, fill: '#94a3b8' } }}
+              style={{ tickLabels: { fontSize: 9, fill: Colors.textSecondary } }}
             />
             <VictoryLine
               data={projectionData}
-              style={{ data: { stroke: '#475569', strokeDasharray: '5,5', strokeWidth: 1.5 } }}
+              style={{ data: { stroke: Colors.textMuted, strokeDasharray: '5,5', strokeWidth: 1.5 } }}
             />
             {historyData.length >= 2 && (
               <VictoryLine
                 data={historyData}
-                style={{ data: { stroke: '#10b981', strokeWidth: 2.5 } }}
+                style={{ data: { stroke: Colors.accent, strokeWidth: 2.5 } }}
               />
             )}
             {historyData.length >= 1 && (
               <VictoryScatter
                 data={historyData}
                 size={5}
-                style={{ data: { fill: '#10b981' } }}
+                style={{ data: { fill: Colors.accent } }}
               />
             )}
           </VictoryChart>
           <View style={styles.legend}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendSwatch, { backgroundColor: '#475569' }]} />
+              <View style={[styles.legendSwatch, { backgroundColor: Colors.textMuted }]} />
               <Text style={styles.legendLabel}>Projection</Text>
             </View>
             {historyData.length > 0 && (
               <View style={styles.legendItem}>
-                <View style={[styles.legendSwatch, { backgroundColor: '#10b981' }]} />
+                <View style={[styles.legendSwatch, { backgroundColor: Colors.accent }]} />
                 <Text style={styles.legendLabel}>Poids réel</Text>
               </View>
             )}
@@ -289,11 +289,11 @@ export default function Projection() {
       )}
 
       {/* Plan de pesée */}
-      <View style={{ backgroundColor: '#1e293b', borderRadius: 12, padding: 16 }}>
-        <Text style={{ color: '#f1f5f9', fontWeight: '700', fontSize: 16, marginBottom: 4 }}>
+      <View style={{ backgroundColor: Colors.bgSurface, borderRadius: 12, padding: 16 }}>
+        <Text style={{ color: Colors.textPrimary, fontWeight: '700', fontSize: 16, marginBottom: 4 }}>
           ⚖️ Plan de pesée
         </Text>
-        <Text style={{ color: '#64748b', fontSize: 12, marginBottom: 12 }}>
+        <Text style={{ color: Colors.textMuted, fontSize: 12, marginBottom: 12 }}>
           Tous les 2 mardis · Matin à jeun
         </Text>
         {weighInDates.map((date, index) => {
@@ -316,27 +316,27 @@ export default function Projection() {
                 flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
                 paddingVertical: 12,
                 borderBottomWidth: index < weighInDates.length - 1 ? 1 : 0,
-                borderBottomColor: '#334155',
+                borderBottomColor: Colors.border,
               }}
             >
               <View>
                 <Text style={{
-                  color: isToday ? '#10b981' : isPast ? '#94a3b8' : '#f1f5f9',
+                  color: isToday ? Colors.accent : isPast ? Colors.textSecondary : Colors.textPrimary,
                   fontWeight: isToday ? '700' : '400', fontSize: 14,
                 }}>
                   {format(date, 'EEEE dd MMMM', { locale: fr })}{isToday ? ' (aujourd\'hui)' : ''}
                 </Text>
                 {recorded && (
-                  <Text style={{ color: '#10b981', fontSize: 12, marginTop: 2 }}>✓ {recorded.weight} kg enregistré</Text>
+                  <Text style={{ color: Colors.accent, fontSize: 12, marginTop: 2 }}>✓ {recorded.weight} kg enregistré</Text>
                 )}
                 {!recorded && isPast && (
-                  <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 2 }}>Non pesé</Text>
+                  <Text style={{ color: Colors.danger, fontSize: 12, marginTop: 2 }}>Non pesé</Text>
                 )}
                 {!recorded && !isPast && (
-                  <Text style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>Tap pour enregistrer</Text>
+                  <Text style={{ color: Colors.textMuted, fontSize: 12, marginTop: 2 }}>Tap pour enregistrer</Text>
                 )}
               </View>
-              <Text style={{ color: '#10b981', fontSize: 18 }}>›</Text>
+              <Text style={{ color: Colors.accent, fontSize: 18 }}>›</Text>
             </TouchableOpacity>
           );
         })}
@@ -349,25 +349,25 @@ export default function Projection() {
         visible={weightModalVisible}
         onClose={() => { setWeightModalVisible(false); setNewWeightInput(''); }}
       >
-        <Text style={{ color: '#f1f5f9', fontWeight: '700', fontSize: 18, marginBottom: 4 }}>
+        <Text style={{ color: Colors.textPrimary, fontWeight: '700', fontSize: 18, marginBottom: 4 }}>
           ⚖️ Enregistrer mon poids
         </Text>
-        <Text style={{ color: '#64748b', fontSize: 13, marginBottom: 20 }}>
+        <Text style={{ color: Colors.textMuted, fontSize: 13, marginBottom: 20 }}>
           {selectedWeighInDate
             ? format(new Date(selectedWeighInDate + 'T00:00:00'), 'EEEE dd MMMM yyyy', { locale: fr })
             : ''}
         </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#0f172a', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.bgPrimary, borderRadius: 12, padding: 16, marginBottom: 20 }}>
           <TextInput
             value={newWeightInput}
             onChangeText={setNewWeightInput}
             keyboardType="decimal-pad"
             placeholder="Ex: 108.5"
-            placeholderTextColor="#475569"
-            style={{ flex: 1, color: '#f1f5f9', fontSize: 28, fontWeight: '700' }}
+            placeholderTextColor={Colors.textMuted}
+            style={{ flex: 1, color: Colors.textPrimary, fontSize: 28, fontWeight: '700' }}
             autoFocus
           />
-          <Text style={{ color: '#64748b', fontSize: 18 }}>kg</Text>
+          <Text style={{ color: Colors.textMuted, fontSize: 18 }}>kg</Text>
         </View>
         {/* Bouton suppression — visible uniquement si pesée existante */}
         {weighInDates.some(d => {
@@ -397,17 +397,17 @@ export default function Projection() {
                 },
               ]
             )}
-            style={{ padding: 14, borderRadius: 12, backgroundColor: '#7f1d1d', alignItems: 'center', marginBottom: 10 }}
+            style={{ padding: 14, borderRadius: 12, backgroundColor: 'rgba(186, 26, 26, 0.12)', alignItems: 'center', marginBottom: 10 }}
           >
-            <Text style={{ color: '#fca5a5', fontWeight: '600' }}>🗑️ Supprimer cette pesée</Text>
+            <Text style={{ color: Colors.danger, fontWeight: '600' }}>🗑️ Supprimer cette pesée</Text>
           </TouchableOpacity>
         )}
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <TouchableOpacity
             onPress={() => { setWeightModalVisible(false); setNewWeightInput(''); }}
-            style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#334155', alignItems: 'center' }}
+            style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: Colors.bgElevated, alignItems: 'center' }}
           >
-            <Text style={{ color: '#94a3b8' }}>Annuler</Text>
+            <Text style={{ color: Colors.textSecondary }}>Annuler</Text>
           </TouchableOpacity>
           <TouchableOpacity
             disabled={isSaving}
@@ -428,7 +428,7 @@ export default function Projection() {
                 setIsSaving(false);
               }
             }}
-            style={{ flex: 2, padding: 14, borderRadius: 12, backgroundColor: '#10b981', alignItems: 'center', opacity: isSaving ? 0.5 : 1 }}
+            style={{ flex: 2, padding: 14, borderRadius: 12, backgroundColor: Colors.accent, alignItems: 'center', opacity: isSaving ? 0.5 : 1 }}
           >
             <Text style={{ color: '#fff', fontWeight: '700' }}>{isSaving ? '...' : 'Enregistrer'}</Text>
           </TouchableOpacity>

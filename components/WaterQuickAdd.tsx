@@ -200,7 +200,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
           onChangeText={setCustomInput}
           keyboardType="number-pad"
           placeholder="Ex: 400"
-          placeholderTextColor="#475569"
+          placeholderTextColor={Colors.textMuted}
           autoFocus
           maxLength={4}
         />
@@ -265,15 +265,15 @@ const styles = StyleSheet.create({
   },
   chipAdd: {
     minWidth: 56, paddingHorizontal: 0,
-    backgroundColor: 'rgba(100,116,139,0.08)',
-    borderColor: '#64748b',
+    backgroundColor: 'rgba(112, 121, 115,0.08)',
+    borderColor: Colors.textMuted,
     borderStyle: 'dashed',
   },
   chipIcon: { fontSize: 16 },
   chipText: { fontWeight: '700', fontSize: 13 },
   chipTextPreset: { color: Colors.waterColor },
   chipTextFav: { color: '#fbbf24' },
-  chipAddIcon: { fontSize: 24, fontWeight: '700', color: '#94a3b8', lineHeight: 26 },
+  chipAddIcon: { fontSize: 24, fontWeight: '700', color: Colors.textSecondary, lineHeight: 26 },
   favoriteCTA: {
     borderWidth: 1.5,
     borderColor: 'rgba(234, 179, 8, 0.6)',
@@ -297,9 +297,9 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary, fontSize: 13, marginBottom: 16,
   },
   customInput: {
-    backgroundColor: '#0f172a', borderRadius: 12,
-    borderWidth: 1, borderColor: '#334155',
-    color: '#f1f5f9', fontSize: 32, fontWeight: '700',
+    backgroundColor: Colors.bgPrimary, borderRadius: 12,
+    borderWidth: 1, borderColor: Colors.border,
+    color: Colors.textPrimary, fontSize: 32, fontWeight: '700',
     textAlign: 'center', padding: 16, marginBottom: 12,
   },
   saveAsFavBtn: {
@@ -318,12 +318,12 @@ const styles = StyleSheet.create({
   customButtons: { flexDirection: 'row', gap: 12 },
   customCancelBtn: {
     flex: 1, padding: 14, borderRadius: 12,
-    backgroundColor: '#1e293b', alignItems: 'center',
+    backgroundColor: Colors.bgSurface, alignItems: 'center',
   },
-  customCancelText: { color: '#94a3b8', fontWeight: '600' },
+  customCancelText: { color: Colors.textSecondary, fontWeight: '600' },
   customConfirmBtn: {
     flex: 2, padding: 14, borderRadius: 12,
-    backgroundColor: '#38bdf8', alignItems: 'center',
+    backgroundColor: Colors.waterColor, alignItems: 'center',
   },
   customConfirmText: { color: '#fff', fontWeight: '700' },
 });

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
+import { Colors } from '@/constants/Colors';
 
 // Hints that a horizontal ScrollView has more content to swipe to. Lives in
 // its own dedicated flex slot next to the ScrollView (see WaterQuickAdd /
@@ -37,13 +38,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   arrowInner: {
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(34, 106, 76, 0.15)',
     borderRadius: 14,
     paddingHorizontal: 6,
     paddingVertical: 4,
   },
   arrow: {
-    color: '#fff',
+    color: Colors.accent,
     fontSize: 24,
     lineHeight: 26,
     fontWeight: '700',

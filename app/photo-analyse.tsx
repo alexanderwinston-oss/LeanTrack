@@ -638,7 +638,7 @@ const styles = StyleSheet.create({
   drinkSliderLabel: { fontSize: 14, color: Colors.textSecondary },
   slider: { width: '100%', height: 40 },
   waterBtn: {
-    backgroundColor: '#0ea5e9', borderRadius: Colors.radius,
+    backgroundColor: Colors.waterColor, borderRadius: Colors.radius,
     padding: 16, alignItems: 'center',
   },
   waterBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },

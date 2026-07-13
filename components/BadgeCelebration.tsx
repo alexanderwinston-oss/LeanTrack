@@ -3,6 +3,7 @@ import {
   Animated, Dimensions, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View,
 } from 'react-native';
 import { AchievementDef, ALL_ACHIEVEMENTS } from '@/lib/achievements';
+import { Colors } from '@/constants/Colors';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -112,12 +113,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   card: {
-    backgroundColor: '#1e293b',
+    backgroundColor: Colors.bgSurface,
     borderRadius: 24,
     width: '100%',
     maxHeight: SCREEN_HEIGHT * 0.85,
     borderWidth: 1,
-    borderColor: '#10b98155',
+    borderColor: '#226A4C55',
     overflow: 'hidden',
     paddingTop: 24,
     paddingHorizontal: 24,
@@ -132,7 +133,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   headerLabel: {
-    color: '#10b981',
+    color: Colors.accent,
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 16,
@@ -144,14 +145,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   name: {
-    color: '#f1f5f9',
+    color: Colors.textPrimary,
     fontSize: 28,
     fontWeight: '800',
     marginBottom: 8,
     textAlign: 'center',
   },
   desc: {
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
@@ -159,29 +160,29 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   encourageBox: {
-    backgroundColor: '#0f291f',
+    backgroundColor: Colors.accentSubtle,
     borderRadius: 14,
     padding: 16,
     marginBottom: 16,
     width: '100%',
   },
   encourageText: {
-    color: '#10b981',
+    color: Colors.accent,
     fontSize: 15,
     fontWeight: '700',
     textAlign: 'center',
   },
   nextBox: {
-    backgroundColor: '#0f172a',
+    backgroundColor: Colors.bgPrimary,
     borderRadius: 14,
     padding: 16,
     marginBottom: 4,
     width: '100%',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: Colors.border,
   },
   nextTitle: {
-    color: '#64748b',
+    color: Colors.textMuted,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.5,
@@ -201,18 +202,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   nextName: {
-    color: '#f1f5f9',
+    color: Colors.textPrimary,
     fontSize: 16,
     fontWeight: '700',
     marginBottom: 4,
   },
   nextDesc: {
-    color: '#94a3b8',
+    color: Colors.textSecondary,
     fontSize: 13,
     lineHeight: 18,
   },
   btn: {
-    backgroundColor: '#10b981',
+    backgroundColor: Colors.accent,
     borderRadius: 16,
     paddingVertical: 16,
     alignItems: 'center',

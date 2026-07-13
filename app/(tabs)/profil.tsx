@@ -319,16 +319,16 @@ export default function Profil() {
             style={{ marginBottom: 8 }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <Text style={{ color: '#10b981', fontSize: 13, fontWeight: '700' }}>
+              <Text style={{ color: Colors.accent, fontSize: 13, fontWeight: '700' }}>
                 Niveau {currentLevel.level} — {currentLevel.label} ›
               </Text>
               <Text style={{ color: '#fbbf24', fontWeight: '700', fontSize: 16 }}>⚡ {totalXP} XP</Text>
             </View>
-            <View style={{ height: 6, borderRadius: 3, backgroundColor: '#1e293b', overflow: 'hidden' }}>
+            <View style={{ height: 6, borderRadius: 3, backgroundColor: Colors.bgSurface, overflow: 'hidden' }}>
               <View style={{ height: '100%', borderRadius: 3, width: `${levelPct}%` as any, backgroundColor: '#fbbf24' }} />
             </View>
             {nextLevel ? (
-              <Text style={{ color: '#475569', fontSize: 10, marginTop: 4 }}>
+              <Text style={{ color: Colors.textMuted, fontSize: 10, marginTop: 4 }}>
                 {xpInLevel} / {xpNeeded} XP gagnés ce niveau → Niv. {nextLevel.level} {nextLevel.label}
               </Text>
             ) : (
@@ -474,7 +474,7 @@ export default function Profil() {
                           ]}>
                             Niv. {lvl.level} — {lvl.label}
                           </Text>
-                          <Text style={[styles.levelXpRange, isCurrent && { color: '#fbbf24' }, isPast && { color: '#10b981' }]}>
+                          <Text style={[styles.levelXpRange, isCurrent && { color: '#fbbf24' }, isPast && { color: Colors.accent }]}>
                             {lvl.level < 7 ? `${lvl.min} XP` : `${lvl.min}+ XP`}
                           </Text>
                         </View>
@@ -529,10 +529,10 @@ export default function Profil() {
         visible={editWeightInitialVisible}
         onClose={() => setEditWeightInitialVisible(false)}
       >
-        <Text style={{ color: '#f1f5f9', fontWeight: '700', fontSize: 18, marginBottom: 8 }}>
+        <Text style={{ color: Colors.textPrimary, fontWeight: '700', fontSize: 18, marginBottom: 8 }}>
           🏁 Poids de départ
         </Text>
-        <Text style={{ color: '#64748b', fontSize: 13, marginBottom: 16 }}>
+        <Text style={{ color: Colors.textMuted, fontSize: 13, marginBottom: 16 }}>
           Ton poids au début de LeanTrack. Sert à calculer ta progression réelle.
         </Text>
         <TextInput
@@ -547,9 +547,9 @@ export default function Profil() {
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <TouchableOpacity
             onPress={() => setEditWeightInitialVisible(false)}
-            style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: '#334155', alignItems: 'center' }}
+            style={{ flex: 1, padding: 14, borderRadius: 12, backgroundColor: Colors.bgElevated, alignItems: 'center' }}
           >
-            <Text style={{ color: '#94a3b8' }}>Annuler</Text>
+            <Text style={{ color: Colors.textSecondary }}>Annuler</Text>
           </TouchableOpacity>
           <TouchableOpacity
             disabled={saving}
@@ -569,7 +569,7 @@ export default function Profil() {
                 setSaving(false);
               }
             }}
-            style={{ flex: 2, padding: 14, borderRadius: 12, backgroundColor: '#10b981', alignItems: 'center', opacity: saving ? 0.5 : 1 }}
+            style={{ flex: 2, padding: 14, borderRadius: 12, backgroundColor: Colors.accent, alignItems: 'center', opacity: saving ? 0.5 : 1 }}
           >
             <Text style={{ color: '#fff', fontWeight: '700' }}>{saving ? '...' : 'Enregistrer'}</Text>
           </TouchableOpacity>
@@ -663,41 +663,41 @@ const styles = StyleSheet.create({
     fontSize: 18, padding: 12, textAlign: 'center', fontWeight: '600',
   },
   weightBtns: { flexDirection: 'row', gap: 10 },
-  levelsSheet: { backgroundColor: '#1e293b', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 48 },
-  levelsHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: '#334155', alignSelf: 'center', marginBottom: 16 },
-  levelsTitle: { color: '#f1f5f9', fontWeight: '800', fontSize: 18, marginBottom: 4 },
-  levelsCurrentXp: { color: '#64748b', fontSize: 12, marginBottom: 16 },
-  levelRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#0f172a' },
+  levelsSheet: { backgroundColor: Colors.bgSurface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 48 },
+  levelsHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.bgElevated, alignSelf: 'center', marginBottom: 16 },
+  levelsTitle: { color: Colors.textPrimary, fontWeight: '800', fontSize: 18, marginBottom: 4 },
+  levelsCurrentXp: { color: Colors.textMuted, fontSize: 12, marginBottom: 16 },
+  levelRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
   levelRowCurrent: { backgroundColor: 'rgba(251,191,36,0.05)', borderRadius: 10, paddingHorizontal: 8, marginHorizontal: -8, borderBottomColor: 'transparent' },
-  levelDot: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f172a', borderWidth: 1, borderColor: '#334155', marginTop: 2 },
-  levelDotPast: { backgroundColor: 'rgba(16,185,129,0.1)', borderColor: '#10b981' },
+  levelDot: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.bgPrimary, borderWidth: 1, borderColor: Colors.border, marginTop: 2 },
+  levelDotPast: { backgroundColor: 'rgba(34, 106, 76,0.1)', borderColor: Colors.accent },
   levelDotCurrent: { backgroundColor: 'rgba(251,191,36,0.1)', borderColor: '#fbbf24' },
   levelDotFuture: { opacity: 0.4 },
-  levelName: { fontSize: 14, fontWeight: '600', color: '#f1f5f9' },
-  levelNamePast: { color: '#10b981' },
+  levelName: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
+  levelNamePast: { color: Colors.accent },
   levelNameCurrent: { color: '#fbbf24', fontWeight: '800' },
-  levelNameFuture: { color: '#475569' },
-  levelXpRange: { fontSize: 12, color: '#64748b', fontWeight: '600' },
-  levelCurrentBar: { height: 4, borderRadius: 2, backgroundColor: '#0f172a', overflow: 'hidden' },
+  levelNameFuture: { color: Colors.textMuted },
+  levelXpRange: { fontSize: 12, color: Colors.textMuted, fontWeight: '600' },
+  levelCurrentBar: { height: 4, borderRadius: 2, backgroundColor: Colors.bgPrimary, overflow: 'hidden' },
   levelCurrentFill: { height: '100%', borderRadius: 2, backgroundColor: '#fbbf24' },
-  levelCurrentProgress: { color: '#64748b', fontSize: 10, marginTop: 3 },
-  levelSummary: { color: '#64748b', fontSize: 12, fontStyle: 'italic', marginTop: 3 },
-  levelDetailPanel: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#0f172a', gap: 8 },
-  levelDetailText: { color: '#94a3b8', fontSize: 13, lineHeight: 19 },
+  levelCurrentProgress: { color: Colors.textMuted, fontSize: 10, marginTop: 3 },
+  levelSummary: { color: Colors.textMuted, fontSize: 12, fontStyle: 'italic', marginTop: 3 },
+  levelDetailPanel: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: Colors.border, gap: 8 },
+  levelDetailText: { color: Colors.textSecondary, fontSize: 13, lineHeight: 19 },
   levelStatusBadge: {
     alignSelf: 'flex-start', borderRadius: Colors.radiusPill,
     paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1,
   },
-  levelStatusBadgeUnlocked: { backgroundColor: 'rgba(16,185,129,0.1)', borderColor: '#10b981' },
+  levelStatusBadgeUnlocked: { backgroundColor: 'rgba(34, 106, 76,0.1)', borderColor: Colors.accent },
   levelStatusBadgeCurrent: { backgroundColor: 'rgba(251,191,36,0.1)', borderColor: '#fbbf24' },
-  levelStatusBadgeLocked: { backgroundColor: 'rgba(100,116,139,0.1)', borderColor: '#475569' },
-  levelStatusBadgeText: { fontSize: 12, fontWeight: '700', color: '#f1f5f9' },
-  levelXpMissing: { color: '#64748b', fontSize: 12 },
-  levelsClose: { marginTop: 20, backgroundColor: '#10b981', borderRadius: 14, padding: 14, alignItems: 'center' },
+  levelStatusBadgeLocked: { backgroundColor: 'rgba(112, 121, 115,0.1)', borderColor: Colors.textMuted },
+  levelStatusBadgeText: { fontSize: 12, fontWeight: '700', color: Colors.textPrimary },
+  levelXpMissing: { color: Colors.textMuted, fontSize: 12 },
+  levelsClose: { marginTop: 20, backgroundColor: Colors.accent, borderRadius: 14, padding: 14, alignItems: 'center' },
   levelsCloseText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  rewardsToggle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: '#0f172a', borderRadius: 12, borderWidth: 1, borderColor: '#1e293b' },
-  rewardsToggleLeft: { color: '#f1f5f9', fontWeight: '700', fontSize: 14 },
+  rewardsToggle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: Colors.bgPrimary, borderRadius: 12, borderWidth: 1, borderColor: Colors.border },
+  rewardsToggleLeft: { color: Colors.textPrimary, fontWeight: '700', fontSize: 14 },
   rewardsToggleRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rewardsToggleCount: { color: '#64748b', fontSize: 12, fontWeight: '600' },
-  rewardsToggleChevron: { color: '#10b981', fontSize: 12, fontWeight: '700' },
+  rewardsToggleCount: { color: Colors.textMuted, fontSize: 12, fontWeight: '600' },
+  rewardsToggleChevron: { color: Colors.accent, fontSize: 12, fontWeight: '700' },
 });

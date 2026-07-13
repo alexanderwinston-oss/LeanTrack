@@ -48,11 +48,11 @@ function AchievementsLegend() {
   return (
     <View style={styles.legendContainer}>
       <View style={styles.legendRow}>
-        <View style={[styles.legendDot, { backgroundColor: '#10b981' }]} />
+        <View style={[styles.legendDot, { backgroundColor: Colors.accent }]} />
         <Text style={styles.legendText}>Débloqué</Text>
         <View style={[styles.legendDot, { backgroundColor: '#f97316' }]} />
         <Text style={styles.legendText}>{'Proche (>80%)'}</Text>
-        <View style={[styles.legendDot, { backgroundColor: '#334155' }]} />
+        <View style={[styles.legendDot, { backgroundColor: Colors.bgElevated }]} />
         <Text style={styles.legendText}>À débloquer</Text>
       </View>
       <View style={styles.legendRow}>
@@ -104,7 +104,7 @@ function EnCoursSection({
             <View style={styles.enCoursBg}>
               <View style={[styles.enCoursFill, {
                 width: `${pct}%` as any,
-                backgroundColor: pct >= 80 ? '#f97316' : '#10b981',
+                backgroundColor: pct >= 80 ? '#f97316' : Colors.accent,
               }]} />
             </View>
             <Text style={styles.enCoursCount}>{prog.current} / {prog.total}</Text>
@@ -171,7 +171,7 @@ function BadgeItem({
     >
       {isNearlyDone && <Text style={styles.nearlyDoneIcon}>🔥</Text>}
       <Text style={styles.badgeEmoji}>🔒</Text>
-      <Text style={[styles.badgeLabel, { color: '#64748b', fontSize: 9, lineHeight: 12 }]} numberOfLines={3}>
+      <Text style={[styles.badgeLabel, { color: Colors.textMuted, fontSize: 9, lineHeight: 12 }]} numberOfLines={3}>
         {def.description}
       </Text>
       {pct !== null && (
@@ -179,7 +179,7 @@ function BadgeItem({
           <View style={styles.progressBg}>
             <View style={[styles.progressFill, {
               width: `${pct}%` as any,
-              backgroundColor: isNearlyDone ? '#f97316' : '#10b981',
+              backgroundColor: isNearlyDone ? '#f97316' : Colors.accent,
             }]} />
           </View>
           <Text style={[styles.progressLabel, isNearlyDone && { color: '#f97316' }]}>
@@ -267,15 +267,15 @@ export function AchievementGrid({ unlockedIds, statusMap = new Map(), stats }: A
                     <View style={styles.modalProgressBox}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                         <Text style={styles.objectifLabel}>📈 Progression</Text>
-                        <Text style={[styles.objectifLabel, { color: pct >= 80 ? '#f97316' : '#10b981' }]}>{pct}%</Text>
+                        <Text style={[styles.objectifLabel, { color: pct >= 80 ? '#f97316' : Colors.accent }]}>{pct}%</Text>
                       </View>
                       <View style={styles.modalProgressBg}>
                         <View style={[styles.modalProgressFill, {
                           width: `${pct}%` as any,
-                          backgroundColor: pct >= 80 ? '#f97316' : '#10b981',
+                          backgroundColor: pct >= 80 ? '#f97316' : Colors.accent,
                         }]} />
                       </View>
-                      <Text style={{ color: '#64748b', fontSize: 12, marginTop: 6, textAlign: 'center' }}>
+                      <Text style={{ color: Colors.textMuted, fontSize: 12, marginTop: 6, textAlign: 'center' }}>
                         {prog!.current} / {prog!.total}
                       </Text>
                     </View>
@@ -368,14 +368,14 @@ export function CelebrationModal({ achievementId, onClose }: CelebrationModalPro
 const styles = StyleSheet.create({
   // Legend
   legendContainer: {
-    backgroundColor: '#0f172a', borderRadius: 10, padding: 10,
-    marginBottom: 14, gap: 6, borderWidth: 1, borderColor: '#1e293b',
+    backgroundColor: Colors.bgPrimary, borderRadius: 10, padding: 10,
+    marginBottom: 14, gap: 6, borderWidth: 1, borderColor: Colors.border,
   },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
-  legendText: { color: '#64748b', fontSize: 11, marginRight: 8 },
-  legendTier: { color: '#94a3b8', fontSize: 11, marginRight: 4 },
-  legendTierDesc: { color: '#475569', fontSize: 10 },
+  legendText: { color: Colors.textMuted, fontSize: 11, marginRight: 8 },
+  legendTier: { color: Colors.textSecondary, fontSize: 11, marginRight: 4 },
+  legendTierDesc: { color: Colors.textMuted, fontSize: 10 },
 
   // Grid
   grid: { gap: 16 },
@@ -403,29 +403,29 @@ const styles = StyleSheet.create({
   // Progress bar (tile)
   nearlyDoneIcon: { position: 'absolute', top: 4, left: 4, fontSize: 10 },
   progressContainer: { width: '100%', alignItems: 'center', gap: 2 },
-  progressBg: { width: '100%', height: 3, borderRadius: 2, backgroundColor: '#1e293b', overflow: 'hidden' },
+  progressBg: { width: '100%', height: 3, borderRadius: 2, backgroundColor: Colors.bgSurface, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 2 },
-  progressLabel: { fontSize: 8, color: '#10b981', fontWeight: '700' },
+  progressLabel: { fontSize: 8, color: Colors.accent, fontWeight: '700' },
 
   // EnCoursSection
   enCoursContainer: {
-    backgroundColor: '#0f172a', borderRadius: 12, padding: 12,
-    marginBottom: 16, borderWidth: 1, borderColor: '#1e293b',
+    backgroundColor: Colors.bgPrimary, borderRadius: 12, padding: 12,
+    marginBottom: 16, borderWidth: 1, borderColor: Colors.border,
   },
-  enCoursTitle: { color: '#f1f5f9', fontWeight: '700', fontSize: 13, marginBottom: 10 },
+  enCoursTitle: { color: Colors.textPrimary, fontWeight: '700', fontSize: 13, marginBottom: 10 },
   enCoursRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
   enCoursEmoji: { fontSize: 20 },
   enCoursContent: { flex: 1 },
   enCoursHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  enCoursLabel: { flex: 1, fontSize: 11, color: '#94a3b8', marginRight: 8 },
-  enCoursPct: { fontSize: 11, fontWeight: '700', color: '#10b981' },
-  enCoursBg: { height: 4, borderRadius: 2, backgroundColor: '#1e293b', overflow: 'hidden', marginBottom: 2 },
+  enCoursLabel: { flex: 1, fontSize: 11, color: Colors.textSecondary, marginRight: 8 },
+  enCoursPct: { fontSize: 11, fontWeight: '700', color: Colors.accent },
+  enCoursBg: { height: 4, borderRadius: 2, backgroundColor: Colors.bgSurface, overflow: 'hidden', marginBottom: 2 },
   enCoursFill: { height: '100%', borderRadius: 2 },
-  enCoursCount: { fontSize: 9, color: '#475569' },
+  enCoursCount: { fontSize: 9, color: Colors.textMuted },
 
   // Tap overlay / modal
   tapOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center' },
-  tapCard: { margin: 40, backgroundColor: '#1e293b', borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1 },
+  tapCard: { margin: 40, backgroundColor: Colors.bgSurface, borderRadius: 20, padding: 24, alignItems: 'center', borderWidth: 1 },
   tapEmoji: { fontSize: 56 },
   tapLabel: { color: Colors.textPrimary, fontSize: 20, fontWeight: '700', marginTop: 12, textAlign: 'center' },
   tapDesc: { color: Colors.textSecondary, fontSize: 14, textAlign: 'center', marginTop: 8, lineHeight: 20 },
@@ -436,19 +436,19 @@ const styles = StyleSheet.create({
 
   // Modal progress (locked non-secret)
   modalProgressBox: {
-    width: '100%', backgroundColor: '#0f172a', borderRadius: 10,
-    padding: 12, marginTop: 12, borderWidth: 1, borderColor: '#334155',
+    width: '100%', backgroundColor: Colors.bgPrimary, borderRadius: 10,
+    padding: 12, marginTop: 12, borderWidth: 1, borderColor: Colors.border,
   },
-  modalProgressBg: { width: '100%', height: 6, borderRadius: 3, backgroundColor: '#1e293b', overflow: 'hidden' },
+  modalProgressBg: { width: '100%', height: 6, borderRadius: 3, backgroundColor: Colors.bgSurface, overflow: 'hidden' },
   modalProgressFill: { height: '100%', borderRadius: 3 },
 
   // Objectif box (fallback sans progress)
   objectifBox: {
-    backgroundColor: '#0f172a', borderRadius: 10, padding: 12,
-    marginTop: 12, width: '100%', borderWidth: 1, borderColor: '#334155',
+    backgroundColor: Colors.bgPrimary, borderRadius: 10, padding: 12,
+    marginTop: 12, width: '100%', borderWidth: 1, borderColor: Colors.border,
   },
-  objectifLabel: { color: '#10b981', fontSize: 11, fontWeight: '700', marginBottom: 4 },
-  objectifText: { color: '#94a3b8', fontSize: 13, lineHeight: 18 },
+  objectifLabel: { color: Colors.accent, fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  objectifText: { color: Colors.textSecondary, fontSize: 13, lineHeight: 18 },
   rewardText: { color: '#fbbf24', fontSize: 13, fontWeight: '600', marginTop: 8 },
 
   // Celebration modal

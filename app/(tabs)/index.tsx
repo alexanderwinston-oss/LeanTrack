@@ -111,17 +111,17 @@ export default function Dashboard() {
                 marginTop: 8,
                 paddingTop: 8,
                 borderTopWidth: 1,
-                borderTopColor: '#334155',
+                borderTopColor: Colors.border,
               }}>
                 <Text style={{
-                  color: isOver ? '#ef4444' : '#10b981',
+                  color: isOver ? Colors.danger : Colors.accent,
                   fontSize: 22,
                   fontWeight: '800',
                 }}>
                   {isOver ? `-${overBy}` : `${remainingCalories}`} kcal
                 </Text>
                 <Text style={{
-                  color: '#64748b',
+                  color: Colors.textMuted,
                   fontSize: 12,
                   marginTop: 2,
                 }}>
