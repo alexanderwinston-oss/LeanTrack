@@ -8,6 +8,7 @@ let _db: SQLite.SQLiteDatabase | null = null;
 let _activeProfileId: string | null = null;
 let _healRanThisSession = false;
 let _recoveryRanThisSession = false;
+let _orphanHealRanThisSession = false;
 
 async function getDB(): Promise<SQLite.SQLiteDatabase> {
   if (!_db) {
@@ -156,6 +157,43 @@ export async function healData(): Promise<void> {
     `UPDATE user_profile SET ${sets} WHERE profile_id = ?`,
     [...Object.values(fixes), profileId]
   );
+}
+
+// Runs once to recover from an orphaned active profile: if the active profile_id has
+// zero achievements while exactly one other profile_id has some, the active profile was
+// almost certainly switched away from the real one by mistake (e.g. "Nouveau profil").
+// Only heals when there's a single unambiguous candidate — never guesses between
+// multiple real profiles, since a legitimately new second profile also starts at 0.
+export async function healOrphanedProfile(): Promise<void> {
+  if (_orphanHealRanThisSession) return;
+  _orphanHealRanThisSession = true;
+
+  const db = await getDB();
+  const activeId = await getCurrentProfileId();
+
+  const activeCount = await db.getFirstAsync<{ c: number }>(
+    'SELECT COUNT(*) as c FROM achievements WHERE profile_id = ? AND lost_at IS NULL',
+    [activeId]
+  );
+  if ((activeCount?.c ?? 0) > 0) return;
+
+  const candidates = await db.getAllAsync<{ profile_id: string; c: number }>(
+    `SELECT profile_id, COUNT(*) as c FROM achievements
+     WHERE lost_at IS NULL AND profile_id != ?
+     GROUP BY profile_id`,
+    [activeId]
+  );
+  if (candidates.length !== 1) return;
+
+  try {
+    await switchProfile(candidates[0].profile_id);
+    console.warn(
+      `[healOrphanedProfile] active profile_id="${activeId}" had 0 achievements — ` +
+      `switched to "${candidates[0].profile_id}" (${candidates[0].c} achievements)`
+    );
+  } catch {
+    // Candidate profile_id not present in user_profile — leave as-is.
+  }
 }
 
 export async function initDB(): Promise<void> {
