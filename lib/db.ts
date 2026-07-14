@@ -1224,12 +1224,36 @@ export async function getStreakDays(): Promise<number> {
   if (!rows.length) return 0;
   let streak = 0;
   const today = new Date(getLocalDateString() + 'T00:00:00');
+
   for (let i = 0; i < rows.length; i++) {
     const diff = Math.round(
-      (today.getTime() - new Date(rows[i].date + 'T00:00:00').getTime()) / (1000 * 60 * 60 * 24)
+      (today.getTime() - new Date(rows[i].date + 'T00:00:00').getTime())
+      / (1000 * 60 * 60 * 24)
     );
-    if (diff === i || diff === i + 1) streak++;
-    else break;
+
+    if (i === 0) {
+      // First row: accept today (diff=0) or yesterday (diff=1)
+      // If neither, streak is 0
+      if (diff === 0 || diff === 1) {
+        streak++;
+      } else {
+        break;
+      }
+    } else {
+      // Subsequent rows: must be exactly 1 day after previous
+      // Since rows are ordered DESC, each row must be exactly i days ago
+      // (or i+1 if first row was yesterday)
+      const firstDiff = Math.round(
+        (today.getTime() - new Date(rows[0].date + 'T00:00:00').getTime())
+        / (1000 * 60 * 60 * 24)
+      );
+      const expectedDiff = firstDiff + i;
+      if (diff === expectedDiff) {
+        streak++;
+      } else {
+        break;
+      }
+    }
   }
   return streak;
 }
