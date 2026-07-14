@@ -138,12 +138,12 @@ export function CoachAnalysisSection({
 
   function confirmRegenerate() {
     Alert.alert(
-      'Nouvelle analyse',
-      'Une nouvelle analyse IA va être générée pour cette semaine. Continuer ?',
+      '🔄 On repart !',
+      'On relance le cerveau ! Ton coach IA va tout reprendre depuis le début. 🧠',
       [
         { text: 'Annuler', style: 'cancel' },
         {
-          text: 'Générer',
+          text: 'C\'est parti !',
           onPress: async () => {
             await deleteCoachAnalysis(weekStart);
             await generate();
