@@ -13,6 +13,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
+        animation: 'fade',
         tabBarStyle: {
           height: 55 + insets.bottom,
           paddingBottom: insets.bottom,

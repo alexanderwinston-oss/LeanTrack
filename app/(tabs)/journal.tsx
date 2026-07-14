@@ -4,6 +4,7 @@ import {
   Pressable, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
+import ReAnimated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useFocusEffect, router } from 'expo-router';
@@ -405,8 +406,12 @@ export default function Journal() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        {SECTIONS.map(({ type, label, emoji }) => (
-          <View key={type} style={styles.section}>
+        {SECTIONS.map(({ type, label, emoji }, index) => (
+          <ReAnimated.View
+            key={type}
+            entering={FadeInDown.delay(index * 80).duration(300).springify()}
+            style={styles.section}
+          >
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{emoji} {label}</Text>
               <Text style={styles.sectionCals}>
@@ -427,7 +432,7 @@ export default function Journal() {
                 <Text style={styles.addBtnText}>+ Ajouter un aliment</Text>
               </TouchableOpacity>
             )}
-          </View>
+          </ReAnimated.View>
         ))}
 
         {isYesterday && canEditYesterday && (

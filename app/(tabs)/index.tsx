@@ -1,8 +1,10 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
-import Animated, { FadeIn, SlideInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeIn, SlideInDown, useAnimatedStyle, useSharedValue, withSpring,
+} from 'react-native-reanimated';
 import { router, useFocusEffect } from 'expo-router';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -50,6 +52,12 @@ export default function Dashboard() {
   const waterProgress = Math.min(dailyTotals.water_ml / waterTarget, 1);
   const calorieRatio = calorieTarget > 0 ? dailyTotals.calories / calorieTarget : 0;
   const showCalorieBanner = calorieRatio >= 0.9 && calorieRatio <= 1.15;
+
+  const fillWidth = useSharedValue(0);
+  useEffect(() => {
+    fillWidth.value = withSpring(waterProgress, { damping: 20, stiffness: 90, mass: 0.8 });
+  }, [waterProgress]);
+  const fillStyle = useAnimatedStyle(() => ({ width: `${fillWidth.value * 100}%` }));
 
   return (
     <ScreenContainer>
@@ -145,7 +153,7 @@ export default function Dashboard() {
             </Text>
           </View>
           <View style={styles.waterTrack}>
-            <View style={[styles.waterFill, { width: `${waterProgress * 100}%` }]} />
+            <Animated.View style={[styles.waterFill, fillStyle]} />
           </View>
           <WaterQuickAdd quickAmounts={[150, 250, 500]} />
         </Card>

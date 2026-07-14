@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Colors } from '@/constants/Colors';
@@ -18,6 +19,36 @@ import { useScrollFade } from '@/lib/useScrollFade';
 interface Props {
   quickAmounts: number[];
   onAdded?: () => void;
+}
+
+// Small tap-bounce wrapper — chips are rendered via .map(), so each instance needs its
+// own useSharedValue; that can't live inline in the map callback (Rules of Hooks), hence
+// this dedicated component instead of a shared/module-level value.
+function SpringChip({
+  style, disabled, onPress, onLongPress, children,
+}: {
+  style?: any;
+  disabled?: boolean;
+  onPress?: () => void;
+  onLongPress?: () => void;
+  children: React.ReactNode;
+}) {
+  const scale = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  return (
+    <Animated.View style={animStyle}>
+      <TouchableOpacity
+        style={style}
+        disabled={disabled}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        onPressIn={() => { scale.value = withSpring(0.92, { damping: 10, stiffness: 400 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
+      >
+        {children}
+      </TouchableOpacity>
+    </Animated.View>
+  );
 }
 
 export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
@@ -103,7 +134,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
 
   function renderFavoriteChip(fav: { id: number; amount_ml: number; label: string | null }) {
     return (
-      <TouchableOpacity
+      <SpringChip
         key={`fav-${fav.id}`}
         style={[styles.chip, styles.chipFav, addingWater && styles.chipDisabled]}
         onPress={() => addWater(fav.amount_ml)}
@@ -112,7 +143,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
       >
         <Text style={styles.chipIcon}>⭐</Text>
         <Text style={[styles.chipText, styles.chipTextFav]}>{fav.label ?? `${fav.amount_ml}ml`}</Text>
-      </TouchableOpacity>
+      </SpringChip>
     );
   }
 
@@ -131,7 +162,7 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
           scrollEventThrottle={16}
         >
           {quickAmounts.map((ml) => (
-            <TouchableOpacity
+            <SpringChip
               key={`preset-${ml}`}
               style={[styles.chip, styles.chipPreset, addingWater && styles.chipDisabled]}
               onPress={() => addWater(ml)}
@@ -139,16 +170,16 @@ export function WaterQuickAdd({ quickAmounts, onAdded }: Props) {
             >
               <Text style={styles.chipIcon}>💧</Text>
               <Text style={[styles.chipText, styles.chipTextPreset]}>+{ml}ml</Text>
-            </TouchableOpacity>
+            </SpringChip>
           ))}
 
-          <TouchableOpacity
+          <SpringChip
             style={[styles.chip, styles.chipAdd, addingWater && styles.chipDisabled]}
             onPress={() => setCustomModalVisible(true)}
             disabled={addingWater}
           >
             <Text style={styles.chipAddIcon}>+</Text>
-          </TouchableOpacity>
+          </SpringChip>
         </ScrollView>
         <View style={styles.arrowSlot}>
           {presetFade.showFade && <ScrollArrowIndicator />}

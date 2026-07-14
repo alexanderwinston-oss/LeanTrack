@@ -3,6 +3,8 @@ import {
   Alert, Image, Modal, StyleSheet, Text,
   TextInput, TouchableOpacity, View, ViewStyle,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { registerModal } from '@/lib/useModalManager';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import * as Haptics from 'expo-haptics';
@@ -50,6 +52,31 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
   registerModal('mealEdit', editing, () => setEditing(false), 10);
   registerModal('mealDetail', detailVisible, () => setDetailVisible(false), 5);
   registerModal('mealPhotoFull', photoFullVisible, () => setPhotoFullVisible(false), 20);
+
+  // Swipe-to-delete — full-width (non-compact) cards only. compact cards live inside a
+  // horizontal ScrollView (dashboard "today's meals" row); a horizontal pan gesture there
+  // would fight the scroll view's own horizontal recognition, so this stays scoped to the
+  // vertical journal list. Threshold-cross calls the existing confirmDelete() (Alert
+  // confirmation) rather than deleting outright — swiping is just a shortcut to that
+  // same dialog, not a new no-confirm delete path.
+  const translateX = useSharedValue(0);
+  const SWIPE_DELETE_THRESHOLD = -80;
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-10, 10])
+    .onUpdate((e) => {
+      if (e.translationX < 0) {
+        translateX.value = Math.max(e.translationX, -100);
+      }
+    })
+    .onEnd(() => {
+      if (translateX.value < SWIPE_DELETE_THRESHOLD) {
+        runOnJS(confirmDelete)();
+      }
+      translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
+    });
+  const swipeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
 
   function openDetail() {
     setEditing(false);
@@ -144,22 +171,31 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
 
   return (
     <>
-      <TouchableOpacity onPress={openDetail} activeOpacity={0.85}>
-        <Card style={StyleSheet.flatten([styles.mealItem, style]) as ViewStyle}>
-          <View style={styles.mealRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.mealName}>{meal.food_name}{meal.photo_uri ? ' 📷' : ''}</Text>
-              <Text style={styles.mealDetails}>
-                {meal.quantity_g}g · P:{Math.round(meal.protein)}g G:{Math.round(meal.carbs)}g L:{Math.round(meal.fat)}g
-              </Text>
-            </View>
-            <View style={styles.mealRight}>
-              <Text style={styles.mealCal}>{Math.round(meal.calories)}</Text>
-              <Text style={styles.mealCalUnit}>kcal</Text>
-            </View>
-          </View>
-        </Card>
-      </TouchableOpacity>
+      <View style={styles.swipeWrap}>
+        <View style={styles.swipeDeleteZone}>
+          <Text style={styles.swipeDeleteIcon}>🗑️</Text>
+        </View>
+        <GestureDetector gesture={panGesture}>
+          <Animated.View style={swipeStyle}>
+            <TouchableOpacity onPress={openDetail} activeOpacity={0.85}>
+              <Card style={StyleSheet.flatten([styles.mealItem, style]) as ViewStyle}>
+                <View style={styles.mealRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.mealName}>{meal.food_name}{meal.photo_uri ? ' 📷' : ''}</Text>
+                    <Text style={styles.mealDetails}>
+                      {meal.quantity_g}g · P:{Math.round(meal.protein)}g G:{Math.round(meal.carbs)}g L:{Math.round(meal.fat)}g
+                    </Text>
+                  </View>
+                  <View style={styles.mealRight}>
+                    <Text style={styles.mealCal}>{Math.round(meal.calories)}</Text>
+                    <Text style={styles.mealCalUnit}>kcal</Text>
+                  </View>
+                </View>
+              </Card>
+            </TouchableOpacity>
+          </Animated.View>
+        </GestureDetector>
+      </View>
       {renderModal()}
     </>
   );
@@ -398,6 +434,13 @@ const styles = StyleSheet.create({
   mealRight: { alignItems: 'flex-end' },
   mealCal: { fontSize: 16, fontWeight: '700', color: Colors.accent },
   mealCalUnit: { fontSize: 11, color: Colors.textSecondary },
+  swipeWrap: { position: 'relative' },
+  swipeDeleteZone: {
+    position: 'absolute', right: 0, top: 0, bottom: 0,
+    width: 80, backgroundColor: Colors.danger, borderRadius: Colors.radiusCard,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  swipeDeleteIcon: { color: '#fff', fontSize: 24 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
   modalSheet: {
     backgroundColor: Colors.bgSurface, borderTopLeftRadius: 20, borderTopRightRadius: 20,
