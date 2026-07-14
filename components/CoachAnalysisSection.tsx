@@ -101,7 +101,7 @@ export function CoachAnalysisSection({
       setGeneratedAt(saved?.created_at ?? null);
     } catch (err: any) {
       const isQuota = err?.message === 'QUOTA_EXCEEDED';
-      setErrorMsg(isQuota ? 'Quota IA journalier atteint — réessaie demain' : getGeminiErrorContent(err).message);
+      setErrorMsg(isQuota ? 'Notre coach IA est débordé ! Donne-lui 2 minutes et il sera de retour en pleine forme. 🧠' : getGeminiErrorContent(err).message);
     } finally {
       setGenerating(false);
       generatingWeekRef.current = null;
@@ -138,12 +138,12 @@ export function CoachAnalysisSection({
 
   function confirmRegenerate() {
     Alert.alert(
-      'Regénérer l\'analyse',
-      'Cette action utilise 1 requête IA (quota journalier limité). Continuer ?',
+      'Nouvelle analyse',
+      'Une nouvelle analyse IA va être générée pour cette semaine. Continuer ?',
       [
         { text: 'Annuler', style: 'cancel' },
         {
-          text: 'Continuer',
+          text: 'Générer',
           onPress: async () => {
             await deleteCoachAnalysis(weekStart);
             await generate();

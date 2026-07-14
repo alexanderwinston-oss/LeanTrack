@@ -42,8 +42,8 @@ export function getProfileName(profile: any): string {
 export function getGeminiErrorContent(err: any): { title: string; message: string } {
   if (err?.message === 'QUOTA_EXCEEDED') {
     return {
-      title: 'Quota dépassé',
-      message: 'Le quota API Gemini est dépassé. Réessaie dans quelques minutes.',
+      title: '🧠 Cerveau en ébullition !',
+      message: 'Notre coach IA est débordé ! Donne-lui 2 minutes et il sera de retour en pleine forme.',
     };
   }
   return {
