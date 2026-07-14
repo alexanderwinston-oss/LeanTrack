@@ -33,6 +33,11 @@ function formatGeneratedAt(dbDatetime: string): string {
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+function isSundayEvening(): boolean {
+  const now = new Date();
+  return now.getDay() === 0 && now.getHours() >= 19;
+}
+
 export function CoachAnalysisSection({
   weekOffset, weekStart, weekEnd, days,
   calorieTarget, proteinTarget, carbsTarget, fatTarget, waterTarget, goal,
@@ -47,6 +52,9 @@ export function CoachAnalysisSection({
   const activeDaysCount = days.filter((d) => d.total_calories > 0).length;
   const isInProgress = weekOffset === 0;
   const isLastCompleted = weekOffset === -1;
+  // In-progress week is normally hidden entirely — Sunday 19h+ is the one exception,
+  // where the current week is treated like a completed one for preview purposes.
+  const blockAutoGenerate = isInProgress && !isSundayEvening();
 
   // Guards against a second concurrent Gemini call for the same week (e.g. two
   // overlapping focus/mount cycles) — generate() is only ever entered once per
@@ -113,7 +121,7 @@ export function CoachAnalysisSection({
         setGeneratedAt(cached.created_at);
         return;
       }
-      if (!isInProgress && isLastCompleted && activeDaysCount >= 3) {
+      if (!blockAutoGenerate && (isLastCompleted || isSundayEvening()) && activeDaysCount >= 3) {
         await generate();
       }
     } finally {
@@ -151,26 +159,26 @@ export function CoachAnalysisSection({
     <Card style={styles.card}>
       <Text style={styles.title}>🤖 Coach IA</Text>
 
-      {isInProgress && (
+      {blockAutoGenerate && (
         <Text style={styles.hint}>
           L'analyse est disponible pour les semaines terminées — reviens une fois cette semaine finie.
         </Text>
       )}
 
-      {!isInProgress && isBusy && (
+      {!blockAutoGenerate && isBusy && (
         <View style={styles.loadingRow}>
           <ActivityIndicator color={Colors.accent} />
           <Text style={styles.loadingText}>Analyse de ta semaine en cours...</Text>
         </View>
       )}
 
-      {!isInProgress && !isBusy && !analysis && !errorMsg && activeDaysCount < 3 && (
+      {!blockAutoGenerate && !isBusy && !analysis && !errorMsg && activeDaysCount < 3 && (
         <Text style={styles.hint}>
           Pas assez de données cette semaine pour une analyse (minimum 3 jours loggés).
         </Text>
       )}
 
-      {!isInProgress && !isBusy && !analysis && !errorMsg && activeDaysCount >= 3 && !isLastCompleted && (
+      {!blockAutoGenerate && !isBusy && !analysis && !errorMsg && activeDaysCount >= 3 && !isLastCompleted && (
         <View style={{ gap: 10 }}>
           <Text style={styles.hint}>Aucune analyse générée pour cette semaine.</Text>
           <TouchableOpacity style={styles.generateBtn} onPress={confirmRegenerate}>
@@ -218,7 +226,11 @@ export function CoachAnalysisSection({
 
           <View style={styles.footerRow}>
             <Text style={styles.footerDate}>
-              {generatedAt ? `Analyse générée le ${formatGeneratedAt(generatedAt)}` : ''}
+              {generatedAt
+                ? (isInProgress
+                    ? 'Analyse générée le dimanche soir — semaine en cours'
+                    : `Analyse générée le ${formatGeneratedAt(generatedAt)}`)
+                : ''}
             </Text>
             <TouchableOpacity onPress={confirmRegenerate}>
               <Text style={styles.regenBtn}>🔄 Regénérer</Text>

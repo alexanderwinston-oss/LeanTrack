@@ -335,9 +335,16 @@ ${weightSummary}
 === RÈGLES STRICTES ===
 - Réponds en français, tutoie l'utilisateur ("tu").
 - Ton encourageant mais honnête, pratique. Aucune affirmation médicale. Ne culpabilise jamais l'utilisateur.
-- Les recommandations doivent être concrètes et actionnables, basées sur les données réelles ci-dessus
-  (ex: "Prépare tes repas du jeudi à l'avance — c'est ton jour le plus irrégulier"), jamais génériques.
+- Les recommandations doivent être concrètes, actionnables et PROSPECTIVES — elles s'appliquent à la semaine
+  qui vient, pas à la semaine analysée. Utilise les patterns identifiés cette semaine pour anticiper et
+  préparer la semaine suivante.
+  Ex: "La semaine prochaine, prépare tes déjeuners à l'avance car tu as tendance à dépasser ton objectif le
+  jeudi" ou "Prévois une source de protéines à chaque repas — tu étais constamment en dessous de ton objectif
+  cette semaine".
+  Jamais : "Le 6 juillet tu aurais dû..." ou toute référence à corriger le passé. Toujours : "La semaine
+  prochaine..." ou "Pour les prochains jours..."
 - N'invente aucune donnée non présente ci-dessus.
+- Le résumé porte sur la semaine analysée (bilan). Les recommandations portent UNIQUEMENT sur la semaine à venir.
 
 Retourne UNIQUEMENT ce JSON valide, sans markdown, sans préambule, sans texte avant ou après :
 {
