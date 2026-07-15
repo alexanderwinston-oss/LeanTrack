@@ -59,6 +59,10 @@ export default function Journal() {
   const yesterday = getYesterdayString();
   const canEditYesterday = useFeatureUnlocked('EDIT_YESTERDAY');
 
+  // Forces the meal sections to remount on every tab focus so the FadeInDown stagger
+  // replays — real cost: MealCard instances (and their registerModal registrations) also
+  // remount each time, not just a lightweight animation reset.
+  const [mountKey, setMountKey] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string>(today);
   const [yesterdayMeals, setYesterdayMeals] = useState<Meal[]>([]);
   const [yesterdayWaterTotal, setYesterdayWaterTotal] = useState(0);
@@ -113,6 +117,7 @@ export default function Journal() {
     useCallback(() => {
       refreshDailyData(getLocalDateString());
       if (isYesterday) loadYesterdayData();
+      setMountKey((k) => k + 1);
     }, [isYesterday])
   );
 
@@ -406,6 +411,7 @@ export default function Journal() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
+        <View key={mountKey}>
         {SECTIONS.map(({ type, label, emoji }, index) => (
           <ReAnimated.View
             key={type}
@@ -434,6 +440,7 @@ export default function Journal() {
             )}
           </ReAnimated.View>
         ))}
+        </View>
 
         {isYesterday && canEditYesterday && (
           <View style={styles.section}>

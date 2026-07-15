@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -37,16 +37,16 @@ function SpringChip({
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   return (
     <Animated.View style={animStyle}>
-      <TouchableOpacity
+      <Pressable
         style={style}
         disabled={disabled}
         onPress={onPress}
         onLongPress={onLongPress}
-        onPressIn={() => { scale.value = withSpring(0.92, { damping: 10, stiffness: 400 }); }}
-        onPressOut={() => { scale.value = withSpring(1, { damping: 15, stiffness: 300 }); }}
+        onPressIn={() => { scale.value = withSpring(0.90, { damping: 8, stiffness: 500 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 12, stiffness: 400 }); }}
       >
         {children}
-      </TouchableOpacity>
+      </Pressable>
     </Animated.View>
   );
 }
