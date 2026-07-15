@@ -7,8 +7,11 @@ const SWIPE_THRESHOLD = 80; // min horizontal distance to trigger a tab switch �
 // gesture's own activeOffsetX, so it never contests any horizontal ScrollView underneath
 // (WaterQuickAdd's chips, dashboard meal row, Plan's day selector), which all claim a drag
 // at their own much smaller native scroll threshold well before this fires.
-const VERTICAL_LOCK = 15; // max vertical drift before the gesture cancels itself,
-// deferring to whatever vertical ScrollView is underneath
+const VERTICAL_LOCK = 40; // max vertical drift before the gesture cancels itself, deferring
+// to whatever vertical ScrollView is underneath. Was 15 — too strict for a real swipe: a
+// natural horizontal gesture rarely tracks perfectly straight over 80px, and failOffsetY
+// kills the gesture outright (no recovery) the moment vertical drift exceeds it, even if
+// the rest of the swipe is clean. That's what made it feel unreliable rather than just slow.
 
 // Swipe left/right between tabs. Lives here (attached per-screen via ScreenContainer)
 // rather than wrapped around the whole <Tabs> navigator in app/(tabs)/_layout.tsx — a
@@ -63,8 +66,15 @@ export function useTabSwipeGesture() {
         } else {
           runOnJS(goToTab)(currentTab, -1);
         }
+        // Reset instantly (no spring) rather than animate back — an animated bounce-back
+        // fought visibly against the tab transition kicking in at the same moment. Instant
+        // is still necessary though: bottom-tabs keeps screens mounted in the background
+        // rather than unmounting them, so leaving this offset would make the screen appear
+        // shifted the next time it's swiped back into view.
+        translateX.value = 0;
+      } else {
+        translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
       }
-      translateX.value = withSpring(0, { damping: 20, stiffness: 200 });
     });
 
   const animatedStyle = useAnimatedStyle(() => ({
