@@ -3,6 +3,7 @@ import * as Notifications from 'expo-notifications';
 import { Stack, router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initDB, healData, healOrphanedProfile, recoverMainProfile, getProfile, getUnlockedAchievements, checkAndUnlockAchievements } from '@/lib/db';
 import { UserProfile } from '@/lib/types';
@@ -81,26 +82,28 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: Colors.bgPrimary },
-          animation: 'fade_from_bottom',
-          animationDuration: 250,
-        }}
-      >
-        <Stack.Screen name="onboarding" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="photo-analyse" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="projection" />
-        <Stack.Screen name="recap-semaine" />
-        <Stack.Screen name="profiles" />
-        <Stack.Screen name="recettes" />
-      </Stack>
-      <BadgeCelebration badge={badgeQueue[0] ?? null} onClose={dequeueNextBadge} />
-      <LevelUpToast level={pendingLevelUp} onClose={() => setPendingLevelUp(null)} />
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: Colors.bgPrimary },
+            animation: 'fade_from_bottom',
+            animationDuration: 250,
+          }}
+        >
+          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="photo-analyse" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="projection" />
+          <Stack.Screen name="recap-semaine" />
+          <Stack.Screen name="profiles" />
+          <Stack.Screen name="recettes" />
+        </Stack>
+        <BadgeCelebration badge={badgeQueue[0] ?? null} onClose={dequeueNextBadge} />
+        <LevelUpToast level={pendingLevelUp} onClose={() => setPendingLevelUp(null)} />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
