@@ -27,6 +27,8 @@ export default function Dashboard() {
   const dailyTotals = useStore((s) => s.dailyTotals);
   const meals = useStore((s) => s.meals);
   const refreshDailyData = useStore((s) => s.refreshDailyData);
+  const caloriesBurned = useStore((s) => s.caloriesBurned);
+  const healthConnectEnabled = useStore((s) => s.healthConnectEnabled);
   const [streak, setStreak] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const mealsFade = useScrollFade();
@@ -107,12 +109,13 @@ export default function Dashboard() {
             </View>
           </View>
           {(() => {
+            const adjustedTarget = (profile?.calorie_target ?? 0) + caloriesBurned;
             const remainingCalories = Math.max(
-              (profile?.calorie_target ?? 0) - (dailyTotals?.calories ?? 0),
+              adjustedTarget - (dailyTotals?.calories ?? 0),
               0
             );
-            const isOver = (dailyTotals?.calories ?? 0) > (profile?.calorie_target ?? 0);
-            const overBy = (dailyTotals?.calories ?? 0) - (profile?.calorie_target ?? 0);
+            const isOver = (dailyTotals?.calories ?? 0) > adjustedTarget;
+            const overBy = (dailyTotals?.calories ?? 0) - adjustedTarget;
             return (
               <View style={{
                 alignItems: 'center',
@@ -136,6 +139,14 @@ export default function Dashboard() {
                 }}>
                   {isOver ? 'au-dessus de l\'objectif' : 'restantes aujourd\'hui'}
                 </Text>
+                {healthConnectEnabled && caloriesBurned > 0 && (
+                  <View style={styles.burnedRow}>
+                    <Text style={styles.burnedIcon}>🔥</Text>
+                    <Text style={styles.burnedText}>
+                      {caloriesBurned} kcal brûlées aujourd'hui
+                    </Text>
+                  </View>
+                )}
               </View>
             );
           })()}
@@ -244,6 +255,9 @@ const styles = StyleSheet.create({
   ringCard: { padding: 20 },
   ringRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   ringRight: { flex: 1 },
+  burnedRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  burnedIcon: { fontSize: 13 },
+  burnedText: { fontSize: 13, color: Colors.textSecondary },
   waterCard: { gap: 12 },
   waterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   waterLabel: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },

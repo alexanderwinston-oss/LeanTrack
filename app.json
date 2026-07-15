@@ -16,7 +16,9 @@
         "READ_EXTERNAL_STORAGE",
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "android.permission.health.READ_TOTAL_CALORIES_BURNED",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED"
       ]
     },
     "updates": {
@@ -41,15 +43,26 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Autoriser l acc\u00e8s \u00e0 la cam\u00e9ra pour analyser vos repas."
+          "cameraPermission": "Autoriser l accès à la caméra pour analyser vos repas."
         }
       ],
       [
         "expo-media-library",
         {
-          "photosPermission": "Autoriser l acc\u00e8s \u00e0 vos photos.",
+          "photosPermission": "Autoriser l accès à vos photos.",
           "savePhotosPermission": "Autoriser l enregistrement de vos photos de repas dans la galerie.",
           "isAccessMediaLocationEnabled": true
+        }
+      ],
+      "react-native-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 26
+          }
         }
       ]
     ]

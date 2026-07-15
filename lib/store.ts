@@ -16,6 +16,8 @@ interface AppState {
   isModalOpen: boolean;
   unlockedAchievementIds: string[];
   pendingLevelUp: XPLevel | null;
+  caloriesBurned: number;
+  healthConnectEnabled: boolean;
   setProfile: (profile: UserProfile) => void;
   refreshDailyData: (date: string) => Promise<void>;
   addMealToStore: (meal: Meal) => Promise<void>;
@@ -29,6 +31,8 @@ interface AppState {
   setModalOpen: (open: boolean) => void;
   setUnlockedAchievementIds: (ids: string[]) => void;
   setPendingLevelUp: (level: XPLevel | null) => void;
+  setCaloriesBurned: (v: number) => void;
+  setHealthConnectEnabled: (v: boolean) => void;
 }
 
 const emptyTotals = (date: string): DailyTotals => ({
@@ -47,6 +51,8 @@ export const useStore = create<AppState>((set, get) => ({
   isModalOpen: false,
   unlockedAchievementIds: [],
   pendingLevelUp: null,
+  caloriesBurned: 0,
+  healthConnectEnabled: false,
 
   setProfile: (profile) => set({ profile }),
   setPendingImage: (b64) => set({ pendingImageBase64: b64 }),
@@ -57,6 +63,8 @@ export const useStore = create<AppState>((set, get) => ({
   setModalOpen: (open) => set({ isModalOpen: open }),
   setUnlockedAchievementIds: (ids) => set({ unlockedAchievementIds: ids }),
   setPendingLevelUp: (level) => set({ pendingLevelUp: level }),
+  setCaloriesBurned: (v) => set({ caloriesBurned: v }),
+  setHealthConnectEnabled: (v) => set({ healthConnectEnabled: v }),
 
   refreshDailyData: async (date: string) => {
     const [totals, meals, water] = await Promise.all([

@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { initDB, healData, healOrphanedProfile, recoverMainProfile, getProfile, getUnlockedAchievements, checkAndUnlockAchievements } from '@/lib/db';
+import { initDB, healData, healOrphanedProfile, recoverMainProfile, getProfile, getSetting, getUnlockedAchievements, checkAndUnlockAchievements } from '@/lib/db';
+import { isHealthConnectAvailable, getTodayCaloriesBurned } from '@/lib/healthConnect';
 import { UserProfile } from '@/lib/types';
 import { useGlobalBackHandler } from '@/lib/useModalManager';
 import { useStore } from '@/lib/store';
@@ -26,8 +27,25 @@ export default function RootLayout() {
   const pendingLevelUp = useStore((s) => s.pendingLevelUp);
   const setPendingLevelUp = useStore((s) => s.setPendingLevelUp);
   const setUnlockedAchievementIds = useStore((s) => s.setUnlockedAchievementIds);
+  const setCaloriesBurned = useStore((s) => s.setCaloriesBurned);
+  const setHealthConnectEnabled = useStore((s) => s.setHealthConnectEnabled);
 
   useGlobalBackHandler();
+
+  // Reads the persisted flag directly from SQLite rather than the store (which always
+  // starts at its false default on a cold launch) — otherwise a user who connected in a
+  // previous session would never get their calories synced after restarting the app.
+  async function syncHealthConnect() {
+    const available = await isHealthConnectAvailable();
+    if (!available) return;
+
+    const enabled = (await getSetting('health_connect_enabled')) === '1';
+    setHealthConnectEnabled(enabled);
+    if (!enabled) return;
+
+    const calories = await getTodayCaloriesBurned();
+    setCaloriesBurned(calories);
+  }
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
@@ -53,6 +71,12 @@ export default function RootLayout() {
       try {
         if (profile) await refreshDailyData(getLocalDateString());
       } catch (e) { console.error('[startup] refreshDailyData', e); }
+
+      // Never blocks launch — Health Connect is optional and this fails silently on
+      // its own, but the outer try/catch is a backstop against any unexpected throw.
+      try {
+        await syncHealthConnect();
+      } catch (e) { console.error('[startup] syncHealthConnect', e); }
 
       if (profile) {
         // Silent on launch — never trigger the level-up toast for XP earned while offline,

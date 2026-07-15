@@ -16,9 +16,10 @@ import { AchievementGrid, ALL_ACHIEVEMENTS } from '@/components/Achievements';
 import { useStore } from '@/lib/store';
 import {
   deleteWeightEntry, getAllWeightEntries,
-  getAchievementStats, getProfile, recalculateTargetsAfterActivityChange, resetAllData, saveProfile,
-  updateWeightEntry, updateWeightInitial,
+  getAchievementStats, getProfile, getSetting, recalculateTargetsAfterActivityChange, resetAllData, saveProfile,
+  setSetting, updateWeightEntry, updateWeightInitial,
 } from '@/lib/db';
+import { getTodayCaloriesBurned, isHealthConnectAvailable, requestHealthPermissions } from '@/lib/healthConnect';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import { cancelAllNotifications, scheduleAllNotifications } from '@/lib/notifications';
 import { AchievementStats, ActivityLevel, WeightEntry } from '@/lib/types';
@@ -64,6 +65,11 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 export default function Profil() {
   const profile = useStore((s) => s.profile);
   const setProfile = useStore((s) => s.setProfile);
+  const healthConnectEnabled = useStore((s) => s.healthConnectEnabled);
+  const setHealthConnectEnabled = useStore((s) => s.setHealthConnectEnabled);
+  const caloriesBurned = useStore((s) => s.caloriesBurned);
+  const setCaloriesBurned = useStore((s) => s.setCaloriesBurned);
+  const [syncingHealth, setSyncingHealth] = useState(false);
   const [weightModal, setWeightModal] = useState(false);
   const [weightDate, setWeightDate] = useState('');
   const [weightInput, setWeightInput] = useState('');
@@ -216,6 +222,49 @@ export default function Profil() {
     }
   }
 
+  async function handleManualSync() {
+    setSyncingHealth(true);
+    try {
+      const calories = await getTodayCaloriesBurned();
+      setCaloriesBurned(calories);
+    } finally {
+      setSyncingHealth(false);
+    }
+  }
+
+  async function handleHealthConnectToggle() {
+    if (!healthConnectEnabled) {
+      setSyncingHealth(true);
+      try {
+        const available = await isHealthConnectAvailable();
+        if (!available) {
+          Alert.alert(
+            'Health Connect indisponible',
+            'Health Connect n\'est pas installé sur cet appareil. Installe l\'app Health Connect depuis le Play Store.'
+          );
+          return;
+        }
+        const granted = await requestHealthPermissions();
+        if (granted) {
+          await setSetting('health_connect_enabled', '1');
+          setHealthConnectEnabled(true);
+          await handleManualSync();
+        } else {
+          Alert.alert(
+            'Permission refusée',
+            'Autorise LeanTrack à lire tes données Health Connect dans les paramètres Android.'
+          );
+        }
+      } finally {
+        setSyncingHealth(false);
+      }
+    } else {
+      await setSetting('health_connect_enabled', '0');
+      setHealthConnectEnabled(false);
+      setCaloriesBurned(0);
+    }
+  }
+
   function confirmReset() {
     Alert.alert(
       '⚠️ Réinitialiser les données',
@@ -321,6 +370,41 @@ export default function Profil() {
               </TouchableOpacity>
             </View>
           </View>
+        </Card>
+
+        {/* Connexions */}
+        <Card>
+          <Text style={styles.sectionTitle}>Connexions</Text>
+          <View style={styles.infoRow}>
+            <View>
+              <Text style={styles.infoLabel}>Health Connect</Text>
+              <Text style={styles.infoValue}>
+                {healthConnectEnabled
+                  ? `Connecté · ${caloriesBurned} kcal brûlées aujourd'hui`
+                  : 'Non connecté'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.editInitialBtn}
+              disabled={syncingHealth}
+              onPress={handleHealthConnectToggle}
+            >
+              <Text style={styles.editInitialBtnText}>
+                {syncingHealth ? '...' : healthConnectEnabled ? 'Déconnecter' : 'Connecter'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {healthConnectEnabled && (
+            <TouchableOpacity
+              style={{ marginTop: 8 }}
+              disabled={syncingHealth}
+              onPress={handleManualSync}
+            >
+              <Text style={{ color: Colors.accent, fontSize: 13 }}>
+                ↻ Synchroniser maintenant
+              </Text>
+            </TouchableOpacity>
+          )}
         </Card>
 
         {/* Weight tracking */}
