@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { AchievementStats, DailyEntry, DailyTotals, Meal, MealPlan, Recipe, UserProfile, WeightEntry } from './types';
+import { AchievementStats, ActivityLevel, DailyEntry, DailyTotals, Meal, MealPlan, Recipe, UserProfile, WeightEntry } from './types';
 import { AchievementDef, ALL_ACHIEVEMENTS } from './achievements';
 import { CALORIE_TARGET_MAX_RATIO, CALORIE_TARGET_MIN_RATIO, getLocalDateString } from './utils';
 import { calcFullProfile } from './nutrition';
@@ -753,6 +753,32 @@ export async function recalculateTargetsAfterWeighIn(newWeight: number): Promise
     `UPDATE user_profile SET weight_current=?, tdee=?, calorie_target=?, protein_target=?,
      carbs_target=?, fat_target=?, water_target=? WHERE profile_id=?`,
     [newWeight, updated.tdee, updated.calorie_target, updated.protein_target,
+     updated.carbs_target, updated.fat_target, updated.water_target, profileId]
+  );
+}
+
+export async function recalculateTargetsAfterActivityChange(newActivityLevel: ActivityLevel): Promise<void> {
+  const db = await getDB();
+  const profileId = await getCurrentProfileId();
+  const row = await db.getFirstAsync<any>(
+    'SELECT * FROM user_profile WHERE profile_id = ?', [profileId]
+  );
+  if (!row) return;
+  const updated = calcFullProfile({
+    name: row.name,
+    age: row.age,
+    gender: row.gender,
+    weight_current: row.weight_current,
+    weight_target: row.weight_target,
+    height: row.height,
+    activity_level: newActivityLevel,
+    goal: row.goal,
+    target_date: row.target_date,
+  });
+  await db.runAsync(
+    `UPDATE user_profile SET activity_level=?, tdee=?, calorie_target=?, protein_target=?,
+     carbs_target=?, fat_target=?, water_target=? WHERE profile_id=?`,
+    [newActivityLevel, updated.tdee, updated.calorie_target, updated.protein_target,
      updated.carbs_target, updated.fat_target, updated.water_target, profileId]
   );
 }

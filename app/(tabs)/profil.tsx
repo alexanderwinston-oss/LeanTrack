@@ -16,12 +16,12 @@ import { AchievementGrid, ALL_ACHIEVEMENTS } from '@/components/Achievements';
 import { useStore } from '@/lib/store';
 import {
   deleteWeightEntry, getAllWeightEntries,
-  getAchievementStats, getProfile, resetAllData, saveProfile,
+  getAchievementStats, getProfile, recalculateTargetsAfterActivityChange, resetAllData, saveProfile,
   updateWeightEntry, updateWeightInitial,
 } from '@/lib/db';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import { cancelAllNotifications, scheduleAllNotifications } from '@/lib/notifications';
-import { AchievementStats, WeightEntry } from '@/lib/types';
+import { AchievementStats, ActivityLevel, WeightEntry } from '@/lib/types';
 
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { registerModal } from '@/lib/useModalManager';
@@ -37,6 +37,14 @@ const ACTIVITY_LABELS: Record<string, string> = {
   actif: 'Actif',
   tres_actif: 'Très actif',
 };
+
+const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string; desc: string }[] = [
+  { value: 'sedentaire', label: 'Sédentaire', desc: 'Peu ou pas d\'exercice' },
+  { value: 'leger', label: 'Léger', desc: '1 à 3 séances/semaine' },
+  { value: 'modere', label: 'Modéré', desc: '3 à 5 séances/semaine' },
+  { value: 'actif', label: 'Actif', desc: '6 à 7 séances/semaine' },
+  { value: 'tres_actif', label: 'Très actif', desc: 'Activité physique intense quotidienne' },
+];
 
 const GOAL_LABELS: Record<string, string> = {
   perte: 'Perte de poids',
@@ -68,10 +76,13 @@ export default function Profil() {
   const [levelsModalVisible, setLevelsModalVisible] = useState(false);
   const [expandedLevel, setExpandedLevel] = useState<number | null>(null);
   const [rewardsExpanded, setRewardsExpanded] = useState(false);
+  const [activityModalVisible, setActivityModalVisible] = useState(false);
+  const [updatingActivity, setUpdatingActivity] = useState(false);
 
   registerModal('profilWeight', weightModal, () => setWeightModal(false), 10);
   registerModal('profilEditInitial', editWeightInitialVisible, () => setEditWeightInitialVisible(false), 5);
   registerModal('levelsGlossary', levelsModalVisible, () => setLevelsModalVisible(false), 5);
+  registerModal('profilActivity', activityModalVisible, () => setActivityModalVisible(false), 5);
 
   useFocusEffect(
     useCallback(() => {
@@ -186,6 +197,25 @@ export default function Profil() {
     }
   }
 
+  async function handleActivityChange(newLevel: ActivityLevel) {
+    if (newLevel === profile!.activity_level) {
+      setActivityModalVisible(false);
+      return;
+    }
+    setUpdatingActivity(true);
+    try {
+      await recalculateTargetsAfterActivityChange(newLevel);
+      const updated = await getProfile();
+      if (updated) setProfile(updated);
+      await checkAchievementsAndNotify();
+      setActivityModalVisible(false);
+    } catch {
+      Alert.alert('Erreur', 'Impossible de modifier le niveau d\'activité.');
+    } finally {
+      setUpdatingActivity(false);
+    }
+  }
+
   function confirmReset() {
     Alert.alert(
       '⚠️ Réinitialiser les données',
@@ -259,7 +289,18 @@ export default function Profil() {
           <Text style={styles.sectionTitle}>Infos personnelles</Text>
           <InfoRow label="TDEE" value={`${profile.tdee} kcal/j`} />
           <View style={styles.divider} />
-          <InfoRow label="Activité" value={ACTIVITY_LABELS[profile.activity_level]} />
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Activité</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={styles.infoValue}>{ACTIVITY_LABELS[profile.activity_level]}</Text>
+              <TouchableOpacity
+                onPress={() => setActivityModalVisible(true)}
+                style={styles.editInitialBtn}
+              >
+                <Text style={styles.editInitialBtnText}>Modifier</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
           <View style={styles.divider} />
           <InfoRow label="Poids cible" value={`${profile.weight_target} kg`} />
           <View style={styles.divider} />
@@ -524,6 +565,49 @@ export default function Profil() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Activity level modal */}
+      <Modal
+        visible={activityModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setActivityModalVisible(false)}
+        statusBarTranslucent
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}
+          activeOpacity={1}
+          onPress={() => setActivityModalVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1}>
+            <View style={styles.levelsSheet}>
+              <View style={styles.levelsHandle} />
+              <Text style={styles.levelsTitle}>🏃 Niveau d'activité</Text>
+              <Text style={styles.levelsCurrentXp}>Choisis ton niveau d'activité physique</Text>
+              {ACTIVITY_OPTIONS.map((opt) => {
+                const isSelected = opt.value === profile.activity_level;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    activeOpacity={0.75}
+                    disabled={updatingActivity}
+                    onPress={() => handleActivityChange(opt.value)}
+                    style={[styles.activityOption, isSelected && styles.activityOptionSelected]}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.activityOptionLabel, isSelected && { color: Colors.accent }]}>
+                        {opt.label}
+                      </Text>
+                      <Text style={styles.activityOptionDesc}>{opt.desc}</Text>
+                    </View>
+                    {isSelected && <Text style={styles.activityCheck}>✓</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Poids de départ modal */}
       <KeyboardAwareModal
         visible={editWeightInitialVisible}
@@ -651,6 +735,15 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.accent,
   },
   editInitialBtnText: { color: Colors.accent, fontSize: 12, fontWeight: '600' },
+  activityOption: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14, paddingHorizontal: 12, borderRadius: Colors.radius,
+    borderWidth: 1, borderColor: Colors.border, marginBottom: 8,
+  },
+  activityOptionSelected: { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
+  activityOptionLabel: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
+  activityOptionDesc: { fontSize: 12, color: Colors.textMuted, marginTop: 2 },
+  activityCheck: { fontSize: 18, fontWeight: '700', color: Colors.accent, marginLeft: 10 },
   actions: { gap: 10 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center' },
   weightCard: { width: '85%', gap: 16 },
