@@ -68,8 +68,13 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
   const SWIPE_DELETE_THRESHOLD = -80;
   const tapGesture = Gesture.Tap()
     .maxDistance(10)
-    .onEnd(() => {
-      runOnJS(openDetail)();
+    .onEnd((_event, success) => {
+      // onEnd fires on cancellation too (e.g. Gesture.Race handing off to panGesture
+      // past the drag threshold) — without checking success, every swipe attempt also
+      // opened the detail view, which is why the reveal never got a chance to show.
+      if (success) {
+        runOnJS(openDetail)();
+      }
     });
   const panGesture = Gesture.Pan()
     .activeOffsetX([-10, 10])
