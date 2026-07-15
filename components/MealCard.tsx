@@ -98,6 +98,12 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
   const swipeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
+  // Driven by translateX instead of a static always-opaque background — otherwise the
+  // delete zone can flash visible for a frame on mount/tab-open (e.g. during the section's
+  // entrance animation) before the card has fully painted on top of it.
+  const deleteZoneStyle = useAnimatedStyle(() => ({
+    opacity: translateX.value < 0 ? Math.min(-translateX.value / 40, 1) : 0,
+  }));
 
   function openDetail() {
     setEditing(false);
@@ -193,9 +199,9 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
   return (
     <>
       <View style={styles.swipeWrap}>
-        <View style={styles.swipeDeleteZone}>
+        <Animated.View style={[styles.swipeDeleteZone, deleteZoneStyle]}>
           <Text style={styles.swipeDeleteIcon}>🗑️</Text>
-        </View>
+        </Animated.View>
         <GestureDetector gesture={cardGesture}>
           <Animated.View style={swipeStyle}>
             <Card style={StyleSheet.flatten([styles.mealItem, style]) as ViewStyle}>
