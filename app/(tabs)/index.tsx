@@ -155,7 +155,7 @@ export default function Dashboard() {
           <View style={styles.waterTrack}>
             <Animated.View style={[styles.waterFill, fillStyle]} />
           </View>
-          <WaterQuickAdd quickAmounts={[150, 250, 500]} />
+          <WaterQuickAdd quickAmounts={[150, 250, 330, 500]} />
         </Card>
         </Animated.View>
 
