@@ -32,7 +32,11 @@ export function useTabSwipeGesture() {
     if (currentIndex === -1) return;
     const nextIndex = currentIndex + direction;
     if (nextIndex < 0 || nextIndex >= TAB_ORDER.length) return;
-    router.navigate(`/(tabs)/${TAB_ORDER[nextIndex]}` as any);
+    const nextTab = TAB_ORDER[nextIndex];
+    // index.tsx is the group's root route (/(tabs)) — "/(tabs)/index" isn't a real path
+    // and threw "This screen doesn't exist" whenever a swipe landed back on Accueil.
+    const path = nextTab === 'index' ? '/(tabs)' : `/(tabs)/${nextTab}`;
+    router.navigate(path as any);
   }
 
   return Gesture.Pan()
