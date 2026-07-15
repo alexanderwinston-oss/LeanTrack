@@ -32,8 +32,8 @@ export async function getTodayCaloriesBurned(): Promise<number> {
   try {
     await initialize();
     const today = getLocalDateString();
-    const startTime = `${today}T00:00:00.000Z`;
-    const endTime = `${today}T23:59:59.000Z`;
+    const startTime = new Date(`${today}T00:00:00`).toISOString();
+    const endTime = new Date(`${today}T23:59:59`).toISOString();
 
     const result = await readRecords('TotalCaloriesBurned', {
       timeRangeFilter: {
