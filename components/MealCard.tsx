@@ -67,17 +67,17 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
   const translateX = useSharedValue(0);
   const SWIPE_DELETE_THRESHOLD = -80;
   const tapGesture = Gesture.Tap()
-    .maxDistance(10)
+    .maxDistance(15)
     .onEnd((_event, success) => {
-      // onEnd fires on cancellation too (e.g. Gesture.Race handing off to panGesture
-      // past the drag threshold) — without checking success, every swipe attempt also
-      // opened the detail view, which is why the reveal never got a chance to show.
+      // onEnd fires on cancellation too (e.g. when panGesture takes over past the drag
+      // threshold) — without checking success, every swipe attempt also opened the
+      // detail view, which is why the reveal never got a chance to show.
       if (success) {
         runOnJS(openDetail)();
       }
     });
   const panGesture = Gesture.Pan()
-    .activeOffsetX([-10, 10])
+    .activeOffsetX([-15, 15])
     .onUpdate((e) => {
       if (e.translationX < 0) {
         translateX.value = Math.max(e.translationX, -100);
@@ -89,7 +89,12 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
       }
       translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
     });
-  const cardGesture = Gesture.Race(tapGesture, panGesture);
+  // Exclusive (not Race): tapGesture gets first attempt deterministically, panGesture only
+  // gets a turn once tap actually fails (exceeds maxDistance) — a plain Race let whichever
+  // recognizer's internal state machine reacted first win, which on a real touchscreen
+  // (a tap almost always has a few px of incidental movement) meant pan won far more often
+  // than intended, cancelling tap before it could ever report success.
+  const cardGesture = Gesture.Exclusive(tapGesture, panGesture);
   const swipeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
