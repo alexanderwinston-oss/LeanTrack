@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import ReAnimated, { useAnimatedProps, useSharedValue, withSpring } from 'react-native-reanimated';
 import { useFocusEffect } from 'expo-router';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -20,6 +21,8 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 const QUICK_AMOUNTS = [150, 250, 330, 500, 750];
 
+const AnimatedCircle = ReAnimated.createAnimatedComponent(Circle);
+
 export default function Eau() {
   const profile = useStore((s) => s.profile);
   const waterMl = useStore((s) => s.waterMl);
@@ -29,6 +32,16 @@ export default function Eau() {
   const target = profile?.water_target ?? 2000;
   const ratio = Math.min(waterMl / target, 1);
   const goalReached = waterMl >= target;
+
+  // Same fill-up feel as the dashboard's water bar (index.tsx) — spring instead of an
+  // instant snap to the new stroke offset.
+  const ringProgress = useSharedValue(0);
+  useEffect(() => {
+    ringProgress.value = withSpring(ratio, { damping: 20, stiffness: 90, mass: 0.8 });
+  }, [ratio]);
+  const ringAnimatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: CIRCUMFERENCE * (1 - ringProgress.value),
+  }));
 
   // Animation for the goal celebration emoji
   const celebScale = useRef(new Animated.Value(1)).current;
@@ -64,7 +77,6 @@ export default function Eau() {
   }
 
   const percent = Math.round(ratio * 100);
-  const strokeDashoffset = CIRCUMFERENCE * (1 - ratio);
 
   return (
     <ScreenContainer>
@@ -81,11 +93,11 @@ export default function Eau() {
               cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS}
               stroke={Colors.bgElevated} strokeWidth={STROKE} fill="none"
             />
-            <Circle
+            <AnimatedCircle
               cx={RING_SIZE / 2} cy={RING_SIZE / 2} r={RADIUS}
               stroke={goalReached ? Colors.accent : Colors.waterColor} strokeWidth={STROKE} fill="none"
               strokeDasharray={CIRCUMFERENCE}
-              strokeDashoffset={strokeDashoffset}
+              animatedProps={ringAnimatedProps}
               strokeLinecap="round"
               transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
             />
