@@ -59,8 +59,18 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
   // vertical journal list. Threshold-cross calls the existing confirmDelete() (Alert
   // confirmation) rather than deleting outright — swiping is just a shortcut to that
   // same dialog, not a new no-confirm delete path.
+  //
+  // Tap and pan both go through gesture-handler (Gesture.Race) instead of pairing this
+  // with a TouchableOpacity — the old Touchable responder system doesn't know about the
+  // sibling Pan gesture and fires onPress on release regardless of how far the card was
+  // dragged, which made every swipe attempt just open the detail view mid-gesture.
   const translateX = useSharedValue(0);
   const SWIPE_DELETE_THRESHOLD = -80;
+  const tapGesture = Gesture.Tap()
+    .maxDistance(10)
+    .onEnd(() => {
+      runOnJS(openDetail)();
+    });
   const panGesture = Gesture.Pan()
     .activeOffsetX([-10, 10])
     .onUpdate((e) => {
@@ -74,6 +84,7 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
       }
       translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
     });
+  const cardGesture = Gesture.Race(tapGesture, panGesture);
   const swipeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
@@ -175,24 +186,22 @@ export function MealCard({ meal, onMealChanged, compact = false, style }: MealCa
         <View style={styles.swipeDeleteZone}>
           <Text style={styles.swipeDeleteIcon}>🗑️</Text>
         </View>
-        <GestureDetector gesture={panGesture}>
+        <GestureDetector gesture={cardGesture}>
           <Animated.View style={swipeStyle}>
-            <TouchableOpacity onPress={openDetail} activeOpacity={0.85}>
-              <Card style={StyleSheet.flatten([styles.mealItem, style]) as ViewStyle}>
-                <View style={styles.mealRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.mealName}>{meal.food_name}{meal.photo_uri ? ' 📷' : ''}</Text>
-                    <Text style={styles.mealDetails}>
-                      {meal.quantity_g}g · P:{Math.round(meal.protein)}g G:{Math.round(meal.carbs)}g L:{Math.round(meal.fat)}g
-                    </Text>
-                  </View>
-                  <View style={styles.mealRight}>
-                    <Text style={styles.mealCal}>{Math.round(meal.calories)}</Text>
-                    <Text style={styles.mealCalUnit}>kcal</Text>
-                  </View>
+            <Card style={StyleSheet.flatten([styles.mealItem, style]) as ViewStyle}>
+              <View style={styles.mealRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.mealName}>{meal.food_name}{meal.photo_uri ? ' 📷' : ''}</Text>
+                  <Text style={styles.mealDetails}>
+                    {meal.quantity_g}g · P:{Math.round(meal.protein)}g G:{Math.round(meal.carbs)}g L:{Math.round(meal.fat)}g
+                  </Text>
                 </View>
-              </Card>
-            </TouchableOpacity>
+                <View style={styles.mealRight}>
+                  <Text style={styles.mealCal}>{Math.round(meal.calories)}</Text>
+                  <Text style={styles.mealCalUnit}>kcal</Text>
+                </View>
+              </View>
+            </Card>
           </Animated.View>
         </GestureDetector>
       </View>
