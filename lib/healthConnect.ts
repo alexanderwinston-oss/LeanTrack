@@ -16,6 +16,14 @@ const REQUIRED_HEALTH_PERMISSIONS = [
   { accessType: 'read', recordType: 'ActiveCaloriesBurned' },
 ] as const;
 
+// Only TotalCaloriesBurned is actually read (see getTodayCaloriesBurned below) —
+// ActiveCaloriesBurned is requested for possible future use but must not gate
+// "connected" status, since a user can grant one without the other in Health Connect's
+// per-permission toggle screen.
+const SYNC_REQUIRED_PERMISSIONS = [
+  { accessType: 'read', recordType: 'TotalCaloriesBurned' },
+] as const;
+
 export async function isHealthConnectAvailable(): Promise<boolean> {
   try {
     const status = await getSdkStatus();
@@ -32,7 +40,7 @@ export async function isHealthConnectAvailable(): Promise<boolean> {
 export async function hasHealthPermissions(): Promise<boolean> {
   try {
     const granted = await getGrantedPermissions();
-    return REQUIRED_HEALTH_PERMISSIONS.every((required) =>
+    return SYNC_REQUIRED_PERMISSIONS.every((required) =>
       granted.some((g) => g.accessType === required.accessType && g.recordType === required.recordType)
     );
   } catch {
