@@ -39,6 +39,10 @@ export async function isHealthConnectAvailable(): Promise<boolean> {
 // Always re-verify against the actual granted set instead of trusting that return value.
 export async function hasHealthPermissions(): Promise<boolean> {
   try {
+    // requestPermission()/getGrantedPermissions() reject with ClientNotInitialized
+    // unless initialize() has already run in this session (see native
+    // HealthConnectManager.kt — every client call but getSdkStatus is gated on it).
+    await initialize();
     const granted = await getGrantedPermissions();
     return SYNC_REQUIRED_PERMISSIONS.every((required) =>
       granted.some((g) => g.accessType === required.accessType && g.recordType === required.recordType)
@@ -50,6 +54,7 @@ export async function hasHealthPermissions(): Promise<boolean> {
 
 export async function requestHealthPermissions(): Promise<boolean> {
   try {
+    await initialize();
     await requestPermission([...REQUIRED_HEALTH_PERMISSIONS]);
   } catch {
     return false;
