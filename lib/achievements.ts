@@ -341,4 +341,10 @@ export const ALL_ACHIEVEMENTS: AchievementDef[] = [
     category: 'Secret', xp: 75, secret: true,
     check: (s) => s.hasLoggedEarlyMorning,
   },
+  {
+    id: 'data_driven', emoji: '🔗', label: 'Data Driven',
+    description: 'Connecter LeanTrack à Santé Connect',
+    category: 'Secret', xp: 100, secret: true,
+    check: (s) => s.hasConnectedHealthConnect,
+  },
 ];

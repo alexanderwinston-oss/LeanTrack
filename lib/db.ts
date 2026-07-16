@@ -1124,6 +1124,8 @@ export async function getAchievementStats(profile: UserProfile): Promise<Achieve
     hasLoggedEarlyMorning = (earlyRow?.c ?? 0) >= 1;
   }
 
+  const hasConnectedHealthConnect = (await getSetting('health_connect_ever_connected')) === '1';
+
   return {
     totalWaterEntries: waterEntryRow?.c ?? 0,
     waterGoalDaysCount: waterGoalDays.length,
@@ -1151,6 +1153,7 @@ export async function getAchievementStats(profile: UserProfile): Promise<Achieve
     hasLoggedDespiteOvereating,
     hasLoggedLateNight,
     hasLoggedEarlyMorning,
+    hasConnectedHealthConnect,
   };
 }
 

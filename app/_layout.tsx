@@ -14,6 +14,7 @@ import { getLocalDateString } from '@/lib/utils';
 import { Colors } from '@/constants/Colors';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import LevelUpToast from '@/components/LevelUpToast';
+import HealthConnectToast from '@/components/HealthConnectToast';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,6 +27,8 @@ export default function RootLayout() {
   const setPendingBadge = useStore((s) => s.setPendingBadge);
   const pendingLevelUp = useStore((s) => s.pendingLevelUp);
   const setPendingLevelUp = useStore((s) => s.setPendingLevelUp);
+  const pendingHealthToast = useStore((s) => s.pendingHealthToast);
+  const setPendingHealthToast = useStore((s) => s.setPendingHealthToast);
   const setUnlockedAchievementIds = useStore((s) => s.setUnlockedAchievementIds);
   const setCaloriesBurned = useStore((s) => s.setCaloriesBurned);
   const setHealthConnectEnabled = useStore((s) => s.setHealthConnectEnabled);
@@ -127,6 +130,13 @@ export default function RootLayout() {
         </Stack>
         <BadgeCelebration badge={badgeQueue[0] ?? null} onClose={dequeueNextBadge} />
         <LevelUpToast level={pendingLevelUp} onClose={() => setPendingLevelUp(null)} />
+        <HealthConnectToast
+          visible={pendingHealthToast != null && badgeQueue.length === 0}
+          icon={pendingHealthToast?.icon ?? ''}
+          title={pendingHealthToast?.title ?? ''}
+          subtitle={pendingHealthToast?.subtitle ?? ''}
+          onClose={() => setPendingHealthToast(null)}
+        />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

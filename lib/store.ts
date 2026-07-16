@@ -18,6 +18,7 @@ interface AppState {
   pendingLevelUp: XPLevel | null;
   caloriesBurned: number;
   healthConnectEnabled: boolean;
+  pendingHealthToast: { icon: string; title: string; subtitle: string } | null;
   setProfile: (profile: UserProfile) => void;
   refreshDailyData: (date: string) => Promise<void>;
   addMealToStore: (meal: Meal) => Promise<void>;
@@ -33,6 +34,7 @@ interface AppState {
   setPendingLevelUp: (level: XPLevel | null) => void;
   setCaloriesBurned: (v: number) => void;
   setHealthConnectEnabled: (v: boolean) => void;
+  setPendingHealthToast: (v: { icon: string; title: string; subtitle: string } | null) => void;
 }
 
 const emptyTotals = (date: string): DailyTotals => ({
@@ -53,6 +55,7 @@ export const useStore = create<AppState>((set, get) => ({
   pendingLevelUp: null,
   caloriesBurned: 0,
   healthConnectEnabled: false,
+  pendingHealthToast: null,
 
   setProfile: (profile) => set({ profile }),
   setPendingImage: (b64) => set({ pendingImageBase64: b64 }),
@@ -65,6 +68,7 @@ export const useStore = create<AppState>((set, get) => ({
   setPendingLevelUp: (level) => set({ pendingLevelUp: level }),
   setCaloriesBurned: (v) => set({ caloriesBurned: v }),
   setHealthConnectEnabled: (v) => set({ healthConnectEnabled: v }),
+  setPendingHealthToast: (v) => set({ pendingHealthToast: v }),
 
   refreshDailyData: async (date: string) => {
     const [totals, meals, water] = await Promise.all([

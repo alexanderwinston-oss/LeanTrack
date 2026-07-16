@@ -247,6 +247,7 @@ export default function Profil() {
     if (!(await isHealthConnectAvailable())) return;
     if (await hasHealthPermissions()) {
       await setSetting('health_connect_enabled', '1');
+      await setSetting('health_connect_ever_connected', '1');
       setHealthConnectEnabled(true);
       await handleManualSync();
     }
@@ -267,8 +268,15 @@ export default function Profil() {
         const granted = await requestHealthPermissions();
         if (granted) {
           await setSetting('health_connect_enabled', '1');
+          await setSetting('health_connect_ever_connected', '1');
           setHealthConnectEnabled(true);
           await handleManualSync();
+          await checkAchievementsAndNotify();
+          useStore.getState().setPendingHealthToast({
+            icon: '💚',
+            title: 'Connecté à Santé Connect',
+            subtitle: 'Tes calories brûlées sont maintenant synchronisées',
+          });
         } else {
           Alert.alert(
             'Permission refusée',
@@ -399,15 +407,17 @@ export default function Profil() {
         {/* Connexions */}
         <Card>
           <Text style={styles.sectionTitle}>Connexions</Text>
-          <View style={styles.infoRow}>
-            <View>
-              <Text style={styles.infoLabel}>Health Connect</Text>
-              <Text style={styles.infoValue}>
-                {healthConnectEnabled
-                  ? `Connecté · ${caloriesBurned} kcal brûlées aujourd'hui`
-                  : 'Non connecté'}
-              </Text>
-            </View>
+          <View style={styles.hcRow1}>
+            <Text style={styles.hcIcon}>💚</Text>
+            <Text style={styles.hcLabel}>Health Connect</Text>
+            <View style={[styles.hcDot, healthConnectEnabled ? styles.hcDotOn : styles.hcDotOff]} />
+          </View>
+          <Text style={styles.hcStatusText}>
+            {healthConnectEnabled
+              ? `Connecté · ${caloriesBurned} kcal brûlées aujourd'hui`
+              : 'Non connecté'}
+          </Text>
+          <View style={styles.hcActionRow}>
             <TouchableOpacity
               style={styles.editInitialBtn}
               disabled={syncingHealth}
@@ -420,7 +430,7 @@ export default function Profil() {
           </View>
           {healthConnectEnabled && (
             <TouchableOpacity
-              style={{ marginTop: 8 }}
+              style={styles.hcSyncLink}
               disabled={syncingHealth}
               onPress={handleManualSync}
             >
@@ -807,6 +817,15 @@ const styles = StyleSheet.create({
   infoLabel: { fontSize: 14, color: Colors.textSecondary },
   infoValue: { fontSize: 14, fontWeight: '600', color: Colors.textPrimary },
   divider: { height: 1, backgroundColor: Colors.bgElevated },
+  hcRow1: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingBottom: 0 },
+  hcIcon: { fontSize: 18 },
+  hcLabel: { fontSize: 15, fontWeight: '700', color: Colors.textPrimary },
+  hcDot: { width: 8, height: 8, borderRadius: 4, marginLeft: 2 },
+  hcDotOn: { backgroundColor: Colors.accent },
+  hcDotOff: { backgroundColor: Colors.textMuted },
+  hcStatusText: { fontSize: 13, color: Colors.textSecondary, paddingTop: 4, paddingBottom: 12 },
+  hcActionRow: { alignItems: 'flex-end' },
+  hcSyncLink: { marginTop: 12, alignSelf: 'flex-end' },
   weightSection: { gap: 0 },
   weightSectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,

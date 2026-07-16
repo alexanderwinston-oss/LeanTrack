@@ -3,7 +3,8 @@ import {
   Pressable, RefreshControl, ScrollView, StyleSheet, Text, View,
 } from 'react-native';
 import Animated, {
-  FadeIn, SlideInDown, useAnimatedStyle, useSharedValue, withSpring,
+  cancelAnimation, Easing, FadeIn, SlideInDown, useAnimatedStyle, useSharedValue,
+  withRepeat, withSpring, withTiming,
 } from 'react-native-reanimated';
 import { router, useFocusEffect } from 'expo-router';
 import { format } from 'date-fns';
@@ -16,6 +17,7 @@ import { MealCard } from '@/components/MealCard';
 import { ScreenContainer, BOTTOM_SPACER_HEIGHT } from '@/components/ScreenContainer';
 import { useStore } from '@/lib/store';
 import { getStreakDays } from '@/lib/db';
+import { getTodayCaloriesBurned } from '@/lib/healthConnect';
 import { getLocalDateString, getProfileName } from '@/lib/utils';
 import { WaterQuickAdd } from '@/components/WaterQuickAdd';
 import { ScrollArrowIndicator } from '@/components/ScrollArrowIndicator';
@@ -29,8 +31,10 @@ export default function Dashboard() {
   const refreshDailyData = useStore((s) => s.refreshDailyData);
   const caloriesBurned = useStore((s) => s.caloriesBurned);
   const healthConnectEnabled = useStore((s) => s.healthConnectEnabled);
+  const setCaloriesBurned = useStore((s) => s.setCaloriesBurned);
   const [streak, setStreak] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncingCalories, setSyncingCalories] = useState(false);
   const mealsFade = useScrollFade();
 
   useFocusEffect(
@@ -48,6 +52,16 @@ export default function Dashboard() {
     setRefreshing(false);
   }
 
+  async function handleSyncCalories() {
+    setSyncingCalories(true);
+    try {
+      const calories = await getTodayCaloriesBurned();
+      setCaloriesBurned(calories);
+    } finally {
+      setSyncingCalories(false);
+    }
+  }
+
   const todayLabel = format(new Date(), 'EEEE d MMMM yyyy', { locale: fr });
   const calorieTarget = profile?.calorie_target ?? 2000;
   const waterTarget = profile?.water_target ?? 2000;
@@ -60,6 +74,17 @@ export default function Dashboard() {
     fillWidth.value = withSpring(waterProgress, { damping: 20, stiffness: 90, mass: 0.8 });
   }, [waterProgress]);
   const fillStyle = useAnimatedStyle(() => ({ width: `${fillWidth.value * 100}%` }));
+
+  const syncRotation = useSharedValue(0);
+  useEffect(() => {
+    if (syncingCalories) {
+      syncRotation.value = withRepeat(withTiming(360, { duration: 800, easing: Easing.linear }), -1);
+    } else {
+      cancelAnimation(syncRotation);
+      syncRotation.value = withTiming(0, { duration: 150 });
+    }
+  }, [syncingCalories]);
+  const syncIconStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${syncRotation.value}deg` }] }));
 
   return (
     <ScreenContainer>
@@ -94,6 +119,16 @@ export default function Dashboard() {
         {/* Progress Ring */}
         <Animated.View entering={SlideInDown.delay(0).springify()}>
         <Card style={styles.ringCard}>
+          {healthConnectEnabled && (
+            <Pressable
+              style={styles.syncIconBtn}
+              disabled={syncingCalories}
+              onPress={handleSyncCalories}
+              hitSlop={8}
+            >
+              <Animated.Text style={[styles.syncIconText, syncIconStyle]}>↻</Animated.Text>
+            </Pressable>
+          )}
           <View style={styles.ringRow}>
             <ProgressRing
               consumed={dailyTotals.calories}
@@ -253,6 +288,8 @@ const styles = StyleSheet.create({
   },
   calorieBannerText: { color: Colors.danger, fontWeight: '600', fontSize: 14 },
   ringCard: { padding: 20 },
+  syncIconBtn: { position: 'absolute', top: 12, right: 12, padding: 6, zIndex: 1 },
+  syncIconText: { fontSize: 16, color: Colors.accent },
   ringRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   ringRight: { flex: 1 },
   burnedRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },

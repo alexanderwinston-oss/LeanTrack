@@ -191,4 +191,5 @@ export interface AchievementStats {
   hasLoggedDespiteOvereating: boolean;
   hasLoggedLateNight: boolean;
   hasLoggedEarlyMorning: boolean;
+  hasConnectedHealthConnect: boolean;
 }
