@@ -5,10 +5,16 @@ import {
   getSdkStatus,
   SdkAvailabilityStatus,
   openHealthConnectSettings,
+  getGrantedPermissions,
 } from 'react-native-health-connect';
 import { getLocalDateString } from './utils';
 
 export { openHealthConnectSettings };
+
+const REQUIRED_HEALTH_PERMISSIONS = [
+  { accessType: 'read', recordType: 'TotalCaloriesBurned' },
+  { accessType: 'read', recordType: 'ActiveCaloriesBurned' },
+] as const;
 
 export async function isHealthConnectAvailable(): Promise<boolean> {
   try {
@@ -19,16 +25,28 @@ export async function isHealthConnectAvailable(): Promise<boolean> {
   }
 }
 
-export async function requestHealthPermissions(): Promise<boolean> {
+// requestPermission()'s own resolved value is unreliable — it only reflects a single
+// in-app dialog invocation and never re-resolves if the user instead grants access from
+// Health Connect's own settings screen (see matinzd/react-native-health-connect#147, #137).
+// Always re-verify against the actual granted set instead of trusting that return value.
+export async function hasHealthPermissions(): Promise<boolean> {
   try {
-    const granted = await requestPermission([
-      { accessType: 'read', recordType: 'TotalCaloriesBurned' },
-      { accessType: 'read', recordType: 'ActiveCaloriesBurned' },
-    ]);
-    return granted.length > 0;
+    const granted = await getGrantedPermissions();
+    return REQUIRED_HEALTH_PERMISSIONS.every((required) =>
+      granted.some((g) => g.accessType === required.accessType && g.recordType === required.recordType)
+    );
   } catch {
     return false;
   }
+}
+
+export async function requestHealthPermissions(): Promise<boolean> {
+  try {
+    await requestPermission([...REQUIRED_HEALTH_PERMISSIONS]);
+  } catch {
+    return false;
+  }
+  return hasHealthPermissions();
 }
 
 export async function getTodayCaloriesBurned(): Promise<number> {

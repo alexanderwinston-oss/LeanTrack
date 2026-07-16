@@ -1,6 +1,6 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert, Dimensions, LayoutAnimation, Modal, Platform, ScrollView, StyleSheet, Text,
+  Alert, AppState, Dimensions, LayoutAnimation, Modal, Platform, ScrollView, StyleSheet, Text,
   TextInput, TouchableOpacity, UIManager, View,
 } from 'react-native';
 
@@ -19,7 +19,7 @@ import {
   getAchievementStats, getProfile, getSetting, recalculateTargetsAfterActivityChange, resetAllData, saveProfile,
   setSetting, updateWeightEntry, updateWeightInitial,
 } from '@/lib/db';
-import { getTodayCaloriesBurned, isHealthConnectAvailable, openHealthConnectSettings, requestHealthPermissions } from '@/lib/healthConnect';
+import { getTodayCaloriesBurned, hasHealthPermissions, isHealthConnectAvailable, openHealthConnectSettings, requestHealthPermissions } from '@/lib/healthConnect';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import { cancelAllNotifications, scheduleAllNotifications } from '@/lib/notifications';
 import { AchievementStats, ActivityLevel, WeightEntry } from '@/lib/types';
@@ -101,6 +101,16 @@ export default function Profil() {
       }
     }, [profile])
   );
+
+  // requestPermission()'s own result is unreliable when the user instead grants access
+  // from Health Connect's own settings screen (see lib/healthConnect.ts) — re-check
+  // whenever the app comes back to the foreground so that round trip gets picked up.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') recheckHealthConnect();
+    });
+    return () => sub.remove();
+  }, [healthConnectEnabled]);
 
   async function loadWeightEntries() {
     const entries = await getAllWeightEntries();
@@ -229,6 +239,16 @@ export default function Profil() {
       setCaloriesBurned(calories);
     } finally {
       setSyncingHealth(false);
+    }
+  }
+
+  async function recheckHealthConnect() {
+    if (healthConnectEnabled) return;
+    if (!(await isHealthConnectAvailable())) return;
+    if (await hasHealthPermissions()) {
+      await setSetting('health_connect_enabled', '1');
+      setHealthConnectEnabled(true);
+      await handleManualSync();
     }
   }
 
