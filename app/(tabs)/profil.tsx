@@ -19,7 +19,7 @@ import {
   getAchievementStats, getProfile, getSetting, recalculateTargetsAfterActivityChange, resetAllData, saveProfile,
   setSetting, updateWeightEntry, updateWeightInitial,
 } from '@/lib/db';
-import { getTodayCaloriesBurned, isHealthConnectAvailable, requestHealthPermissions } from '@/lib/healthConnect';
+import { getTodayCaloriesBurned, isHealthConnectAvailable, openHealthConnectSettings, requestHealthPermissions } from '@/lib/healthConnect';
 import KeyboardAwareModal from '@/components/KeyboardAwareModal';
 import { cancelAllNotifications, scheduleAllNotifications } from '@/lib/notifications';
 import { AchievementStats, ActivityLevel, WeightEntry } from '@/lib/types';
@@ -252,7 +252,11 @@ export default function Profil() {
         } else {
           Alert.alert(
             'Permission refusée',
-            'Autorise LeanTrack à lire tes données Health Connect dans les paramètres Android.'
+            'Autorise LeanTrack à lire tes données Health Connect dans les paramètres.',
+            [
+              { text: 'Annuler', style: 'cancel' },
+              { text: 'Ouvrir Santé Connect', onPress: () => openHealthConnectSettings() },
+            ]
           );
         }
       } finally {

@@ -4,8 +4,11 @@ import {
   readRecords,
   getSdkStatus,
   SdkAvailabilityStatus,
+  openHealthConnectSettings,
 } from 'react-native-health-connect';
 import { getLocalDateString } from './utils';
+
+export { openHealthConnectSettings };
 
 export async function isHealthConnectAvailable(): Promise<boolean> {
   try {
