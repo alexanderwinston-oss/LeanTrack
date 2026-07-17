@@ -410,6 +410,12 @@ export default function Journal() {
         </LockedFeature>
       </View>
 
+      {isYesterday && (
+        <View style={styles.yesterdayBanner}>
+          <Text style={styles.yesterdayBannerText}>✏️ Tu modifies les repas d'hier</Text>
+        </View>
+      )}
+
       <ScrollView contentContainerStyle={styles.scroll}>
         <View key={mountKey}>
         {SECTIONS.map(({ type, label, emoji }, index) => (
@@ -749,6 +755,15 @@ const styles = StyleSheet.create({
   datePillActive: { borderColor: Colors.accent, backgroundColor: Colors.accentSubtle },
   datePillText: { fontSize: 13, color: Colors.textSecondary, fontWeight: '600' },
   datePillTextActive: { color: Colors.accent },
+  yesterdayBanner: {
+    marginHorizontal: 20, marginTop: 12, marginBottom: 8,
+    paddingVertical: 8,
+    borderRadius: Colors.radius, borderWidth: 1, borderColor: Colors.warning,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+  },
+  yesterdayBannerText: {
+    color: Colors.warning, fontSize: 13, fontWeight: '600', textAlign: 'center',
+  },
   j1WaterChipsRow: { flexDirection: 'row', gap: 8 },
   j1WaterChip: {
     paddingHorizontal: 14, paddingVertical: 8,

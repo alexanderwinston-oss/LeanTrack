@@ -39,9 +39,13 @@ export default function Dashboard() {
 
   useFocusEffect(
     useCallback(() => {
+      let cancelled = false;
       const today = getLocalDateString();
       refreshDailyData(today);
-      getStreakDays().then(setStreak);
+      getStreakDays().then((s) => {
+        if (!cancelled) setStreak(s);
+      });
+      return () => { cancelled = true; };
     }, [])
   );
 
