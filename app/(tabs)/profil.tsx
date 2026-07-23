@@ -237,6 +237,12 @@ export default function Profil() {
     try {
       const calories = await getTodayCaloriesBurned();
       setCaloriesBurned(calories);
+      Alert.alert(
+        '✅ Synchronisé',
+        calories > 0
+          ? `${calories} kcal brûlées récupérées.`
+          : 'Aucune donnée trouvée dans Health Connect pour aujourd\'hui.'
+      );
     } finally {
       setSyncingHealth(false);
     }
@@ -430,12 +436,12 @@ export default function Profil() {
           </View>
           {healthConnectEnabled && (
             <TouchableOpacity
-              style={styles.hcSyncLink}
+              style={[styles.hcSyncLink, syncingHealth && { opacity: 0.5 }]}
               disabled={syncingHealth}
               onPress={handleManualSync}
             >
               <Text style={{ color: Colors.accent, fontSize: 13 }}>
-                ↻ Synchroniser maintenant
+                {syncingHealth ? '⏳ Synchronisation...' : '↻ Synchroniser maintenant'}
               </Text>
             </TouchableOpacity>
           )}
