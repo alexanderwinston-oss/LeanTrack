@@ -72,6 +72,10 @@ export default function Dashboard() {
   const waterProgress = Math.min(dailyTotals.water_ml / waterTarget, 1);
   const calorieRatio = calorieTarget > 0 ? dailyTotals.calories / calorieTarget : 0;
   const showCalorieBanner = calorieRatio >= 0.9 && calorieRatio <= 1.15;
+  const adjustedTarget = (profile?.calorie_target ?? 0) + caloriesBurned;
+  const remainingCalories = Math.max(adjustedTarget - (dailyTotals?.calories ?? 0), 0);
+  const isOver = (dailyTotals?.calories ?? 0) > adjustedTarget;
+  const overBy = (dailyTotals?.calories ?? 0) - adjustedTarget;
 
   const fillWidth = useSharedValue(0);
   useEffect(() => {
@@ -147,48 +151,42 @@ export default function Dashboard() {
               />
             </View>
           </View>
-          {(() => {
-            const adjustedTarget = (profile?.calorie_target ?? 0) + caloriesBurned;
-            const remainingCalories = Math.max(
-              adjustedTarget - (dailyTotals?.calories ?? 0),
-              0
-            );
-            const isOver = (dailyTotals?.calories ?? 0) > adjustedTarget;
-            const overBy = (dailyTotals?.calories ?? 0) - adjustedTarget;
-            return (
-              <View style={{
-                alignItems: 'center',
-                marginTop: 8,
-                paddingTop: 8,
-                borderTopWidth: 1,
-                borderTopColor: Colors.border,
-              }}>
-                <Text style={{
-                  color: isOver ? Colors.danger : Colors.accent,
-                  fontSize: 36,
-                  fontWeight: '700',
-                  letterSpacing: -0.5,
-                }}>
-                  {isOver ? `-${overBy}` : `${remainingCalories}`} kcal
-                </Text>
-                <Text style={{
-                  color: Colors.textMuted,
-                  fontSize: 12,
-                  marginTop: 2,
-                }}>
-                  {isOver ? 'au-dessus de l\'objectif' : 'restantes aujourd\'hui'}
-                </Text>
-                {healthConnectEnabled && caloriesBurned > 0 && (
-                  <View style={styles.burnedRow}>
-                    <Text style={styles.burnedIcon}>🔥</Text>
-                    <Text style={styles.burnedText}>
-                      {caloriesBurned} kcal brûlées aujourd'hui
-                    </Text>
+          <View style={styles.calorieHeroBlock}>
+            <Text style={[styles.calorieHeroText, { color: isOver ? Colors.danger : Colors.accent }]}>
+              {isOver ? `-${overBy}` : `${remainingCalories}`} kcal
+            </Text>
+            <Text style={styles.calorieHeroLabel}>
+              {isOver
+                ? 'au-dessus de l\'objectif'
+                : healthConnectEnabled && caloriesBurned > 0
+                  ? 'disponibles aujourd\'hui'
+                  : 'restantes aujourd\'hui'}
+            </Text>
+
+            {healthConnectEnabled && !isOver && (
+              <View style={styles.calorieBreakdown}>
+                <View style={styles.calorieBreakdownRow}>
+                  <Text style={styles.calorieBreakdownLabel}>Objectif</Text>
+                  <Text style={styles.calorieBreakdownValue}>{profile?.calorie_target ?? 0} kcal</Text>
+                </View>
+                {caloriesBurned > 0 && (
+                  <View style={styles.calorieBreakdownRow}>
+                    <Text style={[styles.calorieBreakdownLabel, styles.calorieBreakdownAccent]}>+ Brûlées</Text>
+                    <Text style={[styles.calorieBreakdownValue, styles.calorieBreakdownAccent]}>+{caloriesBurned} kcal</Text>
                   </View>
                 )}
+                <View style={styles.calorieBreakdownRow}>
+                  <Text style={styles.calorieBreakdownLabel}>Consommées</Text>
+                  <Text style={styles.calorieBreakdownValue}>-{dailyTotals?.calories ?? 0} kcal</Text>
+                </View>
+                <View style={styles.calorieBreakdownDivider} />
+                <View style={styles.calorieBreakdownRow}>
+                  <Text style={styles.calorieBreakdownTotalLabel}>Disponibles</Text>
+                  <Text style={styles.calorieBreakdownTotalValue}>{remainingCalories} kcal</Text>
+                </View>
               </View>
-            );
-          })()}
+            )}
+          </View>
         </Card>
         </Animated.View>
 
@@ -296,9 +294,17 @@ const styles = StyleSheet.create({
   syncIconText: { fontSize: 16, color: Colors.accent },
   ringRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
   ringRight: { flex: 1 },
-  burnedRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  burnedIcon: { fontSize: 13 },
-  burnedText: { fontSize: 13, color: Colors.textSecondary },
+  calorieHeroBlock: { alignItems: 'center', marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: Colors.border },
+  calorieHeroText: { fontSize: 36, fontWeight: '700', letterSpacing: -0.5 },
+  calorieHeroLabel: { color: Colors.textMuted, fontSize: 12, marginTop: 2 },
+  calorieBreakdown: { width: '100%', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: Colors.border },
+  calorieBreakdownRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
+  calorieBreakdownLabel: { fontSize: 12, color: Colors.textSecondary },
+  calorieBreakdownValue: { fontSize: 12, fontWeight: '600', color: Colors.textSecondary },
+  calorieBreakdownAccent: { color: Colors.accent },
+  calorieBreakdownDivider: { borderTopWidth: 1, borderTopColor: Colors.border, marginVertical: 4 },
+  calorieBreakdownTotalLabel: { fontSize: 13, fontWeight: '700', color: Colors.accent },
+  calorieBreakdownTotalValue: { fontSize: 13, fontWeight: '700', color: Colors.accent },
   waterCard: { gap: 12 },
   waterHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   waterLabel: { fontSize: 15, fontWeight: '600', color: Colors.textPrimary },
