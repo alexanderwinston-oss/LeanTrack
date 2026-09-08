@@ -11,6 +11,7 @@
       "package": "com.alexander.leantrack",
       "versionCode": 1,
       "softwareKeyboardLayoutMode": "pan",
+      "allowBackup": false,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
