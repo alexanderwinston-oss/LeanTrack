@@ -5,8 +5,9 @@ import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { initDB, healData, healOrphanedProfile, recoverMainProfile, getProfile, getSetting, getUnlockedAchievements, checkAndUnlockAchievements } from '@/lib/db';
+import { initDB, healData, healOrphanedProfile, recoverMainProfile, migrateDefaultProfile, getProfile, getSetting, getUnlockedAchievements, checkAndUnlockAchievements } from '@/lib/db';
 import { isHealthConnectAvailable, getTodayCaloriesBurned } from '@/lib/healthConnect';
+import { supabase } from '@/lib/supabase';
 import { UserProfile } from '@/lib/types';
 import { useGlobalBackHandler } from '@/lib/useModalManager';
 import { useStore } from '@/lib/store';
@@ -32,6 +33,7 @@ export default function RootLayout() {
   const setUnlockedAchievementIds = useStore((s) => s.setUnlockedAchievementIds);
   const setCaloriesBurned = useStore((s) => s.setCaloriesBurned);
   const setHealthConnectEnabled = useStore((s) => s.setHealthConnectEnabled);
+  const setSupabaseUser = useStore((s) => s.setSupabaseUser);
 
   useGlobalBackHandler();
 
@@ -58,9 +60,37 @@ export default function RootLayout() {
     return () => sub.remove();
   }, []);
 
+  // Fires on sign-out (from anywhere in the app) and on token refresh failure —
+  // both cases mean the session is gone, so bounce straight to /login.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        setSupabaseUser(null);
+        router.replace('/login');
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   useEffect(() => {
     (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        setReady(true);
+        await SplashScreen.hideAsync();
+        router.replace('/login');
+        return;
+      }
+
+      const authUser = session.user;
+      setSupabaseUser({
+        id: authUser.id,
+        email: authUser.email ?? null,
+        avatar_url: authUser.user_metadata?.avatar_url ?? null,
+      });
+
       try { await initDB(); } catch (e) { console.error('[startup] initDB', e); }
+      try { await migrateDefaultProfile(authUser.id); } catch (e) { console.error('[startup] migrateDefaultProfile', e); }
       try { await recoverMainProfile(); } catch (e) { console.error('[startup] recoverMainProfile', e); }
       try { await healData(); } catch (e) { console.error('[startup] healData', e); }
       try { await healOrphanedProfile(); } catch (e) { console.error('[startup] healOrphanedProfile', e); }
@@ -120,6 +150,7 @@ export default function RootLayout() {
             animationDuration: 220,
           }}
         >
+          <Stack.Screen name="login" options={{ animation: 'fade' }} />
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="photo-analyse" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />

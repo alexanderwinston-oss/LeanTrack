@@ -19,6 +19,8 @@ interface AppState {
   caloriesBurned: number;
   healthConnectEnabled: boolean;
   pendingHealthToast: { icon: string; title: string; subtitle: string } | null;
+  supabaseUser: { id: string; email: string | null; avatar_url: string | null } | null;
+  setSupabaseUser: (user: { id: string; email: string | null; avatar_url: string | null } | null) => void;
   setProfile: (profile: UserProfile) => void;
   refreshDailyData: (date: string) => Promise<void>;
   addMealToStore: (meal: Meal) => Promise<void>;
@@ -56,8 +58,10 @@ export const useStore = create<AppState>((set, get) => ({
   caloriesBurned: 0,
   healthConnectEnabled: false,
   pendingHealthToast: null,
+  supabaseUser: null,
 
   setProfile: (profile) => set({ profile }),
+  setSupabaseUser: (user) => set({ supabaseUser: user }),
   setPendingImage: (b64) => set({ pendingImageBase64: b64 }),
   setCurrentMealType: (type) => set({ currentMealType: type }),
   setPendingMealDate: (date) => set({ pendingMealDate: date }),
