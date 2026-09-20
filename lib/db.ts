@@ -330,9 +330,6 @@ export async function initDB(): Promise<void> {
     ['user_profile', 'display_name', "TEXT DEFAULT ''"],
     ['user_profile', 'is_active', 'INTEGER DEFAULT 0'],
     ['user_profile', 'weight_initial', 'REAL DEFAULT NULL'],
-    ['user_profile', 'google_id', 'TEXT DEFAULT NULL'],
-    ['user_profile', 'email', 'TEXT DEFAULT NULL'],
-    ['user_profile', 'avatar_url', 'TEXT DEFAULT NULL'],
   ];
   for (const [table, col, def] of migrations) {
     await safeAlterAdd(db, table, col, def);
@@ -496,40 +493,6 @@ export async function switchProfile(profileId: string): Promise<void> {
     [profileId]
   );
   _activeProfileId = profileId;
-}
-
-// Migrates the legacy 'default' profile_id to a Supabase user's UUID on first
-// login after this device already had local data. Runs once, atomically — if
-// a profile already exists for newProfileId (already migrated, or this device
-// already has an account for that user), it's a no-op so nothing is overwritten.
-export async function migrateDefaultProfile(newProfileId: string): Promise<void> {
-  const db = await getDB();
-
-  const defaultProfile = await db.getFirstAsync<{ id: number }>(
-    "SELECT id FROM user_profile WHERE profile_id = 'default'"
-  );
-  if (!defaultProfile) return;
-
-  const existingProfile = await db.getFirstAsync<{ id: number }>(
-    'SELECT id FROM user_profile WHERE profile_id = ?', [newProfileId]
-  );
-  if (existingProfile) return;
-
-  await db.withTransactionAsync(async () => {
-    await db.runAsync("UPDATE user_profile SET profile_id = ? WHERE profile_id = 'default'", [newProfileId]);
-    await db.runAsync("UPDATE meals SET profile_id = ? WHERE profile_id = 'default'", [newProfileId]);
-    await db.runAsync("UPDATE water_log SET profile_id = ? WHERE profile_id = 'default'", [newProfileId]);
-    await db.runAsync("UPDATE weight_log SET profile_id = ? WHERE profile_id = 'default'", [newProfileId]);
-    await db.runAsync("UPDATE achievements SET profile_id = ? WHERE profile_id = 'default'", [newProfileId]);
-    await db.runAsync("UPDATE water_favorites SET profile_id = ? WHERE profile_id = 'default'", [newProfileId]);
-    await db.runAsync("UPDATE recipes SET profile_id = ? WHERE profile_id = 'default'", [newProfileId]);
-    await db.runAsync("UPDATE coach_analyses SET profile_id = ? WHERE profile_id = 'default'", [newProfileId]);
-    await db.runAsync(
-      "INSERT OR REPLACE INTO settings (key, value) VALUES ('active_profile_id', ?)", [newProfileId]
-    );
-  });
-
-  _activeProfileId = newProfileId;
 }
 
 export async function deleteProfile(profileId: string): Promise<void> {
