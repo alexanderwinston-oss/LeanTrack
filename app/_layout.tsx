@@ -12,11 +12,14 @@ import { UserProfile } from '@/lib/types';
 import { useGlobalBackHandler } from '@/lib/useModalManager';
 import { useStore } from '@/lib/store';
 import { getLocalDateString } from '@/lib/utils';
+import { installGlobalErrorHandler } from '@/lib/errorHandler';
 import { Colors } from '@/constants/Colors';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import LevelUpToast from '@/components/LevelUpToast';
 import HealthConnectToast from '@/components/HealthConnectToast';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
+installGlobalErrorHandler();
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -51,6 +54,23 @@ export default function RootLayout() {
     const calories = await getTodayCaloriesBurned();
     setCaloriesBurned(calories);
   }
+
+  // Belt-and-suspenders: if startup never reaches setReady(true) for any reason
+  // we didn't anticipate, don't leave the user staring at a blank screen forever —
+  // force the app visible after 12s so it's at least usable, even in a degraded state.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setReady((prev) => {
+        if (!prev) {
+          console.error('[startup] timed out waiting for startup sequence — forcing ready');
+          SplashScreen.hideAsync().catch(() => {});
+          router.replace('/login');
+        }
+        return true;
+      });
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
@@ -146,6 +166,7 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
+    <ErrorBoundary>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="light" />
@@ -177,5 +198,6 @@ export default function RootLayout() {
         />
       </SafeAreaProvider>
     </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
