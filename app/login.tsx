@@ -1,17 +1,28 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Colors } from '@/constants/Colors';
 import { supabase } from '@/lib/supabase';
 
-GoogleSignin.configure({
-  webClientId: '650219101258-ha2fb5qutdk8fms25bgq046ljb5opm7d.apps.googleusercontent.com',
-  scopes: ['profile', 'email'],
-});
-
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [configReady, setConfigReady] = useState(false);
+
+  // Runs once when this screen mounts — not at module scope, so a native hiccup here
+  // only disables the Google button instead of taking down the whole app on launch.
+  useEffect(() => {
+    try {
+      GoogleSignin.configure({
+        webClientId: '650219101258-ha2fb5qutdk8fms25bgq046ljb5opm7d.apps.googleusercontent.com',
+        scopes: ['profile', 'email'],
+      });
+      setConfigReady(true);
+    } catch (e) {
+      console.error('[login] GoogleSignin.configure', e);
+      setError('Service de connexion indisponible. Réessaie plus tard.');
+    }
+  }, []);
 
   async function handleGoogleSignIn() {
     setLoading(true);
@@ -54,7 +65,7 @@ export default function Login() {
         <TouchableOpacity
           style={styles.googleBtn}
           onPress={handleGoogleSignIn}
-          disabled={loading}
+          disabled={loading || !configReady}
           activeOpacity={0.85}
         >
           {loading ? (

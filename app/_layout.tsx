@@ -74,7 +74,14 @@ export default function RootLayout() {
 
   useEffect(() => {
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      // Never let a broken session check hang the app on the splash screen forever —
+      // treat any failure to read the session the same as "no session".
+      let session: import('@supabase/supabase-js').Session | null = null;
+      try {
+        session = (await supabase.auth.getSession()).data.session;
+      } catch (e) {
+        console.error('[startup] getSession', e);
+      }
       if (!session) {
         setReady(true);
         await SplashScreen.hideAsync();
