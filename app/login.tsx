@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Colors } from '@/constants/Colors';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
@@ -33,7 +33,7 @@ export default function Login() {
       const idToken = response.data?.idToken;
       if (!idToken) throw new Error('No ID token received');
 
-      const { error: authError } = await supabase.auth.signInWithIdToken({
+      const { error: authError } = await getSupabase().auth.signInWithIdToken({
         provider: 'google',
         token: idToken,
       });

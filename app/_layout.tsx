@@ -7,7 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { initDB, healData, healOrphanedProfile, recoverMainProfile, migrateDefaultProfile, getProfile, getSetting, getUnlockedAchievements, checkAndUnlockAchievements } from '@/lib/db';
 import { isHealthConnectAvailable, getTodayCaloriesBurned } from '@/lib/healthConnect';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 import { UserProfile } from '@/lib/types';
 import { useGlobalBackHandler } from '@/lib/useModalManager';
 import { useStore } from '@/lib/store';
@@ -83,7 +83,7 @@ export default function RootLayout() {
   // Fires on sign-out (from anywhere in the app) and on token refresh failure —
   // both cases mean the session is gone, so bounce straight to /login.
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = getSupabase().auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         setSupabaseUser(null);
         router.replace('/login');
@@ -98,7 +98,7 @@ export default function RootLayout() {
       // treat any failure to read the session the same as "no session".
       let session: import('@supabase/supabase-js').Session | null = null;
       try {
-        session = (await supabase.auth.getSession()).data.session;
+        session = (await getSupabase().auth.getSession()).data.session;
       } catch (e) {
         console.error('[startup] getSession', e);
       }

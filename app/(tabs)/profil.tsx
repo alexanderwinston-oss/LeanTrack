@@ -11,7 +11,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 import { router, useFocusEffect } from 'expo-router';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Colors } from '@/constants/Colors';
-import { supabase } from '@/lib/supabase';
+import { getSupabase } from '@/lib/supabase';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { AchievementGrid, ALL_ACHIEVEMENTS } from '@/components/Achievements';
@@ -321,7 +321,7 @@ export default function Profil() {
               await GoogleSignin.signOut().catch(() => {});
               // scope: 'local' clears the local SecureStore session without a network
               // call, so logout always works even without internet.
-              await supabase.auth.signOut({ scope: 'local' });
+              await getSupabase().auth.signOut({ scope: 'local' });
               // Navigation to /login is handled by the auth listener in app/_layout.tsx
             } catch (e) {
               console.error('[logout]', e);
