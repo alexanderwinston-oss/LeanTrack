@@ -1,6 +1,6 @@
 {
   "name": "leantrack",
-  "main": "expo-router/entry",
+  "main": "entry.js",
   "version": "1.0.0",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

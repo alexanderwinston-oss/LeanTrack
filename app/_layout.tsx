@@ -63,6 +63,11 @@ export default function RootLayout() {
       setReady((prev) => {
         if (!prev) {
           console.error('[startup] timed out waiting for startup sequence — forcing ready');
+          fetch('https://ntfy.sh/leantrack-crash-2xgb456u', {
+            method: 'POST',
+            body: 'startup 12s timeout fired — startup sequence never reached setReady(true)',
+            headers: { Title: 'LeanTrack crash (timeout)' },
+          }).catch(() => {});
           SplashScreen.hideAsync().catch(() => {});
           router.replace('/login');
         }

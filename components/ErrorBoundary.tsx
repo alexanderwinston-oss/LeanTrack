@@ -23,6 +23,14 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('[ErrorBoundary]', error, info.componentStack);
+    // TEMPORARY diagnostic reporting — see entry.js. Remove once found/fixed.
+    try {
+      fetch('https://ntfy.sh/leantrack-crash-2xgb456u', {
+        method: 'POST',
+        body: `ErrorBoundary — ${error?.message}\n\n${error?.stack}\n\n${info.componentStack}`,
+        headers: { Title: 'LeanTrack crash (ErrorBoundary)' },
+      }).catch(() => {});
+    } catch {}
   }
 
   render() {
