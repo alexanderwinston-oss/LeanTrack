@@ -9,7 +9,9 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 import { router, useFocusEffect } from 'expo-router';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Colors } from '@/constants/Colors';
+import { supabase } from '@/lib/supabase';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { AchievementGrid, ALL_ACHIEVEMENTS } from '@/components/Achievements';
@@ -65,6 +67,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 export default function Profil() {
   const profile = useStore((s) => s.profile);
   const setProfile = useStore((s) => s.setProfile);
+  const supabaseUser = useStore((s) => s.supabaseUser);
   const healthConnectEnabled = useStore((s) => s.healthConnectEnabled);
   const setHealthConnectEnabled = useStore((s) => s.setHealthConnectEnabled);
   const caloriesBurned = useStore((s) => s.caloriesBurned);
@@ -303,6 +306,33 @@ export default function Profil() {
     }
   }
 
+  function handleLogout() {
+    Alert.alert(
+      'Se déconnecter',
+      'Tu seras redirigé vers l\'écran de connexion.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Se déconnecter',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // Best effort — can fail offline, that's fine
+              await GoogleSignin.signOut().catch(() => {});
+              // scope: 'local' clears the local SecureStore session without a network
+              // call, so logout always works even without internet.
+              await supabase.auth.signOut({ scope: 'local' });
+              // Navigation to /login is handled by the auth listener in app/_layout.tsx
+            } catch (e) {
+              console.error('[logout]', e);
+              router.replace('/login');
+            }
+          },
+        },
+      ]
+    );
+  }
+
   function confirmReset() {
     Alert.alert(
       '⚠️ Réinitialiser les données',
@@ -445,6 +475,18 @@ export default function Profil() {
               </Text>
             </TouchableOpacity>
           )}
+
+          <View style={styles.divider} />
+          <View style={styles.hcRow1}>
+            <Text style={styles.hcIcon}>👤</Text>
+            <Text style={styles.hcLabel}>Compte Google</Text>
+          </View>
+          <Text style={styles.hcStatusText}>{supabaseUser?.email ?? 'Connecté'}</Text>
+          <View style={styles.hcActionRow}>
+            <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+              <Text style={styles.logoutBtnText}>Se déconnecter</Text>
+            </TouchableOpacity>
+          </View>
         </Card>
 
         {/* Weight tracking */}
@@ -832,6 +874,12 @@ const styles = StyleSheet.create({
   hcStatusText: { fontSize: 13, color: Colors.textSecondary, paddingTop: 4, paddingBottom: 12 },
   hcActionRow: { alignItems: 'flex-end' },
   hcSyncLink: { marginTop: 12, alignSelf: 'flex-end' },
+  logoutBtn: {
+    backgroundColor: 'rgba(186, 26, 26, 0.08)', borderRadius: Colors.radiusPill,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: Colors.danger,
+  },
+  logoutBtnText: { color: Colors.danger, fontSize: 12, fontWeight: '600' },
   weightSection: { gap: 0 },
   weightSectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4,

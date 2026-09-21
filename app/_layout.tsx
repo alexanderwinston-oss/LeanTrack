@@ -5,17 +5,21 @@ import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { initDB, healData, healOrphanedProfile, recoverMainProfile, getProfile, getSetting, getUnlockedAchievements, checkAndUnlockAchievements } from '@/lib/db';
+import { initDB, healData, healOrphanedProfile, recoverMainProfile, migrateDefaultProfile, getProfile, getSetting, getUnlockedAchievements, checkAndUnlockAchievements } from '@/lib/db';
 import { isHealthConnectAvailable, getTodayCaloriesBurned } from '@/lib/healthConnect';
+import { supabase } from '@/lib/supabase';
 import { UserProfile } from '@/lib/types';
 import { useGlobalBackHandler } from '@/lib/useModalManager';
 import { useStore } from '@/lib/store';
 import { getLocalDateString } from '@/lib/utils';
+import { installGlobalErrorHandler } from '@/lib/errorHandler';
 import { Colors } from '@/constants/Colors';
 import BadgeCelebration from '@/components/BadgeCelebration';
 import LevelUpToast from '@/components/LevelUpToast';
 import HealthConnectToast from '@/components/HealthConnectToast';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
+installGlobalErrorHandler();
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
@@ -32,6 +36,7 @@ export default function RootLayout() {
   const setUnlockedAchievementIds = useStore((s) => s.setUnlockedAchievementIds);
   const setCaloriesBurned = useStore((s) => s.setCaloriesBurned);
   const setHealthConnectEnabled = useStore((s) => s.setHealthConnectEnabled);
+  const setSupabaseUser = useStore((s) => s.setSupabaseUser);
 
   useGlobalBackHandler();
 
@@ -50,6 +55,23 @@ export default function RootLayout() {
     setCaloriesBurned(calories);
   }
 
+  // Belt-and-suspenders: if startup never reaches setReady(true) for any reason
+  // we didn't anticipate, don't leave the user staring at a blank screen forever —
+  // force the app visible after 12s so it's at least usable, even in a degraded state.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setReady((prev) => {
+        if (!prev) {
+          console.error('[startup] timed out waiting for startup sequence — forcing ready');
+          SplashScreen.hideAsync().catch(() => {});
+          router.replace('/login');
+        }
+        return true;
+      });
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((response) => {
       const screen = response.notification.request.content.data?.screen as string | undefined;
@@ -58,9 +80,44 @@ export default function RootLayout() {
     return () => sub.remove();
   }, []);
 
+  // Fires on sign-out (from anywhere in the app) and on token refresh failure —
+  // both cases mean the session is gone, so bounce straight to /login.
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        setSupabaseUser(null);
+        router.replace('/login');
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   useEffect(() => {
     (async () => {
+      // Never let a broken session check hang the app on the splash screen forever —
+      // treat any failure to read the session the same as "no session".
+      let session: import('@supabase/supabase-js').Session | null = null;
+      try {
+        session = (await supabase.auth.getSession()).data.session;
+      } catch (e) {
+        console.error('[startup] getSession', e);
+      }
+      if (!session) {
+        setReady(true);
+        await SplashScreen.hideAsync();
+        router.replace('/login');
+        return;
+      }
+
+      const authUser = session.user;
+      setSupabaseUser({
+        id: authUser.id,
+        email: authUser.email ?? null,
+        avatar_url: authUser.user_metadata?.avatar_url ?? null,
+      });
+
       try { await initDB(); } catch (e) { console.error('[startup] initDB', e); }
+      try { await migrateDefaultProfile(authUser.id); } catch (e) { console.error('[startup] migrateDefaultProfile', e); }
       try { await recoverMainProfile(); } catch (e) { console.error('[startup] recoverMainProfile', e); }
       try { await healData(); } catch (e) { console.error('[startup] healData', e); }
       try { await healOrphanedProfile(); } catch (e) { console.error('[startup] healOrphanedProfile', e); }
@@ -109,6 +166,7 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
+    <ErrorBoundary>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <StatusBar style="light" />
@@ -120,6 +178,7 @@ export default function RootLayout() {
             animationDuration: 220,
           }}
         >
+          <Stack.Screen name="login" options={{ animation: 'fade' }} />
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="photo-analyse" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
@@ -139,5 +198,6 @@ export default function RootLayout() {
         />
       </SafeAreaProvider>
     </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
