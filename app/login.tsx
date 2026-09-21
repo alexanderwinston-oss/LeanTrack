@@ -1,30 +1,42 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Colors } from '@/constants/Colors';
 import { getSupabase } from '@/lib/supabase';
+
+// A static `import { GoogleSignin } from '@react-native-google-signin/google-signin'`
+// runs `TurboModuleRegistry.getEnforcing('RNGoogleSignin')` at module-load time —
+// this throws synchronously if the native TurboModule isn't found, and a static
+// import can never be wrapped in try/catch, so that throw is unrecoverable and
+// takes the whole app down before any error handler exists. Loading the package
+// dynamically defers that risk to a point where it can actually be caught.
+type GoogleSigninModule = typeof import('@react-native-google-signin/google-signin');
 
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [configReady, setConfigReady] = useState(false);
+  const [mod, setMod] = useState<GoogleSigninModule | null>(null);
 
-  // Runs once when this screen mounts — not at module scope, so a native hiccup here
-  // only disables the Google button instead of taking down the whole app on launch.
   useEffect(() => {
-    try {
-      GoogleSignin.configure({
-        webClientId: '650219101258-ha2fb5qutdk8fms25bgq046ljb5opm7d.apps.googleusercontent.com',
-        scopes: ['profile', 'email'],
-      });
-      setConfigReady(true);
-    } catch (e) {
-      console.error('[login] GoogleSignin.configure', e);
-      setError('Service de connexion indisponible. Réessaie plus tard.');
-    }
+    (async () => {
+      try {
+        const m: GoogleSigninModule = await import('@react-native-google-signin/google-signin');
+        m.GoogleSignin.configure({
+          webClientId: '650219101258-ha2fb5qutdk8fms25bgq046ljb5opm7d.apps.googleusercontent.com',
+          scopes: ['profile', 'email'],
+        });
+        setMod(m);
+        setConfigReady(true);
+      } catch (e) {
+        console.error('[login] GoogleSignin load/configure', e);
+        setError('Service de connexion Google indisponible sur cet appareil.');
+      }
+    })();
   }, []);
 
   async function handleGoogleSignIn() {
+    if (!mod) return;
+    const { GoogleSignin, statusCodes } = mod;
     setLoading(true);
     setError(null);
     try {

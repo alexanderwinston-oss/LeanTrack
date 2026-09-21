@@ -9,7 +9,6 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 import { router, useFocusEffect } from 'expo-router';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { Colors } from '@/constants/Colors';
 import { getSupabase } from '@/lib/supabase';
 import { Card } from '@/components/ui/Card';
@@ -317,8 +316,12 @@ export default function Profil() {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Best effort — can fail offline, that's fine
-              await GoogleSignin.signOut().catch(() => {});
+              // Dynamic import — see app/login.tsx for why this package can never be
+              // statically imported at module scope. Best effort: can fail offline.
+              try {
+                const { GoogleSignin } = await import('@react-native-google-signin/google-signin');
+                await GoogleSignin.signOut();
+              } catch {}
               // scope: 'local' clears the local SecureStore session without a network
               // call, so logout always works even without internet.
               await getSupabase().auth.signOut({ scope: 'local' });
