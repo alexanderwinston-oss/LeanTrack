@@ -5,6 +5,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@react-native-community/slider": "5.2.0",
+    "@react-native-google-signin/google-signin": "^16.1.5",
     "date-fns": "^4.3.0",
     "expo": "~56.0.4",
     "expo-build-properties": "~56.0.23",
